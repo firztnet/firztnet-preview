@@ -234,7 +234,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   }
 
   const idx = STAGES.findIndex((s) => s.key === t.estado_actual);
-  const siguiente = idx >= 0 && idx < 3 ? STAGES[idx + 1] : null;
+  const siguiente = idx >= 0 && idx < 4 ? STAGES[idx + 1] : null;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
@@ -247,7 +247,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${COLORS.amber}`, flexShrink: 0 }} />
           <div>
             <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: COLORS.amber }}>#{t.numero_orden}</div>
-            <div style={{ fontFamily: "Oswald", fontSize: 18, color: COLORS.text }}>Comprobante de recepción</div>
+            <div style={{ fontFamily: "Oswald", fontSize: 18, color: COLORS.text }}>{stage.label}</div>
           </div>
         </div>
 
@@ -270,9 +270,6 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                   {guardando ? <Loader2 size={13} className="spin" /> : `→ ${siguiente.label}`}
                 </button>
               )}
-              <button disabled={guardando} onClick={() => avanzar("listo")} style={{ ...btnStyle("transparent", COLORS.green, COLORS.line), flex: "none", padding: "8px 12px" }}>
-                Marcar listo
-              </button>
             </div>
             <div style={{ marginTop: 10 }}>
               <input
