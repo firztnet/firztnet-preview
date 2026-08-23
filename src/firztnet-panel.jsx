@@ -398,6 +398,249 @@ function NuevaReparacionModal({ onClose, onCreada }) {
   );
 }
 
+// -------------------- vista: Clientes --------------------
+function ClientesView() {
+  const [clientes, setClientes] = useState([]);
+  const [query, setQuery] = useState("");
+  const [seleccionado, setSeleccionado] = useState(null);
+  const [detalle, setDetalle] = useState(null);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = useCallback(async (q) => {
+    setCargando(true);
+    try {
+      const data = await apiGet(`/clientes${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+      setClientes(data);
+    } catch (e) {
+      // silencioso: el aviso general del backend ya se muestra en la vista de Reparaciones
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => cargar(query), 300);
+    return () => clearTimeout(t);
+  }, [query, cargar]);
+
+  async function verDetalle(cliente) {
+    setSeleccionado(cliente);
+    setDetalle(null);
+    try {
+      const data = await apiGet(`/clientes/${cliente.id}`);
+      setDetalle(data);
+    } catch (e) {
+      setDetalle({ error: e.message });
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 20 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
+          <Search size={14} color={COLORS.textDim} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente por nombre..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando clientes...</div>}
+          {!cargando && clientes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>No hay clientes todavía.</div>}
+          {clientes.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => verDetalle(c)}
+              style={{
+                background: seleccionado?.id === c.id ? COLORS.surfaceRaised : COLORS.surface,
+                border: `1px solid ${seleccionado?.id === c.id ? COLORS.amber : COLORS.line}`,
+                borderRadius: 10, padding: "12px 14px", textAlign: "left", cursor: "pointer",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>{c.nombre}</div>
+                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{c.telefono || "Sin teléfono"}{c.email ? ` · ${c.email}` : ""}</div>
+              </div>
+              <ChevronRight size={16} color={COLORS.textDim} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ width: 300, flexShrink: 0 }}>
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, minHeight: 200 }}>
+          {!seleccionado && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Selecciona un cliente para ver su historial.</div>}
+          {seleccionado && !detalle && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+          {detalle && !detalle.error && (
+            <>
+              <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>{detalle.nombre}</div>
+              <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 14 }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : ""}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+                Historial ({detalle.reparaciones?.length || 0})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {(detalle.reparaciones || []).map((r) => {
+                  const st = STAGES.find((s) => s.key === r.estado_actual) || STAGES[0];
+                  return (
+                    <div key={r.id} style={{ borderLeft: `2px solid ${st.accent}`, paddingLeft: 8 }}>
+                      <div style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", color: st.accent }}>#{r.numero_orden}</div>
+                      <div style={{ fontSize: 12.5, color: COLORS.text }}>{r.equipo}</div>
+                      <div style={{ fontSize: 11, color: COLORS.textDim }}>{st.label}</div>
+                    </div>
+                  );
+                })}
+                {detalle.reparaciones?.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Sin reparaciones registradas.</div>}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Reportes --------------------
+function ReportesView({ reporteDiario, reporteMensual, contador }) {
+  const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Hoy</div>
+          <Row label="Equipos recibidos" value={reporteDiario.equipos_recibidos ?? 0} />
+          <Row label="Equipos entregados" value={reporteDiario.equipos_entregados ?? 0} />
+          <Row label="Ingresos" value={`${num(reporteDiario.ingresos)} €`} />
+          <Row label="Gastos" value={`${num(reporteDiario.gastos)} €`} />
+          <div style={{ borderTop: `1px solid ${COLORS.line}`, marginTop: 8, paddingTop: 8 }}>
+            <Row label="Balance neto" value={`${num(reporteDiario.balance_neto)} €`} />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+          <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Este mes ({reporteMensual.mes})</div>
+          <Row label="Reparaciones entregadas" value={reporteMensual.reparaciones_entregadas ?? 0} />
+          <Row label="No reparables" value={reporteMensual.reparaciones_no_reparables ?? 0} />
+          <Row label="Ticket medio" value={`${num(reporteMensual.ticket_medio)} €`} />
+          <Row label="Ingresos" value={`${num(reporteMensual.ingresos)} €`} />
+          <Row label="Gastos" value={`${num(reporteMensual.gastos)} €`} />
+          <div style={{ borderTop: `1px solid ${COLORS.line}`, marginTop: 8, paddingTop: 8 }}>
+            <Row label="Balance neto" value={`${num(reporteMensual.balance_neto)} €`} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Contador de reparaciones</div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <StatCard label="Totales" value={contador.total} icon={Ticket} accent={COLORS.amber} />
+          <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
+          <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
+          <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.rust} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Caja --------------------
+function CajaView({ onMovimientoCreado }) {
+  const [movimientos, setMovimientos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [form, setForm] = useState({ tipo: "gasto", concepto: "", monto: "", metodo_pago: "efectivo" });
+  const [guardando, setGuardando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const data = await apiGet("/finanzas");
+      setMovimientos(data);
+    } catch (e) {
+      // el aviso general ya se ve en Reparaciones
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function guardar() {
+    if (!form.monto) return;
+    setGuardando(true);
+    try {
+      await apiPost("/finanzas", { ...form, monto: parseFloat(form.monto) });
+      setForm({ tipo: "gasto", concepto: "", monto: "", metodo_pago: "efectivo" });
+      setMostrarForm(false);
+      cargar();
+      onMovimientoCreado?.();
+    } catch (e) {
+      // silencioso, se puede mejorar con un mensaje visible si hace falta
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const inputStyle = { width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <button onClick={() => setMostrarForm((v) => !v)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Plus size={14} /> Nuevo movimiento
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Tipo</div>
+            <select value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} style={inputStyle}>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Concepto</div>
+            <input style={inputStyle} value={form.concepto} onChange={(e) => setForm((f) => ({ ...f, concepto: e.target.value }))} placeholder="Ej. Compra de repuestos" />
+          </div>
+          <div style={{ width: 110 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Monto (€)</div>
+            <input style={inputStyle} type="number" value={form.monto} onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Método</div>
+            <select value={form.metodo_pago} onChange={(e) => setForm((f) => ({ ...f, metodo_pago: e.target.value }))} style={inputStyle}>
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+          <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px" }}>
+            {guardando ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+        {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando movimientos...</div>}
+        {!cargando && movimientos.length === 0 && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Sin movimientos registrados todavía.</div>}
+        {movimientos.map((m, i) => (
+          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}` }}>
+            <div>
+              <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{m.concepto || (m.tipo === "ingreso" ? "Ingreso" : "Gasto")}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{fechaLarga(m.fecha)}{m.metodo_pago ? ` · ${m.metodo_pago}` : ""}</div>
+            </div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13.5, color: m.tipo === "ingreso" ? COLORS.green : COLORS.rust }}>
+              {m.tipo === "ingreso" ? "+" : "−"}{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function FirztnetPanel() {
   const [reparaciones, setReparaciones] = useState([]);
   const [contador, setContador] = useState({ total: 0, en_curso: 0, entregadas: 0, no_reparables: 0 });
@@ -408,6 +651,7 @@ export default function FirztnetPanel() {
   const [query, setQuery] = useState("");
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
+  const [vista, setVista] = useState("reparaciones");
 
   const cargarTodo = useCallback(async () => {
     setErrorCarga("");
@@ -469,12 +713,16 @@ export default function FirztnetPanel() {
             <span style={{ fontFamily: "Oswald", fontSize: 17, letterSpacing: 0.5 }}>FIRZTNET</span>
           </div>
           {[
-            { icon: LayoutGrid, label: "Reparaciones", active: true },
-            { icon: Users, label: "Clientes" },
-            { icon: FileBarChart, label: "Reportes" },
-            { icon: Banknote, label: "Caja" },
+            { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones" },
+            { key: "clientes", icon: Users, label: "Clientes" },
+            { key: "reportes", icon: FileBarChart, label: "Reportes" },
+            { key: "caja", icon: Banknote, label: "Caja" },
           ].map((item) => (
-            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: item.active ? COLORS.surfaceRaised : "transparent", color: item.active ? COLORS.amber : COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}>
+            <div
+              key={item.label}
+              onClick={() => setVista(item.key)}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.surfaceRaised : "transparent", color: vista === item.key ? COLORS.amber : COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}
+            >
               <item.icon size={16} />
               {item.label}
             </div>
@@ -484,12 +732,21 @@ export default function FirztnetPanel() {
         <main style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
-              <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>Panel de reparaciones</h1>
-              <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
+              <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
+                {vista === "reparaciones" && "Panel de reparaciones"}
+                {vista === "clientes" && "Clientes"}
+                {vista === "reportes" && "Reportes"}
+                {vista === "caja" && "Caja"}
+              </h1>
+              {vista === "reparaciones" && (
+                <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
+              )}
             </div>
-            <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
-              <Plus size={15} /> Nueva reparación
-            </button>
+            {vista === "reparaciones" && (
+              <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
+                <Plus size={15} /> Nueva reparación
+              </button>
+            )}
           </div>
 
           {errorCarga && (
@@ -498,13 +755,20 @@ export default function FirztnetPanel() {
             </div>
           )}
 
+          {vista === "clientes" && <ClientesView />}
+          {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} />}
+          {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
+
+          {vista === "reparaciones" && (
           <div style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
             <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} />
             <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
             <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
             <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.rust} />
           </div>
+          )}
 
+          {vista === "reparaciones" && (
           <div style={{ display: "flex", gap: 20 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
@@ -569,12 +833,13 @@ export default function FirztnetPanel() {
                     <span style={{ color: r.c, fontFamily: "'IBM Plex Mono', monospace" }}>{Number(r.v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
                   </div>
                 ))}
-                <button style={{ ...btnStyle("transparent", COLORS.teal, COLORS.line), marginTop: 12, padding: "8px 10px" }}>
+                <button onClick={() => setVista("reportes")} style={{ ...btnStyle("transparent", COLORS.teal, COLORS.line), marginTop: 12, padding: "8px 10px" }}>
                   Ver informe completo <ChevronRight size={13} />
                 </button>
               </div>
             </div>
           </div>
+          )}
         </main>
       </div>
 
