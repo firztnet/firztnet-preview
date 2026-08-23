@@ -186,9 +186,51 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [comprobante, setComprobante] = useState(null);
   const [generando, setGenerando] = useState(false);
   const [envioEmail, setEnvioEmail] = useState(null);
+  const [movimientos, setMovimientos] = useState([]);
+  const [cargandoCobros, setCargandoCobros] = useState(true);
+  const [montoCobro, setMontoCobro] = useState("");
+  const [conceptoCobro, setConceptoCobro] = useState("Reparación");
+  const [metodoCobro, setMetodoCobro] = useState("efectivo");
+  const [guardandoCobro, setGuardandoCobro] = useState(false);
+  const [errorCobro, setErrorCobro] = useState("");
+
+  useEffect(() => {
+    if (!t) return;
+    setCargandoCobros(true);
+    apiGet(`/reparaciones/${t.id}`)
+      .then((data) => setMovimientos(data.movimientos || []))
+      .catch(() => {})
+      .finally(() => setCargandoCobros(false));
+  }, [t?.id]);
 
   if (!t) return null;
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+
+  const totalCobrado = movimientos.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + Number(m.monto), 0);
+
+  async function registrarCobro() {
+    setErrorCobro("");
+    if (!montoCobro || parseFloat(montoCobro) <= 0) {
+      setErrorCobro("Indica un importe válido.");
+      return;
+    }
+    setGuardandoCobro(true);
+    try {
+      const nuevo = await apiPost("/finanzas", {
+        reparacion_id: t.id,
+        tipo: "ingreso",
+        concepto: conceptoCobro,
+        monto: parseFloat(montoCobro),
+        metodo_pago: metodoCobro,
+      });
+      setMovimientos((prev) => [nuevo, ...prev]);
+      setMontoCobro("");
+    } catch (e) {
+      setErrorCobro(e.message);
+    } finally {
+      setGuardandoCobro(false);
+    }
+  }
 
   async function generarComprobante() {
     setGenerando(true);
@@ -258,6 +300,52 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
           <Row label="Estado" value={stage.label} />
           {t.fecha_fin_garantia && <Row label="Garantía hasta" value={fechaLarga(t.fecha_fin_garantia)} />}
+        </div>
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Cobro</div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13.5, color: totalCobrado > 0 ? COLORS.green : COLORS.textDim }}>
+              {totalCobrado > 0 ? `Cobrado: ${totalCobrado.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €` : "Sin cobros registrados"}
+            </div>
+          </div>
+
+          {!cargandoCobros && movimientos.filter((m) => m.tipo === "ingreso").length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+              {movimientos.filter((m) => m.tipo === "ingreso").map((m) => (
+                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: COLORS.textDim }}>
+                  <span>{m.concepto} · {m.metodo_pago}</span>
+                  <span style={{ color: COLORS.green }}>+{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {errorCobro && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorCobro}</div>}
+
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input
+              value={conceptoCobro}
+              onChange={(e) => setConceptoCobro(e.target.value)}
+              placeholder="Concepto"
+              style={{ flex: "1 1 120px", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" }}
+            />
+            <input
+              value={montoCobro}
+              onChange={(e) => setMontoCobro(e.target.value)}
+              type="number"
+              placeholder="Importe (€)"
+              style={{ width: 100, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" }}
+            />
+            <select value={metodoCobro} onChange={(e) => setMetodoCobro(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}>
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+          <button disabled={guardandoCobro} onClick={registrarCobro} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 8, padding: "9px 12px" }}>
+            {guardandoCobro ? "Registrando..." : "Registrar cobro"}
+          </button>
         </div>
 
         {!["entregado", "no_reparable"].includes(t.estado_actual) && (
