@@ -238,7 +238,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, width: 400, maxWidth: "100%", padding: 24, position: "relative", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="fn-modal-box" style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, width: 400, maxWidth: "100%", padding: 24, position: "relative", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: COLORS.textDim, cursor: "pointer" }}>
           <X size={18} />
         </button>
@@ -369,7 +369,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, width: 380, maxWidth: "100%", padding: 24, position: "relative" }}>
+      <div onClick={(e) => e.stopPropagation()} className="fn-modal-box" style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, width: 380, maxWidth: "100%", padding: 24, position: "relative" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: COLORS.textDim, cursor: "pointer" }}>
           <X size={18} />
         </button>
@@ -435,9 +435,9 @@ function ClientesView() {
   }
 
   return (
-    <div style={{ display: "flex", gap: 20 }}>
+    <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
+        <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
           <Search size={14} color={COLORS.textDim} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente por nombre..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
         </div>
@@ -466,7 +466,7 @@ function ClientesView() {
         </div>
       </div>
 
-      <div style={{ width: 300, flexShrink: 0 }}>
+      <div className="fn-side-panel" style={{ width: 300, flexShrink: 0 }}>
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, minHeight: 200 }}>
           {!seleccionado && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Selecciona un cliente para ver su historial.</div>}
           {seleccionado && !detalle && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
@@ -703,10 +703,42 @@ export default function FirztnetPanel() {
   return (
     <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif" }}>
       <link rel="stylesheet" href={FONTS_URL} />
+      <style>{`
+        @media (max-width: 768px) {
+          .fn-sidebar {
+            width: 100% !important;
+            min-height: auto !important;
+            flex-direction: row !important;
+            justify-content: space-around !important;
+            align-items: center !important;
+            padding: 8px 6px !important;
+            border-right: none !important;
+            border-top: 1px solid ${COLORS.line};
+            position: fixed !important;
+            bottom: 0; left: 0; right: 0;
+            background: ${COLORS.surface} !important;
+            z-index: 40;
+          }
+          .fn-sidebar .fn-logo { display: none !important; }
+          .fn-sidebar .fn-navitem { flex-direction: column !important; gap: 2px !important; font-size: 10px !important; padding: 6px 4px !important; margin-bottom: 0 !important; }
+          .fn-sidebar .fn-navitem svg { width: 18px; height: 18px; }
+          .fn-shell { flex-direction: column !important; }
+          .fn-main { max-width: 100% !important; padding: 16px 14px 78px 14px !important; }
+          .fn-header-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+          .fn-header-row button { width: 100% !important; }
+          .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+          .fn-stat-grid > div { min-width: 0 !important; }
+          .fn-content-flex { flex-direction: column !important; }
+          .fn-side-panel { width: 100% !important; }
+          .fn-search { max-width: 100% !important; }
+          .fn-kanban-col { flex: 0 0 200px !important; min-width: 200px !important; }
+          .fn-modal-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; }
+        }
+      `}</style>
 
-      <div style={{ display: "flex" }}>
-        <aside style={{ width: 210, background: COLORS.surface, borderRight: `1px solid ${COLORS.line}`, minHeight: "100vh", padding: "22px 16px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 30, paddingLeft: 4 }}>
+      <div className="fn-shell" style={{ display: "flex" }}>
+        <aside className="fn-sidebar" style={{ width: 210, background: COLORS.surface, borderRight: `1px solid ${COLORS.line}`, minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+          <div className="fn-logo" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 30, paddingLeft: 4 }}>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Wrench size={16} color="#FFFFFF" />
             </div>
@@ -720,6 +752,7 @@ export default function FirztnetPanel() {
           ].map((item) => (
             <div
               key={item.label}
+              className="fn-navitem"
               onClick={() => setVista(item.key)}
               style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.surfaceRaised : "transparent", color: vista === item.key ? COLORS.amber : COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}
             >
@@ -729,8 +762,8 @@ export default function FirztnetPanel() {
           ))}
         </aside>
 
-        <main style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
+        <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
+          <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
                 {vista === "reparaciones" && "Panel de reparaciones"}
@@ -760,7 +793,7 @@ export default function FirztnetPanel() {
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
 
           {vista === "reparaciones" && (
-          <div style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+          <div className="fn-stat-grid" style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
             <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} />
             <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
             <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
@@ -769,9 +802,9 @@ export default function FirztnetPanel() {
           )}
 
           {vista === "reparaciones" && (
-          <div style={{ display: "flex", gap: 20 }}>
+          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
+              <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
                 <Search size={14} color={COLORS.textDim} />
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
               </div>
@@ -780,7 +813,7 @@ export default function FirztnetPanel() {
                 {STAGES.map((stage) => {
                   const items = filtered.filter((t) => t.estado_actual === stage.key);
                   return (
-                    <div key={stage.key} style={{ minWidth: 240, flex: "0 0 240px" }}>
+                    <div key={stage.key} className="fn-kanban-col" style={{ minWidth: 240, flex: "0 0 240px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "0 2px" }}>
                         <StageDot color={stage.accent} />
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.text }}>{stage.label}</span>
@@ -798,7 +831,7 @@ export default function FirztnetPanel() {
               </div>
             </div>
 
-            <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: COLORS.amber, fontWeight: 600 }}>
