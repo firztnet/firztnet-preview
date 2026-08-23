@@ -12,7 +12,7 @@ import {
 // Cambia esto por la URL donde corra tu backend Flask
 // (en local, con `python run.py`, es http://localhost:5000)
 // ---------------------------------------------------------------------
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://firztnet-backend-production.up.railway.app/api";
 
 const FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap";
@@ -174,13 +174,46 @@ function Row({ label, value }) {
 }
 
 // -------------------- modal: detalle + cambio de estado --------------------
+const TIPO_COMPROBANTE = {
+  recibido: "recepcion", diagnostico: "recepcion", reparacion: "recepcion",
+  listo: "recepcion", entregado: "entrega", no_reparable: "no_reparable",
+};
+
 function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [comprobante, setComprobante] = useState(null);
+  const [generando, setGenerando] = useState(false);
+  const [envioEmail, setEnvioEmail] = useState(null);
 
   if (!t) return null;
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+
+  async function generarComprobante() {
+    setGenerando(true);
+    setError("");
+    try {
+      const tipo = TIPO_COMPROBANTE[t.estado_actual] || "recepcion";
+      const resultado = await apiPost("/comprobantes", { reparacion_id: t.id, tipo });
+      setComprobante(resultado);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  async function enviarPorEmail() {
+    if (!comprobante) return;
+    setEnvioEmail("enviando");
+    try {
+      const resultado = await apiPost(`/comprobantes/${comprobante.id}/enviar-email`, {});
+      setEnvioEmail(resultado.enviado ? "ok" : resultado.motivo || "error");
+    } catch (e) {
+      setEnvioEmail(e.message);
+    }
+  }
 
   async function avanzar(nuevoEstado) {
     setError("");
@@ -255,10 +288,45 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          <button style={btnStyle(COLORS.amber, "#FFFFFF")}>
-            <Printer size={14} /> Imprimir ticket
-          </button>
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Comprobante</div>
+
+          {!comprobante ? (
+            <button disabled={generando} onClick={generarComprobante} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%" }}>
+              {generando ? "Generando PDF..." : <><Printer size={14} /> Generar comprobante</>}
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <a
+                  href={`${API_BASE}/comprobantes/${comprobante.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), textDecoration: "none" }}
+                >
+                  <Printer size={14} /> Ver / imprimir PDF
+                </a>
+                {comprobante.enlace_whatsapp && (
+                  <a
+                    href={comprobante.enlace_whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ ...btnStyle("transparent", COLORS.green, COLORS.line), textDecoration: "none" }}
+                  >
+                    Enviar por WhatsApp
+                  </a>
+                )}
+              </div>
+              <button onClick={enviarPorEmail} disabled={envioEmail === "enviando"} style={{ ...btnStyle("transparent", COLORS.teal, COLORS.line), width: "100%" }}>
+                {envioEmail === "enviando" ? "Enviando..." : "Enviar por email"}
+              </button>
+              {envioEmail && envioEmail !== "enviando" && (
+                <div style={{ fontSize: 11.5, color: envioEmail === "ok" ? COLORS.green : COLORS.rust }}>
+                  {envioEmail === "ok" ? "Email enviado correctamente." : envioEmail}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
