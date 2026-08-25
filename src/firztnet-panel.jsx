@@ -204,6 +204,16 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       .finally(() => setCargandoCobros(false));
   }, [t?.id]);
 
+  // Olvida el comprobante anterior al abrir otra reparación, o al avanzar
+  // de estado la misma (ej. de "listo" a "entregado") — así no se queda
+  // mostrando el comprobante viejo (de recepción) en vez de dejar
+  // generar el nuevo que corresponde (de entrega).
+  useEffect(() => {
+    setComprobante(null);
+    setErrorComprobante("");
+    setEnvioEmail(null);
+  }, [t?.id, t?.estado_actual]);
+
   if (!t) return null;
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
 
@@ -422,7 +432,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
 // -------------------- modal: nueva reparación --------------------
 function NuevaReparacionModal({ onClose, onCreada }) {
-  const [form, setForm] = useState({ nombreCliente: "", telefono: "", equipo: "", problema: "" });
+  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", problema: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -438,7 +448,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
     }
     setGuardando(true);
     try {
-      const cliente = await apiPost("/clientes", { nombre: form.nombreCliente, telefono: form.telefono });
+      const cliente = await apiPost("/clientes", { nombre: form.nombreCliente, telefono: form.telefono, email: form.email });
       const reparacion = await apiPost("/reparaciones", {
         cliente_id: cliente.id,
         equipo: form.equipo,
@@ -470,6 +480,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Teléfono
           <input style={inputStyle} value={form.telefono} onChange={set("telefono")} placeholder="600 000 000" />
         </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Email <span style={{ color: COLORS.textDim, fontWeight: 400 }}>(para enviarle el comprobante)</span>
+          <input style={inputStyle} type="email" value={form.email} onChange={set("email")} placeholder="cliente@email.com" />
+        </label>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Equipo
           <input style={inputStyle} value={form.equipo} onChange={set("equipo")} placeholder="Ej. HP Pavilion 15" />
         </label>
@@ -492,6 +505,9 @@ function ClientesView() {
   const [seleccionado, setSeleccionado] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [editando, setEditando] = useState(false);
+  const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "" });
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   const cargar = useCallback(async (q) => {
     setCargando(true);
@@ -513,11 +529,32 @@ function ClientesView() {
   async function verDetalle(cliente) {
     setSeleccionado(cliente);
     setDetalle(null);
+    setEditando(false);
     try {
       const data = await apiGet(`/clientes/${cliente.id}`);
       setDetalle(data);
+      setFormEdicion({ telefono: data.telefono || "", email: data.email || "" });
     } catch (e) {
       setDetalle({ error: e.message });
+    }
+  }
+
+  async function guardarEdicion() {
+    setGuardandoEdicion(true);
+    try {
+      const res = await fetch(`${API_BASE}/clientes/${detalle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email }),
+      });
+      const actualizado = await res.json();
+      setDetalle((d) => ({ ...d, ...actualizado }));
+      setClientes((prev) => prev.map((c) => (c.id === actualizado.id ? { ...c, ...actualizado } : c)));
+      setEditando(false);
+    } catch (e) {
+      // se puede mejorar con mensaje visible si hace falta
+    } finally {
+      setGuardandoEdicion(false);
     }
   }
 
@@ -564,7 +601,38 @@ function ClientesView() {
             <>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.amber }}>{detalle.codigo}</div>
               <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>{detalle.nombre}</div>
-              <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 14 }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : ""}</div>
+
+              {!editando ? (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textDim }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : " · Sin email"}</div>
+                  <button onClick={() => setEditando(true)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <input
+                    value={formEdicion.telefono}
+                    onChange={(e) => setFormEdicion((f) => ({ ...f, telefono: e.target.value }))}
+                    placeholder="Teléfono"
+                    style={{ fontSize: 12.5, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                  />
+                  <input
+                    value={formEdicion.email}
+                    onChange={(e) => setFormEdicion((f) => ({ ...f, email: e.target.value }))}
+                    placeholder="Email"
+                    type="email"
+                    style={{ fontSize: 12.5, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button disabled={guardandoEdicion} onClick={guardarEdicion} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "6px 10px", fontSize: 11.5 }}>
+                      {guardandoEdicion ? "Guardando..." : "Guardar"}
+                    </button>
+                    <button onClick={() => setEditando(false)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), padding: "6px 10px", fontSize: 11.5 }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
                 Historial ({detalle.reparaciones?.length || 0})
               </div>
