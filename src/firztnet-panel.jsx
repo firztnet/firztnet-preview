@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, Tooltip
@@ -185,6 +185,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [error, setError] = useState("");
   const [comprobante, setComprobante] = useState(null);
   const [generando, setGenerando] = useState(false);
+  const [errorComprobante, setErrorComprobante] = useState("");
   const [envioEmail, setEnvioEmail] = useState(null);
   const [movimientos, setMovimientos] = useState([]);
   const [cargandoCobros, setCargandoCobros] = useState(true);
@@ -234,13 +235,13 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
   async function generarComprobante() {
     setGenerando(true);
-    setError("");
+    setErrorComprobante("");
     try {
       const tipo = TIPO_COMPROBANTE[t.estado_actual] || "recepcion";
       const resultado = await apiPost("/comprobantes", { reparacion_id: t.id, tipo });
       setComprobante(resultado);
     } catch (e) {
-      setError(e.message);
+      setErrorComprobante(e.message);
     } finally {
       setGenerando(false);
     }
@@ -375,6 +376,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Comprobante</div>
+          {errorComprobante && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorComprobante}</div>}
 
           {!comprobante ? (
             <button disabled={generando} onClick={generarComprobante} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%" }}>
@@ -542,7 +544,10 @@ function ClientesView() {
               }}
             >
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>{c.nombre}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.amber }}>{c.codigo}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>{c.nombre}</span>
+                </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{c.telefono || "Sin teléfono"}{c.email ? ` · ${c.email}` : ""}</div>
               </div>
               <ChevronRight size={16} color={COLORS.textDim} />
@@ -557,6 +562,7 @@ function ClientesView() {
           {seleccionado && !detalle && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
           {detalle && !detalle.error && (
             <>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.amber }}>{detalle.codigo}</div>
               <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>{detalle.nombre}</div>
               <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 14 }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : ""}</div>
               <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
@@ -726,6 +732,80 @@ function CajaView({ onMovimientoCreado }) {
   );
 }
 
+// -------------------- vista: Ajustes (datos del negocio para el recibo) --------------------
+function AjustesView() {
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "" });
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiGet("/configuracion")
+      .then((data) => setForm({ nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "", direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "" }))
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  }, []);
+
+  function set(field) {
+    return (e) => { setForm((f) => ({ ...f, [field]: e.target.value })); setGuardado(false); };
+  }
+
+  async function guardar() {
+    setGuardando(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/configuracion`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("No se pudo guardar");
+      setGuardado(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const inputStyle = { width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 };
+
+  if (cargando) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+
+  return (
+    <div style={{ maxWidth: 440 }}>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>Datos del negocio</div>
+        <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 16 }}>Aparecen en los comprobantes que generas para tus clientes.</div>
+
+        {error && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 10 }}>{error}</div>}
+
+        <label style={{ fontSize: 12, color: COLORS.textDim }}>Nombre del negocio
+          <input style={inputStyle} value={form.nombre_negocio} onChange={set("nombre_negocio")} placeholder="Firztnet" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Eslogan / descripción corta
+          <input style={inputStyle} value={form.eslogan} onChange={set("eslogan")} placeholder="Reparación y soporte técnico" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Dirección
+          <input style={inputStyle} value={form.direccion} onChange={set("direccion")} placeholder="Calle Mayor 12, Fuenlabrada" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Teléfono
+          <input style={inputStyle} value={form.telefono} onChange={set("telefono")} placeholder="910 000 000" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Email
+          <input style={inputStyle} value={form.email} onChange={set("email")} placeholder="info@firztnet.es" />
+        </label>
+
+        <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
+          {guardando ? "Guardando..." : "Guardar cambios"}
+        </button>
+        {guardado && <div style={{ fontSize: 12, color: COLORS.green, marginTop: 8 }}>Guardado. Los próximos comprobantes ya usarán estos datos.</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function FirztnetPanel() {
   const [reparaciones, setReparaciones] = useState([]);
   const [contador, setContador] = useState({ total: 0, en_curso: 0, entregadas: 0, no_reparables: 0 });
@@ -834,6 +914,7 @@ export default function FirztnetPanel() {
             { key: "clientes", icon: Users, label: "Clientes" },
             { key: "reportes", icon: FileBarChart, label: "Reportes" },
             { key: "caja", icon: Banknote, label: "Caja" },
+            { key: "ajustes", icon: Settings, label: "Ajustes" },
           ].map((item) => (
             <div
               key={item.label}
@@ -855,6 +936,7 @@ export default function FirztnetPanel() {
                 {vista === "clientes" && "Clientes"}
                 {vista === "reportes" && "Reportes"}
                 {vista === "caja" && "Caja"}
+                {vista === "ajustes" && "Ajustes"}
               </h1>
               {vista === "reparaciones" && (
                 <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
@@ -876,6 +958,7 @@ export default function FirztnetPanel() {
           {vista === "clientes" && <ClientesView />}
           {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
+          {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
           <div className="fn-stat-grid" style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
