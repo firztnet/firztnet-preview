@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, Tooltip
@@ -48,26 +48,58 @@ const TREND = [
 ];
 
 // -------------------- helpers de API --------------------
+let authToken = null;
+let onSesionExpirada = null; // lo fija la app para volver a la pantalla de login
+
+function cargarTokenGuardado() {
+  try {
+    return localStorage.getItem("firztnet_token");
+  } catch (e) {
+    return null;
+  }
+}
+function guardarToken(token) {
+  authToken = token;
+  try {
+    if (token) localStorage.setItem("firztnet_token", token);
+    else localStorage.removeItem("firztnet_token");
+  } catch (e) {
+    /* almacenamiento no disponible, seguimos solo en memoria */
+  }
+}
+function cabecerasAuth(extra = {}) {
+  return authToken ? { ...extra, Authorization: `Bearer ${authToken}` } : extra;
+}
+function manejar401(res) {
+  if (res.status === 401) {
+    guardarToken(null);
+    onSesionExpirada?.();
+  }
+}
+
 async function apiGet(path) {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, { headers: cabecerasAuth() });
+  manejar401(res);
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
   return res.json();
 }
 async function apiPost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: cabecerasAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
+  manejar401(res);
   if (!res.ok) throw new Error((await res.json()).error || `POST ${path} → ${res.status}`);
   return res.json();
 }
 async function apiPatch(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: cabecerasAuth({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
+  manejar401(res);
   if (!res.ok) throw new Error((await res.json()).error || `PATCH ${path} → ${res.status}`);
   return res.json();
 }
@@ -187,6 +219,23 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [generando, setGenerando] = useState(false);
   const [errorComprobante, setErrorComprobante] = useState("");
   const [envioEmail, setEnvioEmail] = useState(null);
+  const [viendoPdf, setViendoPdf] = useState(false);
+
+  async function verPdf(comprobanteId) {
+    setViendoPdf(true);
+    try {
+      const res = await fetch(`${API_BASE}/comprobantes/${comprobanteId}/pdf`, { headers: cabecerasAuth() });
+      manejar401(res);
+      if (!res.ok) throw new Error("No se pudo abrir el PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (e) {
+      setErrorComprobante(e.message);
+    } finally {
+      setViendoPdf(false);
+    }
+  }
   const [movimientos, setMovimientos] = useState([]);
   const [cargandoCobros, setCargandoCobros] = useState(true);
   const [montoCobro, setMontoCobro] = useState("");
@@ -395,14 +444,13 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", gap: 8 }}>
-                <a
-                  href={`${API_BASE}/comprobantes/${comprobante.id}/pdf`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), textDecoration: "none" }}
+                <button
+                  onClick={() => verPdf(comprobante.id)}
+                  disabled={viendoPdf}
+                  style={{ ...btnStyle(COLORS.amber, "#FFFFFF") }}
                 >
-                  <Printer size={14} /> Ver / imprimir PDF
-                </a>
+                  <Printer size={14} /> {viendoPdf ? "Abriendo..." : "Ver / imprimir PDF"}
+                </button>
                 {comprobante.enlace_whatsapp && (
                   <a
                     href={comprobante.enlace_whatsapp}
@@ -544,9 +592,10 @@ function ClientesView() {
     try {
       const res = await fetch(`${API_BASE}/clientes/${detalle.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: cabecerasAuth({ "Content-Type": "application/json" }),
         body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email }),
       });
+      manejar401(res);
       const actualizado = await res.json();
       setDetalle((d) => ({ ...d, ...actualizado }));
       setClientes((prev) => prev.map((c) => (c.id === actualizado.id ? { ...c, ...actualizado } : c)));
@@ -825,9 +874,10 @@ function AjustesView() {
     try {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: cabecerasAuth({ "Content-Type": "application/json" }),
         body: JSON.stringify(form),
       });
+      manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
       setGuardado(true);
     } catch (e) {
@@ -874,7 +924,93 @@ function AjustesView() {
   );
 }
 
-export default function FirztnetPanel() {
+// -------------------- pantalla de login --------------------
+function LoginScreen({ onEntrar }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [entrando, setEntrando] = useState(false);
+
+  async function entrar(e) {
+    e.preventDefault();
+    setError("");
+    setEntrando(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo iniciar sesión");
+      guardarToken(data.token);
+      onEntrar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setEntrando(false);
+    }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif" }}>
+      <link rel="stylesheet" href={FONTS_URL} />
+      <form onSubmit={entrar} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 32, width: 320, maxWidth: "90vw" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, justifyContent: "center" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Wrench size={18} color="#FFFFFF" />
+          </div>
+          <span style={{ fontFamily: "Oswald", fontSize: 20, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
+        </div>
+
+        {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginBottom: 12, textAlign: "center" }}>{error}</div>}
+
+        <label style={{ fontSize: 12, color: COLORS.textDim }}>Usuario
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+            autoFocus
+          />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 12 }}>Contraseña
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+          />
+        </label>
+
+        <button type="submit" disabled={entrando} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 20, padding: "10px 12px" }}>
+          {entrando ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default function FirztnetApp() {
+  const [autenticado, setAutenticado] = useState(false);
+  const [comprobando, setComprobando] = useState(true);
+
+  useEffect(() => {
+    const token = cargarTokenGuardado();
+    if (token) {
+      authToken = token;
+      setAutenticado(true);
+    }
+    setComprobando(false);
+    onSesionExpirada = () => setAutenticado(false);
+  }, []);
+
+  if (comprobando) return null;
+  if (!autenticado) return <LoginScreen onEntrar={() => setAutenticado(true)} />;
+
+  return <FirztnetPanel onCerrarSesion={() => { guardarToken(null); setAutenticado(false); }} />;
+}
+
+function FirztnetPanel({ onCerrarSesion }) {
   const [reparaciones, setReparaciones] = useState([]);
   const [contador, setContador] = useState({ total: 0, en_curso: 0, entregadas: 0, no_reparables: 0 });
   const [reporteDiario, setReporteDiario] = useState({ balance_neto: 0 });
@@ -994,6 +1130,14 @@ export default function FirztnetPanel() {
               {item.label}
             </div>
           ))}
+          <div
+            onClick={onCerrarSesion}
+            className="fn-navitem"
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginTop: "auto", cursor: "pointer", color: COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </div>
         </aside>
 
         <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
