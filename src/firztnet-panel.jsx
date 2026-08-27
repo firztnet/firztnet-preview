@@ -222,6 +222,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [viendoPdf, setViendoPdf] = useState(false);
 
   async function verPdf(comprobanteId) {
+    // Abrimos la ventana YA, en el mismo instante del clic — si esperamos
+    // a que termine la descarga, los navegadores bloquean la ventana por
+    // considerarla un popup no solicitado.
+    const ventana = window.open("", "_blank");
     setViendoPdf(true);
     try {
       const res = await fetch(`${API_BASE}/comprobantes/${comprobanteId}/pdf`, { headers: cabecerasAuth() });
@@ -229,8 +233,13 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       if (!res.ok) throw new Error("No se pudo abrir el PDF");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      if (ventana) {
+        ventana.location.href = url;
+      } else {
+        setErrorComprobante("El navegador bloqueó la ventana. Permite las ventanas emergentes para este sitio.");
+      }
     } catch (e) {
+      ventana?.close();
       setErrorComprobante(e.message);
     } finally {
       setViendoPdf(false);
@@ -243,6 +252,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [metodoCobro, setMetodoCobro] = useState("efectivo");
   const [guardandoCobro, setGuardandoCobro] = useState(false);
   const [errorCobro, setErrorCobro] = useState("");
+  const [viendoRecibo, setViendoRecibo] = useState(false);
+  const [generandoFactura, setGenerandoFactura] = useState(false);
+  const [facturaExistente, setFacturaExistente] = useState(null);
+  const [errorPago, setErrorPago] = useState("");
 
   useEffect(() => {
     if (!t) return;
@@ -251,6 +264,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       .then((data) => setMovimientos(data.movimientos || []))
       .catch(() => {})
       .finally(() => setCargandoCobros(false));
+    apiGet(`/facturas/reparacion/${t.id}`)
+      .then((data) => setFacturaExistente(data[0] || null))
+      .catch(() => {});
   }, [t?.id]);
 
   // Olvida el comprobante anterior al abrir otra reparación, o al avanzar
@@ -267,6 +283,52 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
 
   const totalCobrado = movimientos.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + Number(m.monto), 0);
+
+  async function abrirPdfDesdeUrl(url, ventanaPrevia) {
+    const res = await fetch(url, { headers: cabecerasAuth() });
+    manejar401(res);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "No se pudo generar el documento");
+    }
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    if (ventanaPrevia) ventanaPrevia.location.href = objUrl;
+    else window.open(objUrl, "_blank");
+  }
+
+  async function verRecibo() {
+    setErrorPago("");
+    const ventana = window.open("", "_blank");
+    setViendoRecibo(true);
+    try {
+      await abrirPdfDesdeUrl(`${API_BASE}/recibos/reparacion/${t.id}/pdf`, ventana);
+    } catch (e) {
+      ventana?.close();
+      setErrorPago(e.message);
+    } finally {
+      setViendoRecibo(false);
+    }
+  }
+
+  async function emitirOVerFactura() {
+    setErrorPago("");
+    const ventana = window.open("", "_blank");
+    setGenerandoFactura(true);
+    try {
+      let factura = facturaExistente;
+      if (!factura) {
+        factura = await apiPost("/facturas", { reparacion_id: t.id });
+        setFacturaExistente(factura);
+      }
+      await abrirPdfDesdeUrl(`${API_BASE}/facturas/${factura.id}/pdf`, ventana);
+    } catch (e) {
+      ventana?.close();
+      setErrorPago(e.message);
+    } finally {
+      setGenerandoFactura(false);
+    }
+  }
 
   async function registrarCobro() {
     setErrorCobro("");
@@ -473,6 +535,19 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             </div>
           )}
         </div>
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Recibo y factura</div>
+          {errorPago && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorPago}</div>}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={verRecibo} disabled={viendoRecibo || totalCobrado <= 0} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "1 1 130px" }}>
+              {viendoRecibo ? "Abriendo..." : "Ver recibo"}
+            </button>
+            <button onClick={emitirOVerFactura} disabled={generandoFactura || totalCobrado <= 0} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "1 1 130px" }}>
+              {generandoFactura ? "Generando..." : facturaExistente ? `Ver factura ${facturaExistente.numero}` : "Emitir factura"}
+            </button>
+          </div>
+          {totalCobrado <= 0 && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6 }}>Registra un cobro antes de generar el recibo o la factura.</div>}
+        </div>
       </div>
     </div>
   );
@@ -581,7 +656,7 @@ function ClientesView() {
     try {
       const data = await apiGet(`/clientes/${cliente.id}`);
       setDetalle(data);
-      setFormEdicion({ telefono: data.telefono || "", email: data.email || "" });
+      setFormEdicion({ telefono: data.telefono || "", email: data.email || "", nif: data.nif || "" });
     } catch (e) {
       setDetalle({ error: e.message });
     }
@@ -593,7 +668,7 @@ function ClientesView() {
       const res = await fetch(`${API_BASE}/clientes/${detalle.id}`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email }),
+        body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email, nif: formEdicion.nif }),
       });
       manejar401(res);
       const actualizado = await res.json();
@@ -653,7 +728,7 @@ function ClientesView() {
 
               {!editando ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, color: COLORS.textDim }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : " · Sin email"}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textDim }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : " · Sin email"}{detalle.nif ? ` · NIF ${detalle.nif}` : ""}</div>
                   <button onClick={() => setEditando(true)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
                 </div>
               ) : (
@@ -669,6 +744,12 @@ function ClientesView() {
                     onChange={(e) => setFormEdicion((f) => ({ ...f, email: e.target.value }))}
                     placeholder="Email"
                     type="email"
+                    style={{ fontSize: 12.5, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                  />
+                  <input
+                    value={formEdicion.nif}
+                    onChange={(e) => setFormEdicion((f) => ({ ...f, nif: e.target.value }))}
+                    placeholder="NIF (para factura)"
                     style={{ fontSize: 12.5, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
                   />
                   <div style={{ display: "flex", gap: 6 }}>
@@ -851,7 +932,7 @@ function CajaView({ onMovimientoCreado }) {
 
 // -------------------- vista: Ajustes (datos del negocio para el recibo) --------------------
 function AjustesView() {
-  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "" });
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21 });
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -859,7 +940,11 @@ function AjustesView() {
 
   useEffect(() => {
     apiGet("/configuracion")
-      .then((data) => setForm({ nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "", direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "" }))
+      .then((data) => setForm({
+        nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
+        direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
+        nif: data.nif || "", iva_pct: data.iva_pct ?? 21,
+      }))
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, []);
@@ -875,7 +960,7 @@ function AjustesView() {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21 }),
       });
       manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
@@ -913,6 +998,15 @@ function AjustesView() {
         </label>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Email
           <input style={inputStyle} value={form.email} onChange={set("email")} placeholder="info@firztnet.es" />
+        </label>
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Datos fiscales (para facturas)
+        </div>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Tu NIF
+          <input style={inputStyle} value={form.nif} onChange={set("nif")} placeholder="12345678Z" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>% de IVA que aplicas
+          <input style={inputStyle} type="number" value={form.iva_pct} onChange={set("iva_pct")} placeholder="21" />
         </label>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
