@@ -256,6 +256,21 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [generandoFactura, setGenerandoFactura] = useState(false);
   const [facturaExistente, setFacturaExistente] = useState(null);
   const [errorPago, setErrorPago] = useState("");
+  const [guardandoFecha, setGuardandoFecha] = useState(false);
+
+  async function actualizarFechaEstimada(valor) {
+    const nueva = valor ? new Date(valor).toISOString() : null;
+    if (nueva === (t.fecha_estimada || null)) return;
+    setGuardandoFecha(true);
+    try {
+      const actualizado = await apiPatch(`/reparaciones/${t.id}`, { fecha_estimada: nueva });
+      onEstadoActualizado(actualizado);
+    } catch (e) {
+      setErrorPago(e.message);
+    } finally {
+      setGuardandoFecha(false);
+    }
+  }
 
   useEffect(() => {
     if (!t) return;
@@ -421,8 +436,22 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           <Row label="Problema reportado" value={t.problema_reportado || "—"} />
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
           <Row label="Estado" value={stage.label} />
+          {!["entregado", "no_reparable"].includes(t.estado_actual) ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 13, color: COLORS.textDim }}>Fecha estimada de entrega</span>
+              <input
+                type="date"
+                defaultValue={t.fecha_estimada ? t.fecha_estimada.slice(0, 10) : ""}
+                onBlur={(e) => actualizarFechaEstimada(e.target.value)}
+                style={{ fontSize: 12.5, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+              />
+            </div>
+          ) : (
+            t.fecha_estimada && <Row label="Fecha estimada era" value={fechaLarga(t.fecha_estimada)} />
+          )}
           {t.fecha_fin_garantia && <Row label="Garantía hasta" value={fechaLarga(t.fecha_fin_garantia)} />}
         </div>
+        {guardandoFecha && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>Guardando fecha...</div>}
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -555,7 +584,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
 // -------------------- modal: nueva reparación --------------------
 function NuevaReparacionModal({ onClose, onCreada }) {
-  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", problema: "" });
+  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", problema: "", fechaEstimada: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -576,6 +605,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         cliente_id: cliente.id,
         equipo: form.equipo,
         problema_reportado: form.problema,
+        fecha_estimada: form.fechaEstimada ? new Date(form.fechaEstimada).toISOString() : null,
       });
       onCreada(reparacion);
     } catch (e) {
@@ -611,6 +641,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         </label>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Problema reportado
           <input style={inputStyle} value={form.problema} onChange={set("problema")} placeholder="Ej. No enciende" />
+        </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Fecha estimada de entrega <span style={{ fontWeight: 400 }}>(opcional)</span>
+          <input style={inputStyle} type="date" value={form.fechaEstimada} onChange={set("fechaEstimada")} />
         </label>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
@@ -1084,7 +1117,120 @@ function LoginScreen({ onEntrar }) {
   );
 }
 
+// -------------------- página pública de seguimiento (sin login) --------------------
+function SeguimientoPublico() {
+  const [numeroOrden, setNumeroOrden] = useState("");
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+
+  const tokenDeUrl = useMemo(() => new URLSearchParams(window.location.search).get("token"), []);
+
+  const consultar = useCallback(async (token) => {
+    setCargando(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/seguimiento/${token}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se encontró esa reparación");
+      setDatos(data);
+    } catch (e) {
+      setError(e.message);
+      setDatos(null);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tokenDeUrl) consultar(tokenDeUrl);
+  }, [tokenDeUrl, consultar]);
+
+  const stage = datos && (STAGES.find((s) => s.key === datos.estado_actual) || STAGES[0]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <link rel="stylesheet" href={FONTS_URL} />
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 28, width: 380, maxWidth: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, justifyContent: "center" }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Wrench size={16} color="#FFFFFF" />
+          </div>
+          <span style={{ fontFamily: "Oswald", fontSize: 18, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
+        </div>
+
+        {!tokenDeUrl && !datos && (
+          <>
+            <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 14, textAlign: "center" }}>
+              Usa el enlace que te dimos al dejar tu equipo. Si lo perdiste, contacta con nosotros con tu nº de orden.
+            </div>
+          </>
+        )}
+
+        {cargando && <div style={{ fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>Consultando...</div>}
+        {error && <div style={{ fontSize: 13, color: COLORS.rust, textAlign: "center" }}>{error}</div>}
+
+        {datos && (
+          <div>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.amber, textAlign: "center" }}>#{datos.numero_orden}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, textAlign: "center", marginTop: 2 }}>{datos.equipo}</div>
+
+            <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              {STAGES.filter((s) => s.key !== "no_reparable").map((s) => {
+                const idxActual = STAGES.findIndex((x) => x.key === datos.estado_actual);
+                const idxEsta = STAGES.findIndex((x) => x.key === s.key);
+                const completado = datos.estado_actual !== "no_reparable" && idxEsta <= idxActual;
+                return (
+                  <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 999, background: completado ? s.accent : COLORS.line, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: completado ? COLORS.text : COLORS.textDim, fontWeight: completado ? 600 : 400 }}>{s.label}</span>
+                  </div>
+                );
+              })}
+              {datos.estado_actual === "no_reparable" && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 999, background: COLORS.rust }} />
+                    <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>No reparable</span>
+                  </div>
+                  {datos.motivo_no_reparable && (
+                    <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 6, marginLeft: 20 }}>{datos.motivo_no_reparable}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {datos.fecha_estimada && !datos.fecha_entrega && datos.estado_actual !== "no_reparable" && (
+              <div style={{ marginTop: 14, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>
+                Fecha estimada de entrega: <strong style={{ color: COLORS.text }}>{fechaLarga(datos.fecha_estimada)}</strong>
+              </div>
+            )}
+
+            {datos.fecha_fin_garantia && (
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}`, display: "flex", alignItems: "center", gap: 6, color: COLORS.green, fontSize: 12.5 }}>
+                <ShieldCheck size={14} /> Garantía hasta {fechaLarga(datos.fecha_fin_garantia)}
+              </div>
+            )}
+
+            {datos.enlace_whatsapp_negocio && (
+              <a
+                href={datos.enlace_whatsapp_negocio}
+                target="_blank"
+                rel="noreferrer"
+                style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 18, textDecoration: "none", boxSizing: "border-box" }}
+              >
+                Escribir por WhatsApp
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FirztnetApp() {
+  const esPaginaSeguimiento = window.location.pathname.startsWith("/seguimiento");
   const [autenticado, setAutenticado] = useState(false);
   const [comprobando, setComprobando] = useState(true);
 
@@ -1098,6 +1244,7 @@ export default function FirztnetApp() {
     onSesionExpirada = () => setAutenticado(false);
   }, []);
 
+  if (esPaginaSeguimiento) return <SeguimientoPublico />;
   if (comprobando) return null;
   if (!autenticado) return <LoginScreen onEntrar={() => setAutenticado(true)} />;
 
