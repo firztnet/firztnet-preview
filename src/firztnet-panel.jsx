@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -16,6 +16,29 @@ const API_BASE = "https://firztnet-backend-production.up.railway.app/api";
 
 const FONTS_URL =
   "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap";
+
+// Textura decorativa de "circuito" para el fondo de la cabecera del panel —
+// líneas y nodos muy tenues, en azul, sobre transparente.
+const PATRON_CIRCUITO = `url("data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>
+  <g fill='none' stroke='#2563EB' stroke-width='1.2' opacity='0.08'>
+    <path d='M0 40 H60 V80 H140' />
+    <path d='M200 30 H150 V100 H90 V160' />
+    <path d='M0 150 H50 V120' />
+    <path d='M160 200 V150 H120 V60' />
+    <path d='M40 0 V20' />
+  </g>
+  <g fill='#2563EB' opacity='0.14'>
+    <circle cx='60' cy='40' r='3' />
+    <circle cx='140' cy='80' r='3' />
+    <circle cx='150' cy='30' r='3' />
+    <circle cx='90' cy='100' r='3' />
+    <circle cx='90' cy='160' r='3' />
+    <circle cx='50' cy='150' r='3' />
+    <circle cx='120' cy='150' r='3' />
+    <circle cx='120' cy='60' r='3' />
+  </g>
+</svg>`)}")`;
 
 const COLORS = {
   bg: "#F8FAFC",
@@ -181,16 +204,36 @@ function RepairTag({ t, onClick }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend }) {
-  return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: "16px 18px", flex: 1, minWidth: 150 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 500 }}>{label}</span>
-        <Icon size={16} color={accent} />
+function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada }) {
+  if (destacada) {
+    return (
+      <div style={{ background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden" }}>
+        <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
+        {sub && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
+            {trend === "up" && <ArrowUpRight size={12} />}
+            {trend === "down" && <ArrowDownRight size={12} />}
+            {sub}
+          </div>
+        )}
+        <div style={{ position: "absolute", right: 12, bottom: 10, width: 44, height: 44, borderRadius: 12, background: `${accent}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon size={22} color={accent} />
+        </div>
       </div>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, color: COLORS.text, marginTop: 8, fontWeight: 600 }}>{value}</div>
+    );
+  }
+  return (
+    <div style={{ background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", boxShadow: `0 8px 20px -6px ${accent}80` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.9)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
+        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon size={14} color="#FFFFFF" />
+        </div>
+      </div>
+      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
       {sub && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
           {trend === "up" && <ArrowUpRight size={12} />}
           {trend === "down" && <ArrowDownRight size={12} />}
           {sub}
@@ -1284,10 +1327,10 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
         <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Contador de reparaciones</div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <StatCard label="Totales" value={contador.total} icon={Ticket} accent={COLORS.amber} />
+          <StatCard label="Totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada />
           <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
           <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
-          <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.rust} />
+          <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} />
         </div>
       </div>
     </div>
@@ -1908,115 +1951,153 @@ function SeguimientoPublico() {
   }, [tokenDeUrl, consultar]);
 
   const stage = datos && (STAGES.find((s) => s.key === datos.estado_actual) || STAGES[0]);
+  const ICONOS_ESTADO = { recibido: Package, diagnostico: Search, reparacion: Wrench, listo: CheckCircle2, entregado: ShieldCheck, no_reparable: XCircle };
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #EFF6FF 0%, #F8FAFC 45%, #F8FAFC 100%)", fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <link rel="stylesheet" href={FONTS_URL} />
-      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 28, width: 380, maxWidth: "100%" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, justifyContent: "center" }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Wrench size={16} color="#FFFFFF" />
+      <div style={{ background: "#FFFFFF", borderRadius: 20, padding: "30px 26px", width: 400, maxWidth: "100%", boxShadow: "0 20px 50px -12px rgba(37,99,235,0.18), 0 4px 16px rgba(15,23,42,0.06)", border: "1px solid #EEF2F7" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 24, justifyContent: "center" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.amber}, #1D4ED8)`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 10px rgba(37,99,235,0.35)" }}>
+            <Wrench size={17} color="#FFFFFF" />
           </div>
-          <span style={{ fontFamily: "Oswald", fontSize: 18, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
+          <span style={{ fontFamily: "Oswald", fontSize: 19, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
         </div>
 
         {!tokenDeUrl && !datos && (
           <form onSubmit={buscarPorNumero}>
-            <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 13.5, color: COLORS.textDim, marginBottom: 16, textAlign: "center" }}>
               Consulta el estado de tu reparación
             </div>
-            <label style={{ fontSize: 12, color: COLORS.textDim }}>Nº de orden
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500 }}>Nº de orden
               <input
                 value={numeroOrden}
                 onChange={(e) => setNumeroOrden(e.target.value)}
                 placeholder="2026-0001"
-                style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+                style={{ width: "100%", fontSize: 13.5, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E2E8F0", boxSizing: "border-box", marginTop: 5, outline: "none" }}
                 required
               />
             </label>
-            <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Tu DNI o teléfono
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500, display: "block", marginTop: 12 }}>Tu DNI o teléfono
               <input
                 value={identificador}
                 onChange={(e) => setIdentificador(e.target.value)}
                 placeholder="Para confirmar que eres tú"
-                style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+                style={{ width: "100%", fontSize: 13.5, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E2E8F0", boxSizing: "border-box", marginTop: 5, outline: "none" }}
                 required
               />
             </label>
-            <button type="submit" disabled={cargando} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 16, padding: "10px 12px" }}>
+            <button type="submit" disabled={cargando} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "11px 12px", borderRadius: 10, boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
               {cargando ? "Consultando..." : "Consultar"}
             </button>
           </form>
         )}
 
-
-        {cargando && <div style={{ fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>Consultando...</div>}
-        {error && <div style={{ fontSize: 13, color: COLORS.rust, textAlign: "center" }}>{error}</div>}
+        {cargando && !datos && <div style={{ fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>Consultando...</div>}
+        {error && <div style={{ fontSize: 13, color: "#FFF", textAlign: "center", background: COLORS.rust, borderRadius: 9, padding: "8px 12px", marginTop: 8 }}>{error}</div>}
 
         {datos && (
           <div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.amber, textAlign: "center" }}>#{datos.numero_orden}</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, textAlign: "center", marginTop: 2 }}>{datos.equipo}</div>
+            <div style={{ textAlign: "center", marginBottom: 22 }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.amber, fontWeight: 600, letterSpacing: 0.3 }}>#{datos.numero_orden}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.text, marginTop: 3 }}>{datos.equipo}</div>
+              <div
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10,
+                  fontSize: 12, fontWeight: 700, color: stage.accent === COLORS.textDim ? "#475569" : stage.accent,
+                  background: datos.estado_actual === "no_reparable" ? "#FEF2F2" : datos.estado_actual === "entregado" ? "#F0FDF4" : datos.estado_actual === "listo" ? "#F0FDF4" : "#EFF6FF",
+                  padding: "5px 12px", borderRadius: 999,
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: 999, background: "currentColor" }} />
+                {datos.estado_label || stage.label}
+              </div>
+            </div>
 
-            <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-              {STAGES.filter((s) => s.key !== "no_reparable").map((s) => {
+            <div style={{ position: "relative", paddingLeft: 4 }}>
+              {STAGES.filter((s) => s.key !== "no_reparable").map((s, i, arr) => {
                 const idxActual = STAGES.findIndex((x) => x.key === datos.estado_actual);
                 const idxEsta = STAGES.findIndex((x) => x.key === s.key);
                 const completado = datos.estado_actual !== "no_reparable" && idxEsta <= idxActual;
+                const esActual = datos.estado_actual !== "no_reparable" && idxEsta === idxActual;
+                const Icono = ICONOS_ESTADO[s.key] || Package;
+                const esUltimo = i === arr.length - 1;
                 return (
-                  <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 999, background: completado ? s.accent : COLORS.line, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: completado ? COLORS.text : COLORS.textDim, fontWeight: completado ? 600 : 400 }}>{s.label}</span>
+                  <div key={s.key} style={{ display: "flex", gap: 12, position: "relative" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div
+                        style={{
+                          width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: completado ? s.accent : "#F1F5F9",
+                          color: completado ? "#FFFFFF" : "#94A3B8",
+                          boxShadow: esActual ? `0 0 0 4px ${s.accent}33` : "none",
+                          transition: "all .2s",
+                        }}
+                      >
+                        <Icono size={15} />
+                      </div>
+                      {!esUltimo && (
+                        <div style={{ width: 2, flex: 1, minHeight: 26, background: idxEsta < idxActual ? s.accent : "#E2E8F0", marginTop: 2, marginBottom: 2 }} />
+                      )}
+                    </div>
+                    <div style={{ paddingTop: 5, paddingBottom: esUltimo ? 0 : 20 }}>
+                      <div style={{ fontSize: 13.5, color: completado ? COLORS.text : "#94A3B8", fontWeight: esActual ? 700 : 500 }}>{s.label}</div>
+                    </div>
                   </div>
                 );
               })}
               {datos.estado_actual === "no_reparable" && (
-                <div style={{ marginTop: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 999, background: COLORS.rust }} />
-                    <span style={{ fontSize: 13, color: COLORS.text, fontWeight: 600 }}>No reparable</span>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.rust, color: "#FFF" }}>
+                    <XCircle size={15} />
                   </div>
-                  {datos.motivo_no_reparable && (
-                    <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 6, marginLeft: 20 }}>{datos.motivo_no_reparable}</div>
-                  )}
+                  <div style={{ paddingTop: 5 }}>
+                    <div style={{ fontSize: 13.5, color: COLORS.text, fontWeight: 700 }}>No reparable</div>
+                    {datos.motivo_no_reparable && (
+                      <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>{datos.motivo_no_reparable}</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
             {datos.fecha_estimada && !datos.fecha_entrega && datos.estado_actual !== "no_reparable" && (
-              <div style={{ marginTop: 14, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>
+              <div style={{ marginTop: 6, fontSize: 12.5, color: COLORS.textDim, textAlign: "center", background: "#F8FAFC", borderRadius: 9, padding: "8px 10px" }}>
                 Fecha estimada de entrega: <strong style={{ color: COLORS.text }}>{fechaLarga(datos.fecha_estimada)}</strong>
               </div>
             )}
 
             {datos.presupuesto && (
-              <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
-                <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }}>Presupuesto</div>
-                <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 2 }}>{datos.presupuesto.descripcion}</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, color: COLORS.amber, fontWeight: 600 }}>
+              <div style={{ marginTop: 18, background: "#F8FAFC", borderRadius: 14, padding: 16, borderLeft: `4px solid ${COLORS.amber}` }}>
+                <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6, fontWeight: 600 }}>Presupuesto</div>
+                <div style={{ fontSize: 13.5, color: COLORS.text, marginBottom: 4 }}>{datos.presupuesto.descripcion}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, color: COLORS.amber, fontWeight: 700 }}>
                   {datos.presupuesto.importe.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
                 </div>
 
                 {datos.presupuesto.estado === "aceptado" && (
-                  <div style={{ fontSize: 12.5, color: COLORS.green, fontWeight: 600, marginTop: 6 }}>✓ Aceptado, gracias</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: COLORS.green, fontWeight: 700, marginTop: 8 }}>
+                    <CheckCircle2 size={15} /> Aceptado, gracias
+                  </div>
                 )}
                 {datos.presupuesto.estado === "rechazado" && (
-                  <div style={{ fontSize: 12.5, color: COLORS.rust, fontWeight: 600, marginTop: 6 }}>Rechazado. Contáctanos si quieres comentarlo.</div>
+                  <div style={{ fontSize: 12.5, color: COLORS.rust, fontWeight: 700, marginTop: 8 }}>Rechazado. Contáctanos si quieres comentarlo.</div>
                 )}
 
                 {datos.presupuesto.estado === "pendiente" && !mostrarFirmaPresupuesto && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={() => setMostrarFirmaPresupuesto(true)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "9px 12px", fontSize: 13 }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button onClick={() => setMostrarFirmaPresupuesto(true)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "10px 12px", fontSize: 13, borderRadius: 9, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}>
                       Aceptar y firmar
                     </button>
-                    <button disabled={guardandoRespuesta} onClick={() => responderPresupuesto(false)} style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), flex: 1, padding: "9px 12px", fontSize: 13 }}>
+                    <button disabled={guardandoRespuesta} onClick={() => responderPresupuesto(false)} style={{ ...btnStyle("#FFFFFF", COLORS.rust, "#FCA5A5"), flex: "none", padding: "10px 14px", fontSize: 13, borderRadius: 9 }}>
                       Rechazar
                     </button>
                   </div>
                 )}
 
                 {datos.presupuesto.estado === "pendiente" && mostrarFirmaPresupuesto && (
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 12 }}>
                     <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 6 }}>Firma aquí para aceptar:</div>
                     <PadFirma onGuardar={(png) => responderPresupuesto(true, png)} guardando={guardandoRespuesta} textoBoton="Aceptar presupuesto" />
                   </div>
@@ -2025,8 +2106,8 @@ function SeguimientoPublico() {
             )}
 
             {datos.fecha_fin_garantia && (
-              <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}`, display: "flex", alignItems: "center", gap: 6, color: COLORS.green, fontSize: 12.5 }}>
-                <ShieldCheck size={14} /> Garantía hasta {fechaLarga(datos.fecha_fin_garantia)}
+              <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 7, color: COLORS.green, fontSize: 12.5, background: "#F0FDF4", borderRadius: 9, padding: "9px 12px" }}>
+                <ShieldCheck size={15} /> Garantía hasta {fechaLarga(datos.fecha_fin_garantia)}
               </div>
             )}
 
@@ -2035,7 +2116,7 @@ function SeguimientoPublico() {
                 href={datos.enlace_whatsapp_negocio}
                 target="_blank"
                 rel="noreferrer"
-                style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 18, textDecoration: "none", boxSizing: "border-box" }}
+                style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 16, textDecoration: "none", boxSizing: "border-box", borderRadius: 10, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}
               >
                 Escribir por WhatsApp
               </a>
@@ -2044,7 +2125,7 @@ function SeguimientoPublico() {
             {!tokenDeUrl && (
               <button
                 onClick={() => { setDatos(null); setNumeroOrden(""); setIdentificador(""); }}
-                style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 12, cursor: "pointer", width: "100%", marginTop: 12 }}
+                style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 12.5, cursor: "pointer", width: "100%", marginTop: 14 }}
               >
                 Consultar otra reparación
               </button>
@@ -2214,6 +2295,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         </aside>
 
         <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
+          <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
@@ -2250,16 +2332,17 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-          <div className="fn-stat-grid" style={{ display: "flex", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
-            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} />
+          <div className="fn-stat-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada />
             <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
             <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
-            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.rust} />
+            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} />
           </div>
           )}
+          </div>
 
           {vista === "reparaciones" && (
-          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
+          <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
                 <Search size={14} color={COLORS.textDim} />
