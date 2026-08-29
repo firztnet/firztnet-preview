@@ -1416,6 +1416,7 @@ function LoginScreen({ onEntrar }) {
 // -------------------- página pública de seguimiento (sin login) --------------------
 function SeguimientoPublico() {
   const [numeroOrden, setNumeroOrden] = useState("");
+  const [identificador, setIdentificador] = useState("");
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -1438,6 +1439,27 @@ function SeguimientoPublico() {
     }
   }, []);
 
+  async function buscarPorNumero(e) {
+    e.preventDefault();
+    setCargando(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/seguimiento/buscar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ numero_orden: numeroOrden, identificador }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se encontró esa reparación");
+      setDatos(data);
+    } catch (e) {
+      setError(e.message);
+      setDatos(null);
+    } finally {
+      setCargando(false);
+    }
+  }
+
   useEffect(() => {
     if (tokenDeUrl) consultar(tokenDeUrl);
   }, [tokenDeUrl, consultar]);
@@ -1456,12 +1478,34 @@ function SeguimientoPublico() {
         </div>
 
         {!tokenDeUrl && !datos && (
-          <>
+          <form onSubmit={buscarPorNumero}>
             <div style={{ fontSize: 13, color: COLORS.textDim, marginBottom: 14, textAlign: "center" }}>
-              Usa el enlace que te dimos al dejar tu equipo. Si lo perdiste, contacta con nosotros con tu nº de orden.
+              Consulta el estado de tu reparación
             </div>
-          </>
+            <label style={{ fontSize: 12, color: COLORS.textDim }}>Nº de orden
+              <input
+                value={numeroOrden}
+                onChange={(e) => setNumeroOrden(e.target.value)}
+                placeholder="2026-0001"
+                style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+                required
+              />
+            </label>
+            <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Tu DNI o teléfono
+              <input
+                value={identificador}
+                onChange={(e) => setIdentificador(e.target.value)}
+                placeholder="Para confirmar que eres tú"
+                style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
+                required
+              />
+            </label>
+            <button type="submit" disabled={cargando} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 16, padding: "10px 12px" }}>
+              {cargando ? "Consultando..." : "Consultar"}
+            </button>
+          </form>
         )}
+
 
         {cargando && <div style={{ fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>Consultando...</div>}
         {error && <div style={{ fontSize: 13, color: COLORS.rust, textAlign: "center" }}>{error}</div>}
@@ -1517,6 +1561,15 @@ function SeguimientoPublico() {
               >
                 Escribir por WhatsApp
               </a>
+            )}
+
+            {!tokenDeUrl && (
+              <button
+                onClick={() => { setDatos(null); setNumeroOrden(""); setIdentificador(""); }}
+                style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 12, cursor: "pointer", width: "100%", marginTop: 12 }}
+              >
+                Consultar otra reparación
+              </button>
             )}
           </div>
         )}
