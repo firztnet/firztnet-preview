@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, Tooltip
@@ -257,6 +257,75 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [facturaExistente, setFacturaExistente] = useState(null);
   const [errorPago, setErrorPago] = useState("");
   const [guardandoFecha, setGuardandoFecha] = useState(false);
+  const [fotos, setFotos] = useState([]);
+  const [subiendoFotos, setSubiendoFotos] = useState(false);
+  const [errorFotos, setErrorFotos] = useState("");
+  const [repuestosUsados, setRepuestosUsados] = useState([]);
+  const [listaRepuestos, setListaRepuestos] = useState([]);
+  const [repuestoSeleccionado, setRepuestoSeleccionado] = useState("");
+  const [cantidadRepuesto, setCantidadRepuesto] = useState(1);
+  const [asignandoRepuesto, setAsignandoRepuesto] = useState(false);
+  const [errorRepuesto, setErrorRepuesto] = useState("");
+
+  async function asignarRepuesto() {
+    if (!repuestoSeleccionado) return;
+    setAsignandoRepuesto(true);
+    setErrorRepuesto("");
+    try {
+      const uso = await apiPost(`/reparaciones/${t.id}/repuestos`, {
+        repuesto_id: parseInt(repuestoSeleccionado, 10),
+        cantidad: parseInt(cantidadRepuesto, 10) || 1,
+      });
+      setRepuestosUsados((prev) => [...prev, uso]);
+      setListaRepuestos((prev) =>
+        prev.map((r) => (r.id === uso.repuesto.id ? { ...r, stock_actual: r.stock_actual - uso.cantidad } : r))
+      );
+      setRepuestoSeleccionado("");
+      setCantidadRepuesto(1);
+    } catch (e) {
+      setErrorRepuesto(e.message);
+    } finally {
+      setAsignandoRepuesto(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!t) return;
+    apiGet(`/reparaciones/${t.id}/fotos`).then(setFotos).catch(() => {});
+  }, [t?.id]);
+
+  async function subirFotos(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    setSubiendoFotos(true);
+    setErrorFotos("");
+    try {
+      const formData = new FormData();
+      Array.from(fileList).forEach((f) => formData.append("foto", f));
+      const res = await fetch(`${API_BASE}/reparaciones/${t.id}/fotos`, {
+        method: "POST",
+        headers: cabecerasAuth(),
+        body: formData,
+      });
+      manejar401(res);
+      const nuevas = await res.json();
+      if (!res.ok) throw new Error(nuevas.error || "No se pudieron subir las fotos");
+      setFotos((prev) => [...prev, ...nuevas]);
+    } catch (e) {
+      setErrorFotos(e.message);
+    } finally {
+      setSubiendoFotos(false);
+    }
+  }
+
+  async function borrarFoto(fotoId) {
+    try {
+      const res = await fetch(`${API_BASE}/fotos/${fotoId}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      if (res.ok) setFotos((prev) => prev.filter((f) => f.id !== fotoId));
+    } catch (e) {
+      /* silencioso */
+    }
+  }
 
   async function actualizarFechaEstimada(valor) {
     const nueva = valor ? new Date(valor).toISOString() : null;
@@ -276,12 +345,16 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     if (!t) return;
     setCargandoCobros(true);
     apiGet(`/reparaciones/${t.id}`)
-      .then((data) => setMovimientos(data.movimientos || []))
+      .then((data) => {
+        setMovimientos(data.movimientos || []);
+        setRepuestosUsados(data.repuestos_usados || []);
+      })
       .catch(() => {})
       .finally(() => setCargandoCobros(false));
     apiGet(`/facturas/reparacion/${t.id}`)
       .then((data) => setFacturaExistente(data[0] || null))
       .catch(() => {});
+    apiGet("/repuestos").then(setListaRepuestos).catch(() => {});
   }, [t?.id]);
 
   // Olvida el comprobante anterior al abrir otra reparación, o al avanzar
@@ -452,6 +525,82 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           {t.fecha_fin_garantia && <Row label="Garantía hasta" value={fechaLarga(t.fecha_fin_garantia)} />}
         </div>
         {guardandoFecha && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>Guardando fecha...</div>}
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Fotos de recepción</div>
+            <label style={{ fontSize: 11.5, color: COLORS.amber, cursor: "pointer" }}>
+              {subiendoFotos ? "Subiendo..." : "+ Añadir foto"}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                capture="environment"
+                onChange={(e) => subirFotos(e.target.files)}
+                style={{ display: "none" }}
+                disabled={subiendoFotos}
+              />
+            </label>
+          </div>
+          {errorFotos && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorFotos}</div>}
+          {fotos.length === 0 ? (
+            <div style={{ fontSize: 12, color: COLORS.textDim, display: "flex", alignItems: "center", gap: 6 }}>
+              <Camera size={14} /> Sin fotos todavía — útil para dejar constancia de rayones o golpes previos.
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {fotos.map((f) => (
+                <div key={f.id} style={{ position: "relative", width: 70, height: 70 }}>
+                  <a href={`${API_BASE}/fotos/${f.id}/archivo`} target="_blank" rel="noreferrer">
+                    <img
+                      src={`${API_BASE}/fotos/${f.id}/archivo`}
+                      alt="Foto de recepción"
+                      style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: `1px solid ${COLORS.line}`, display: "block" }}
+                    />
+                  </a>
+                  <button
+                    onClick={() => borrarFoto(f.id)}
+                    style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: COLORS.rust, color: "#FFF", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                    title="Eliminar foto"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Repuestos usados</div>
+          {errorRepuesto && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorRepuesto}</div>}
+          {repuestosUsados.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+              {repuestosUsados.map((u) => (
+                <div key={u.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: COLORS.textDim }}>
+                  <span>{u.cantidad}× {u.repuesto?.nombre}</span>
+                  <span>{(u.cantidad * u.precio_aplicado).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!["entregado", "no_reparable"].includes(t.estado_actual) && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={repuestoSeleccionado} onChange={(e) => setRepuestoSeleccionado(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}>
+                <option value="">Elegir repuesto...</option>
+                {listaRepuestos.map((r) => (
+                  <option key={r.id} value={r.id} disabled={r.stock_actual <= 0}>
+                    {r.nombre} (stock: {r.stock_actual})
+                  </option>
+                ))}
+              </select>
+              <input type="number" min="1" value={cantidadRepuesto} onChange={(e) => setCantidadRepuesto(e.target.value)} style={{ width: 50, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+              <button disabled={asignandoRepuesto || !repuestoSeleccionado} onClick={asignarRepuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12 }}>
+                Usar
+              </button>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -964,6 +1113,153 @@ function CajaView({ onMovimientoCreado }) {
 }
 
 // -------------------- vista: Ajustes (datos del negocio para el recibo) --------------------
+// -------------------- vista: Inventario --------------------
+function InventarioView() {
+  const [repuestos, setRepuestos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [form, setForm] = useState({ nombre: "", categoria: "", proveedor_id: "", stock_actual: 0, stock_minimo: 1, precio_compra: "", precio_venta: "" });
+  const [guardando, setGuardando] = useState(false);
+  const [reponiendo, setReponiendo] = useState({});
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const [rep, prov] = await Promise.all([apiGet("/repuestos"), apiGet("/proveedores")]);
+      setRepuestos(rep);
+      setProveedores(prov);
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function crearRepuesto() {
+    if (!form.nombre.trim()) return;
+    setGuardando(true);
+    try {
+      await apiPost("/repuestos", {
+        ...form,
+        proveedor_id: form.proveedor_id || null,
+        stock_actual: parseInt(form.stock_actual, 10) || 0,
+        stock_minimo: parseInt(form.stock_minimo, 10) || 1,
+        precio_compra: parseFloat(form.precio_compra) || 0,
+        precio_venta: parseFloat(form.precio_venta) || 0,
+      });
+      setForm({ nombre: "", categoria: "", proveedor_id: "", stock_actual: 0, stock_minimo: 1, precio_compra: "", precio_venta: "" });
+      setMostrarForm(false);
+      cargar();
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function reponerStock(repuestoId, cantidad) {
+    if (!cantidad) return;
+    setReponiendo((prev) => ({ ...prev, [repuestoId]: true }));
+    try {
+      const actualizado = await apiPatch(`/repuestos/${repuestoId}/stock`, { cantidad: parseInt(cantidad, 10) });
+      setRepuestos((prev) => prev.map((r) => (r.id === repuestoId ? actualizado : r)));
+    } catch (e) {
+      /* silencioso */
+    } finally {
+      setReponiendo((prev) => ({ ...prev, [repuestoId]: false }));
+    }
+  }
+
+  const inputStyle = { fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <button onClick={() => setMostrarForm((v) => !v)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Plus size={14} /> Nuevo repuesto
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ flex: "1 1 160px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Nombre</div>
+            <input style={{ ...inputStyle, width: "100%" }} value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} placeholder="Ej. Pantalla 15.6 FHD" />
+          </div>
+          <div style={{ flex: "1 1 120px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Categoría</div>
+            <input style={{ ...inputStyle, width: "100%" }} value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))} placeholder="Pantallas" />
+          </div>
+          <div style={{ flex: "1 1 140px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Proveedor</div>
+            <select style={{ ...inputStyle, width: "100%" }} value={form.proveedor_id} onChange={(e) => setForm((f) => ({ ...f, proveedor_id: e.target.value }))}>
+              <option value="">Sin proveedor</option>
+              {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 90 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Stock inicial</div>
+            <input style={{ ...inputStyle, width: "100%" }} type="number" value={form.stock_actual} onChange={(e) => setForm((f) => ({ ...f, stock_actual: e.target.value }))} />
+          </div>
+          <div style={{ width: 90 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Stock mínimo</div>
+            <input style={{ ...inputStyle, width: "100%" }} type="number" value={form.stock_minimo} onChange={(e) => setForm((f) => ({ ...f, stock_minimo: e.target.value }))} />
+          </div>
+          <div style={{ width: 100 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Precio compra</div>
+            <input style={{ ...inputStyle, width: "100%" }} type="number" value={form.precio_compra} onChange={(e) => setForm((f) => ({ ...f, precio_compra: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div style={{ width: 100 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Precio venta</div>
+            <input style={{ ...inputStyle, width: "100%" }} type="number" value={form.precio_venta} onChange={(e) => setForm((f) => ({ ...f, precio_venta: e.target.value }))} placeholder="0.00" />
+          </div>
+          <button disabled={guardando} onClick={crearRepuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px" }}>
+            {guardando ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+        {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando inventario...</div>}
+        {!cargando && repuestos.length === 0 && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Sin repuestos registrados todavía.</div>}
+        {repuestos.map((r, i) => (
+          <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}`, gap: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{r.nombre}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{r.categoria || "Sin categoría"} · venta {Number(r.precio_venta).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {r.stock_bajo && <TriangleAlert size={14} color={COLORS.rust} />}
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: r.stock_bajo ? COLORS.rust : COLORS.text }}>
+                {r.stock_actual} uds
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="number"
+                placeholder="+cant."
+                style={{ width: 70, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && e.target.value) {
+                    reponerStock(r.id, e.target.value);
+                    e.target.value = "";
+                  }
+                }}
+              />
+              <span style={{ fontSize: 10.5, color: COLORS.textDim }}>{reponiendo[r.id] ? "..." : "Enter"}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AjustesView() {
   const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21 });
   const [cargando, setCargando] = useState(true);
@@ -1358,6 +1654,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones" },
             { key: "clientes", icon: Users, label: "Clientes" },
             { key: "reportes", icon: FileBarChart, label: "Reportes" },
+            { key: "inventario", icon: Package, label: "Inventario" },
             { key: "caja", icon: Banknote, label: "Caja" },
             { key: "ajustes", icon: Settings, label: "Ajustes" },
           ].map((item) => (
@@ -1388,6 +1685,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "reparaciones" && "Panel de reparaciones"}
                 {vista === "clientes" && "Clientes"}
                 {vista === "reportes" && "Reportes"}
+                {vista === "inventario" && "Inventario"}
                 {vista === "caja" && "Caja"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
@@ -1410,6 +1708,7 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           {vista === "clientes" && <ClientesView />}
           {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} />}
+          {vista === "inventario" && <InventarioView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
           {vista === "ajustes" && <AjustesView />}
 
