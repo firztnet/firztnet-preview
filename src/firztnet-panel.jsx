@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -361,6 +361,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [mostrarFirmaEntrega, setMostrarFirmaEntrega] = useState(false);
   const [guardandoFirmaEntrega, setGuardandoFirmaEntrega] = useState(false);
   const [firmaEntregaHecha, setFirmaEntregaHecha] = useState(false);
+  const [avisoPendiente, setAvisoPendiente] = useState(null);
 
   async function guardarPresupuesto() {
     if (!presupuestoImporte) return;
@@ -525,6 +526,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     setErrorPresupuesto("");
     setMostrarFirmaEntrega(false);
     setFirmaEntregaHecha(false);
+    setAvisoPendiente(null);
   }, [t?.id]);
 
   if (!t) return null;
@@ -638,6 +640,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       const body = nuevoEstado === "no_reparable" ? { estado: nuevoEstado, motivo } : { estado: nuevoEstado };
       const actualizado = await apiPatch(`/reparaciones/${t.id}/estado`, body);
       onEstadoActualizado(actualizado);
+      setAvisoPendiente(actualizado.aviso || null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -726,12 +729,19 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             )}
           </div>
           {t.presupuesto_importe != null && t.presupuesto_estado === "pendiente" && (
-            <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
-              Envíale este enlace para que lo acepte a distancia: <br />
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: COLORS.amber, wordBreak: "break-all" }}>
-                {window.location.origin}/seguimiento?token={t.token_seguimiento}
-              </span>
-            </div>
+            <a
+              href={`https://wa.me/${(t.cliente?.telefono || "").replace(/\D/g, "")}?text=${encodeURIComponent(
+                `Hola ${t.cliente?.nombre?.split(" ")[0] || ""}, ya tenemos el presupuesto de tu ${t.equipo}. Revísalo y fírmalo aquí: ${window.location.origin}/seguimiento?token=${t.token_seguimiento}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 8, textDecoration: "none", boxSizing: "border-box", opacity: t.cliente?.telefono ? 1 : 0.5, pointerEvents: t.cliente?.telefono ? "auto" : "none" }}
+            >
+              Enviar presupuesto y pedir firma por WhatsApp
+            </a>
+          )}
+          {t.presupuesto_importe != null && t.presupuesto_estado === "pendiente" && !t.cliente?.telefono && (
+            <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 4 }}>El cliente no tiene teléfono guardado — añádelo desde Clientes.</div>
           )}
         </div>
 
@@ -877,6 +887,31 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               />
               <button disabled={guardando} onClick={() => avanzar("no_reparable")} style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), width: "100%", padding: "8px 12px" }}>
                 Marcar no reparable
+              </button>
+            </div>
+          </div>
+        )}
+
+        {avisoPendiente && (
+          <div style={{ marginTop: 14, background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
+            <div style={{ fontSize: 11.5, color: COLORS.green, fontWeight: 600, marginBottom: 4 }}>Aviso listo para enviar</div>
+            <div style={{ fontSize: 12.5, color: COLORS.text, marginBottom: 8 }}>{avisoPendiente.texto}</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {avisoPendiente.enlace_whatsapp ? (
+                <a
+                  href={avisoPendiente.enlace_whatsapp}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setAvisoPendiente(null)}
+                  style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5, textDecoration: "none" }}
+                >
+                  Enviar por WhatsApp
+                </a>
+              ) : (
+                <div style={{ fontSize: 11.5, color: COLORS.textDim }}>El cliente no tiene teléfono guardado.</div>
+              )}
+              <button onClick={() => setAvisoPendiente(null)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+                Descartar
               </button>
             </div>
           </div>
@@ -1504,6 +1539,144 @@ function InventarioView() {
   );
 }
 
+// -------------------- vista: Plantillas de mensaje --------------------
+const NOMBRES_ESTADOS_PLANTILLA = {
+  recibido: "Recibido", diagnostico: "En diagnóstico", reparacion: "En reparación",
+  listo: "Listo para entrega", entregado: "Entregado", no_reparable: "No reparable",
+};
+
+function PlantillasView() {
+  const [plantillas, setPlantillas] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ nombre: "", texto: "", estado_disparador: "" });
+  const [guardando, setGuardando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      setPlantillas(await apiGet("/plantillas"));
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  function abrirNueva() {
+    setEditando(null);
+    setForm({ nombre: "", texto: "", estado_disparador: "" });
+    setMostrarForm(true);
+  }
+  function abrirEdicion(p) {
+    setEditando(p);
+    setForm({ nombre: p.nombre, texto: p.texto, estado_disparador: p.estado_disparador || "" });
+    setMostrarForm(true);
+  }
+
+  async function guardar() {
+    if (!form.nombre.trim() || !form.texto.trim()) return;
+    setGuardando(true);
+    try {
+      const payload = { nombre: form.nombre, texto: form.texto, estado_disparador: form.estado_disparador || null };
+      if (editando) {
+        const res = await fetch(`${API_BASE}/plantillas/${editando.id}`, { method: "PUT", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify(payload) });
+        manejar401(res);
+      } else {
+        await apiPost("/plantillas", payload);
+      }
+      setMostrarForm(false);
+      cargar();
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function borrar(id) {
+    try {
+      const res = await fetch(`${API_BASE}/plantillas/${id}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      if (res.ok) setPlantillas((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  const inputStyle = { width: "100%", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 };
+
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 14 }}>
+        Mensajes predefinidos para casos comunes. Si le asignas un estado, se prepara automáticamente (con el enlace de WhatsApp listo) cada vez que muevas una reparación a ese estado — usa <code>{"{cliente}"}</code>, <code>{"{equipo}"}</code>, <code>{"{numero_orden}"}</code>, <code>{"{estado}"}</code>, <code>{"{fecha_estimada}"}</code>, <code>{"{garantia}"}</code> en el texto.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <button onClick={abrirNueva} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Plus size={14} /> Nueva plantilla
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: COLORS.textDim }}>Nombre
+            <input style={inputStyle} value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} placeholder="Ej. Equipo listo para retirar" />
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Texto del mensaje
+            <textarea style={{ ...inputStyle, minHeight: 70, fontFamily: "inherit", resize: "vertical" }} value={form.texto} onChange={(e) => setForm((f) => ({ ...f, texto: e.target.value }))} placeholder="Hola {cliente}, tu {equipo} ya está listo..." />
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Enviar automáticamente al llegar a este estado <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <select style={inputStyle} value={form.estado_disparador} onChange={(e) => setForm((f) => ({ ...f, estado_disparador: e.target.value }))}>
+              <option value="">Ninguno (solo uso manual)</option>
+              {Object.entries(NOMBRES_ESTADOS_PLANTILLA).map(([codigo, nombre]) => (
+                <option key={codigo} value={codigo}>{nombre}</option>
+              ))}
+            </select>
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "9px 12px" }}>
+              {guardando ? "Guardando..." : "Guardar"}
+            </button>
+            <button onClick={() => setMostrarForm(false)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "9px 14px" }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+        {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+        {!cargando && plantillas.length === 0 && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Sin plantillas todavía.</div>}
+        {plantillas.map((p, i) => (
+          <div key={p.id} style={{ padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{p.nombre}</div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+                {p.estado_disparador && (
+                  <span style={{ fontSize: 10.5, color: COLORS.amber, background: "#FFFBEB", padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                    Auto: {NOMBRES_ESTADOS_PLANTILLA[p.estado_disparador]}
+                  </span>
+                )}
+                <button onClick={() => abrirEdicion(p)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
+                <button onClick={() => borrar(p.id)} style={{ background: "none", border: "none", color: COLORS.rust, cursor: "pointer", padding: 0, display: "flex" }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>{p.texto}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AjustesView() {
   const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21 });
   const [cargando, setCargando] = useState(true);
@@ -2014,6 +2187,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "reportes", icon: FileBarChart, label: "Reportes" },
             { key: "inventario", icon: Package, label: "Inventario" },
             { key: "caja", icon: Banknote, label: "Caja" },
+            { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
             { key: "ajustes", icon: Settings, label: "Ajustes" },
           ].map((item) => (
             <div
@@ -2045,6 +2219,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
                 {vista === "caja" && "Caja"}
+                {vista === "plantillas" && "Plantillas"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
               {vista === "reparaciones" && (
@@ -2068,6 +2243,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia} />}
           {vista === "inventario" && <InventarioView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
+          {vista === "plantillas" && <PlantillasView />}
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
