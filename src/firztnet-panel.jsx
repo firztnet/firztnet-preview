@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -147,6 +147,91 @@ function tiempoEnTaller(fechaRecepcion) {
   return { texto: `${Math.floor(horas / 24)} días`, color: "#EF4444", fondo: "#FEF2F2" };
 }
 
+function tiempoRelativo(fecha) {
+  const horas = Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60));
+  if (horas < 1) return "ahora";
+  if (horas < 24) return `${horas}h`;
+  return `${Math.floor(horas / 24)}d`;
+}
+
+function iniciales(nombre) {
+  if (!nombre) return "?";
+  const partes = nombre.trim().split(" ");
+  return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
+}
+
+// -------------------- Reparaciones destacadas: En curso / Por entregar --------------------
+function TarjetaDestacada({ t, onAbrir }) {
+  const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+  return (
+    <button
+      onClick={() => onAbrir(t)}
+      style={{
+        background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14,
+        padding: 12, textAlign: "left", cursor: "pointer", width: "100%",
+        display: "flex", alignItems: "center", gap: 10,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = stage.accent)}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.line)}
+    >
+      <div style={{ width: 34, height: 34, borderRadius: "50%", background: `${stage.accent}22`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+        {iniciales(t.cliente?.nombre)}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: stage.accent }}>#{t.numero_orden}</span>
+          {t.urgente && <Flame size={11} color={COLORS.rust} />}
+          <span style={{ fontSize: 10.5, color: COLORS.textDim, marginLeft: "auto" }}>{tiempoRelativo(t.fecha_recepcion)}</span>
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.marca ? `${t.marca} ${t.modelo || ""}` : t.equipo}</div>
+      </div>
+      <Eye size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+    </button>
+  );
+}
+
+function ReparacionesDestacadas({ reparaciones, onAbrir }) {
+  const enCurso = reparaciones
+    .filter((r) => ["diagnostico", "reparacion"].includes(r.estado_actual))
+    .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
+    .slice(0, 4);
+  const porEntregar = reparaciones
+    .filter((r) => r.estado_actual === "listo")
+    .sort((a, b) => new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
+    .slice(0, 4);
+
+  if (enCurso.length === 0 && porEntregar.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Reparaciones destacadas</div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 260px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <StageDot color={COLORS.statusBlue} />
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>En curso</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {enCurso.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada en curso ahora mismo.</div>}
+            {enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} />)}
+          </div>
+        </div>
+        <div style={{ flex: "1 1 260px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <StageDot color={COLORS.green} />
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>Por entregar</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {porEntregar.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada listo para entregar todavía.</div>}
+            {porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RepairTag({ t, onClick }) {
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
   const enTaller = !["entregado", "no_reparable"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
@@ -174,8 +259,11 @@ function RepairTag({ t, onClick }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: stage.accent, letterSpacing: 0.5 }}>
-            #{t.numero_orden}
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {t.urgente && <Flame size={12} color={COLORS.rust} />}
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: stage.accent, letterSpacing: 0.5 }}>
+              #{t.numero_orden}
+            </span>
           </span>
           <span style={{ fontSize: 11, color: COLORS.textDim }}>{fechaCorta(t.fecha_recepcion)}</span>
         </div>
@@ -1043,7 +1131,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
 // -------------------- modal: nueva reparación --------------------
 function NuevaReparacionModal({ onClose, onCreada }) {
-  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", problema: "", fechaEstimada: "" });
+  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -1063,6 +1151,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
       const reparacion = await apiPost("/reparaciones", {
         cliente_id: cliente.id,
         equipo: form.equipo,
+        marca: form.marca,
+        modelo: form.modelo,
+        urgente: form.urgente,
         problema_reportado: form.problema,
         fecha_estimada: form.fechaEstimada ? new Date(form.fechaEstimada).toISOString() : null,
       });
@@ -1098,11 +1189,23 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Equipo
           <input style={inputStyle} value={form.equipo} onChange={set("equipo")} placeholder="Ej. HP Pavilion 15" />
         </label>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Marca <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <input style={inputStyle} value={form.marca} onChange={set("marca")} placeholder="HP" />
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Modelo <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <input style={inputStyle} value={form.modelo} onChange={set("modelo")} placeholder="Pavilion 15" />
+          </label>
+        </div>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Problema reportado
           <input style={inputStyle} value={form.problema} onChange={set("problema")} placeholder="Ej. No enciende" />
         </label>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Fecha estimada de entrega <span style={{ fontWeight: 400 }}>(opcional)</span>
           <input style={inputStyle} type="date" value={form.fechaEstimada} onChange={set("fechaEstimada")} />
+        </label>
+        <label style={{ fontSize: 12.5, color: COLORS.text, display: "flex", alignItems: "center", gap: 7, marginTop: 12, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.urgente} onChange={(e) => setForm((f) => ({ ...f, urgente: e.target.checked }))} style={{ width: 15, height: 15 }} />
+          Marcar como urgente
         </label>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
@@ -1280,6 +1383,64 @@ function ClientesView() {
 }
 
 // -------------------- vista: Reportes --------------------
+// -------------------- Panel de próxima acción --------------------
+const ACCION_POR_ESTADO = {
+  recibido: "Enviar a diagnóstico",
+  diagnostico: "Iniciar reparación (en taller)",
+  reparacion: "Marcar como listo",
+  listo: "Marcar como entregado",
+};
+
+function PanelProximaAccion({ reparaciones, onAbrir }) {
+  const prioritaria = useMemo(() => {
+    const activas = reparaciones.filter((r) => !["entregado", "no_reparable"].includes(r.estado_actual));
+    if (activas.length === 0) return null;
+    return [...activas].sort(
+      (a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
+    )[0];
+  }, [reparaciones]);
+
+  if (!prioritaria) return null;
+
+  const enlaceWhatsapp = prioritaria.cliente?.telefono
+    ? `https://wa.me/${prioritaria.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${prioritaria.cliente.nombre.split(" ")[0]}, te escribimos sobre tu reparación nº ${prioritaria.numero_orden}.`)}`
+    : null;
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
+      <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }}>Próxima acción</div>
+      <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600, marginTop: 6 }}>
+        {prioritaria.urgente && <Flame size={12} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
+        {prioritaria.cliente?.nombre} · #{prioritaria.numero_orden}
+      </div>
+      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 12 }}>{prioritaria.equipo}</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <button
+          onClick={() => onAbrir(prioritaria)}
+          style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}
+        >
+          {ACCION_POR_ESTADO[prioritaria.estado_actual] || "Ver reparación"}
+        </button>
+        <a
+          href={enlaceWhatsapp || undefined}
+          target="_blank"
+          rel="noreferrer"
+          style={{ ...btnStyle(COLORS.statusAmber, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, textDecoration: "none", opacity: enlaceWhatsapp ? 1 : 0.5, pointerEvents: enlaceWhatsapp ? "auto" : "none", boxShadow: enlaceWhatsapp ? "0 4px 10px rgba(245,158,11,0.3)" : "none" }}
+        >
+          Contactar cliente (WhatsApp)
+        </a>
+        <button
+          onClick={() => onAbrir(prioritaria)}
+          style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(37,99,235,0.3)" }}
+        >
+          Generar presupuesto
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
   const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
   return (
@@ -2202,16 +2363,49 @@ function FirztnetPanel({ onCerrarSesion }) {
     cargarTodo();
   }, [cargarTodo]);
 
+  const [filtroMarca, setFiltroMarca] = useState("");
+  const [filtroModelo, setFiltroModelo] = useState("");
+  const [filtroCliente, setFiltroCliente] = useState("");
+  const [filtroHoy, setFiltroHoy] = useState(false);
+  const [filtroUrgente, setFiltroUrgente] = useState(false);
+
+  const marcasDisponibles = useMemo(
+    () => [...new Set(reparaciones.map((r) => r.marca).filter(Boolean))].sort(),
+    [reparaciones]
+  );
+  const modelosDisponibles = useMemo(
+    () => [...new Set(reparaciones.filter((r) => !filtroMarca || r.marca === filtroMarca).map((r) => r.modelo).filter(Boolean))].sort(),
+    [reparaciones, filtroMarca]
+  );
+  const clientesDisponibles = useMemo(
+    () => [...new Map(reparaciones.filter((r) => r.cliente).map((r) => [r.cliente.id, r.cliente])).values()].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [reparaciones]
+  );
+  const chipsMarca = useMemo(() => {
+    const conteo = {};
+    reparaciones.forEach((r) => { if (r.marca) conteo[r.marca] = (conteo[r.marca] || 0) + 1; });
+    return Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([marca]) => marca);
+  }, [reparaciones]);
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return reparaciones;
-    const q = query.toLowerCase();
-    return reparaciones.filter(
-      (t) =>
-        t.cliente?.nombre?.toLowerCase().includes(q) ||
-        t.numero_orden?.includes(q) ||
-        t.equipo?.toLowerCase().includes(q)
-    );
-  }, [query, reparaciones]);
+    const hoyStr = new Date().toDateString();
+    return reparaciones.filter((t) => {
+      if (query.trim()) {
+        const q = query.toLowerCase();
+        const coincideTexto =
+          t.cliente?.nombre?.toLowerCase().includes(q) ||
+          t.numero_orden?.includes(q) ||
+          t.equipo?.toLowerCase().includes(q);
+        if (!coincideTexto) return false;
+      }
+      if (filtroMarca && t.marca !== filtroMarca) return false;
+      if (filtroModelo && t.modelo !== filtroModelo) return false;
+      if (filtroCliente && String(t.cliente?.id) !== filtroCliente) return false;
+      if (filtroHoy && new Date(t.fecha_recepcion).toDateString() !== hoyStr) return false;
+      if (filtroUrgente && !t.urgente) return false;
+      return true;
+    });
+  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente]);
 
   function handleEstadoActualizado(actualizado) {
     setReparaciones((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)));
@@ -2348,10 +2542,50 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", maxWidth: 320 }}>
-                <Search size={14} color={COLORS.textDim} />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "1 1 200px", maxWidth: 320 }}>
+                  <Search size={14} color={COLORS.textDim} />
+                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
+                </div>
+                <select value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroMarca ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
+                  <option value="">Marca</option>
+                  {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <select value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroModelo ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
+                  <option value="">Modelo</option>
+                  {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroCliente ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
+                  <option value="">Cliente</option>
+                  {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
               </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                <button
+                  onClick={() => setFiltroHoy((v) => !v)}
+                  style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroHoy ? COLORS.amber : COLORS.line}`, background: filtroHoy ? COLORS.amber : COLORS.surface, color: filtroHoy ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
+                >
+                  Hoy
+                </button>
+                <button
+                  onClick={() => setFiltroUrgente((v) => !v)}
+                  style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroUrgente ? COLORS.rust : COLORS.line}`, background: filtroUrgente ? COLORS.rust : COLORS.surface, color: filtroUrgente ? "#FFFFFF" : COLORS.textDim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <Flame size={11} /> Urgente
+                </button>
+                {chipsMarca.map((marca) => (
+                  <button
+                    key={marca}
+                    onClick={() => setFiltroMarca((v) => (v === marca ? "" : marca))}
+                    style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroMarca === marca ? COLORS.amber : COLORS.line}`, background: filtroMarca === marca ? COLORS.amber : COLORS.surface, color: filtroMarca === marca ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
+                  >
+                    {marca}
+                  </button>
+                ))}
+              </div>
+
+              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} />
 
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                 {STAGES.map((stage) => {
@@ -2376,6 +2610,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
+
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: COLORS.amber, fontWeight: 600 }}>
