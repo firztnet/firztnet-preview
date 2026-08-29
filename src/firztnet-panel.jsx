@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package
 } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, XAxis, Tooltip
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
 } from "recharts";
 
 // ---------------------------------------------------------------------
@@ -40,11 +40,6 @@ const STAGES = [
   { key: "listo", label: "Listo para entrega", accent: COLORS.green },
   { key: "entregado", label: "Entregado", accent: COLORS.textDim },
   { key: "no_reparable", label: "No reparable", accent: COLORS.rust },
-];
-
-const TREND = [
-  { d: "L", v: 0 }, { d: "M", v: 0 }, { d: "X", v: 0 },
-  { d: "J", v: 0 }, { d: "V", v: 0 }, { d: "S", v: 0 }, { d: "D", v: 0 },
 ];
 
 // -------------------- helpers de API --------------------
@@ -118,8 +113,16 @@ function StageDot({ color }) {
   return <span style={{ width: 7, height: 7, borderRadius: 999, background: color, display: "inline-block", flexShrink: 0 }} />;
 }
 
+function tiempoEnTaller(fechaRecepcion) {
+  const horas = (Date.now() - new Date(fechaRecepcion).getTime()) / (1000 * 60 * 60);
+  if (horas < 24) return { texto: "< 24h", color: "#22C55E", fondo: "#F0FDF4" };
+  if (horas < 96) return { texto: `${Math.floor(horas / 24)} día${Math.floor(horas / 24) === 1 ? "" : "s"}`, color: "#F59E0B", fondo: "#FFFBEB" };
+  return { texto: `${Math.floor(horas / 24)} días`, color: "#EF4444", fondo: "#FEF2F2" };
+}
+
 function RepairTag({ t, onClick }) {
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+  const enTaller = !["entregado", "no_reparable"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
   return (
     <button
       onClick={onClick}
@@ -149,8 +152,18 @@ function RepairTag({ t, onClick }) {
           </span>
           <span style={{ fontSize: 11, color: COLORS.textDim }}>{fechaCorta(t.fecha_recepcion)}</span>
         </div>
-        <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 13.5, color: COLORS.text, marginTop: 4 }}>
-          {t.cliente?.nombre}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
+          <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>
+            {t.cliente?.nombre}
+          </div>
+          {enTaller && (
+            <span
+              title="Tiempo en el taller"
+              style={{ fontSize: 10, fontWeight: 600, color: enTaller.color, background: enTaller.fondo, padding: "2px 6px", borderRadius: 999, flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {enTaller.texto}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{t.equipo}</div>
         {t.problema_reportado && (
@@ -211,6 +224,80 @@ const TIPO_COMPROBANTE = {
   listo: "recepcion", entregado: "entrega", no_reparable: "no_reparable",
 };
 
+// -------------------- pad de firma (reutilizable) --------------------
+function PadFirma({ onGuardar, guardando, textoBoton = "Confirmar firma" }) {
+  const canvasRef = useRef(null);
+  const dibujando = useRef(false);
+  const [haFirmado, setHaFirmado] = useState(false);
+
+  function coordenadas(e, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const punto = e.touches ? e.touches[0] : e;
+    return { x: punto.clientX - rect.left, y: punto.clientY - rect.top };
+  }
+
+  function empezar(e) {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const { x, y } = coordenadas(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    dibujando.current = true;
+  }
+  function mover(e) {
+    if (!dibujando.current) return;
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const { x, y } = coordenadas(e, canvas);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    setHaFirmado(true);
+  }
+  function soltar() {
+    dibujando.current = false;
+  }
+  function limpiar() {
+    const canvas = canvasRef.current;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    setHaFirmado(false);
+  }
+  function confirmar() {
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    onGuardar(dataUrl);
+  }
+
+  return (
+    <div>
+      <canvas
+        ref={canvasRef}
+        width={320}
+        height={140}
+        style={{ width: "100%", height: 140, background: "#FFFFFF", border: "1px dashed #CBD5E1", borderRadius: 8, touchAction: "none", cursor: "crosshair" }}
+        onMouseDown={empezar}
+        onMouseMove={mover}
+        onMouseUp={soltar}
+        onMouseLeave={soltar}
+        onTouchStart={empezar}
+        onTouchMove={mover}
+        onTouchEnd={soltar}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={limpiar} type="button" style={{ ...btnStyle("transparent", "#64748B", "#E2E8F0"), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+          Borrar
+        </button>
+        <button onClick={confirmar} disabled={!haFirmado || guardando} type="button" style={{ ...btnStyle("#2563EB", "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5 }}>
+          {guardando ? "Guardando..." : textoBoton}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -266,6 +353,68 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [cantidadRepuesto, setCantidadRepuesto] = useState(1);
   const [asignandoRepuesto, setAsignandoRepuesto] = useState(false);
   const [errorRepuesto, setErrorRepuesto] = useState("");
+  const [presupuestoImporte, setPresupuestoImporte] = useState(t?.presupuesto_importe ?? "");
+  const [presupuestoDescripcion, setPresupuestoDescripcion] = useState(t?.presupuesto_descripcion ?? "");
+  const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
+  const [errorPresupuesto, setErrorPresupuesto] = useState("");
+  const [viendoPdfPresupuesto, setViendoPdfPresupuesto] = useState(false);
+  const [mostrarFirmaEntrega, setMostrarFirmaEntrega] = useState(false);
+  const [guardandoFirmaEntrega, setGuardandoFirmaEntrega] = useState(false);
+  const [firmaEntregaHecha, setFirmaEntregaHecha] = useState(false);
+
+  async function guardarPresupuesto() {
+    if (!presupuestoImporte) return;
+    setGuardandoPresupuesto(true);
+    setErrorPresupuesto("");
+    try {
+      const actualizado = await apiPost(`/reparaciones/${t.id}/presupuesto`, {
+        importe: parseFloat(presupuestoImporte),
+        descripcion: presupuestoDescripcion,
+      });
+      onEstadoActualizado(actualizado);
+    } catch (e) {
+      setErrorPresupuesto(e.message);
+    } finally {
+      setGuardandoPresupuesto(false);
+    }
+  }
+
+  async function verPdfPresupuesto() {
+    const ventana = window.open("", "_blank");
+    setViendoPdfPresupuesto(true);
+    try {
+      const res = await fetch(`${API_BASE}/reparaciones/${t.id}/presupuesto/pdf`, { headers: cabecerasAuth() });
+      manejar401(res);
+      if (!res.ok) throw new Error("No se pudo abrir el presupuesto");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (ventana) ventana.location.href = url;
+    } catch (e) {
+      ventana?.close();
+      setErrorPresupuesto(e.message);
+    } finally {
+      setViendoPdfPresupuesto(false);
+    }
+  }
+
+  async function guardarFirmaEntrega(dataUrl) {
+    setGuardandoFirmaEntrega(true);
+    try {
+      const res = await fetch(`${API_BASE}/reparaciones/${t.id}/firma-entrega`, {
+        method: "POST",
+        headers: cabecerasAuth({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ firma_png: dataUrl }),
+      });
+      manejar401(res);
+      if (!res.ok) throw new Error("No se pudo guardar la firma");
+      setFirmaEntregaHecha(true);
+      setMostrarFirmaEntrega(false);
+    } catch (e) {
+      setErrorPago(e.message);
+    } finally {
+      setGuardandoFirmaEntrega(false);
+    }
+  }
 
   async function asignarRepuesto() {
     if (!repuestoSeleccionado) return;
@@ -366,6 +515,17 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     setErrorComprobante("");
     setEnvioEmail(null);
   }, [t?.id, t?.estado_actual]);
+
+  // Igual, pero para el presupuesto y la firma de entrega: al cambiar de
+  // reparación hay que partir de los datos de ESA reparación, no dejar
+  // lo que se estuviera escribiendo en la anterior.
+  useEffect(() => {
+    setPresupuestoImporte(t?.presupuesto_importe ?? "");
+    setPresupuestoDescripcion(t?.presupuesto_descripcion ?? "");
+    setErrorPresupuesto("");
+    setMostrarFirmaEntrega(false);
+    setFirmaEntregaHecha(false);
+  }, [t?.id]);
 
   if (!t) return null;
   const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
@@ -528,6 +688,55 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Presupuesto</div>
+            {t.presupuesto_estado && (
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                color: t.presupuesto_estado === "aceptado" ? COLORS.green : t.presupuesto_estado === "rechazado" ? COLORS.rust : COLORS.statusAmber,
+                background: t.presupuesto_estado === "aceptado" ? "#F0FDF4" : t.presupuesto_estado === "rechazado" ? "#FEF2F2" : "#FFFBEB",
+              }}>
+                {t.presupuesto_estado === "aceptado" ? "Aceptado" : t.presupuesto_estado === "rechazado" ? "Rechazado" : "Pendiente"}
+              </span>
+            )}
+          </div>
+          {errorPresupuesto && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorPresupuesto}</div>}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <input
+              value={presupuestoDescripcion}
+              onChange={(e) => setPresupuestoDescripcion(e.target.value)}
+              placeholder="Descripción (ej. Cambio de pantalla)"
+              style={{ flex: 1, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+            />
+            <input
+              type="number"
+              value={presupuestoImporte}
+              onChange={(e) => setPresupuestoImporte(e.target.value)}
+              placeholder="Importe €"
+              style={{ width: 90, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button disabled={guardandoPresupuesto || !presupuestoImporte} onClick={guardarPresupuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5 }}>
+              {guardandoPresupuesto ? "Guardando..." : t.presupuesto_importe != null ? "Actualizar presupuesto" : "Crear presupuesto"}
+            </button>
+            {t.presupuesto_importe != null && (
+              <button disabled={viendoPdfPresupuesto} onClick={verPdfPresupuesto} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+                Ver PDF
+              </button>
+            )}
+          </div>
+          {t.presupuesto_importe != null && t.presupuesto_estado === "pendiente" && (
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
+              Envíale este enlace para que lo acepte a distancia: <br />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: COLORS.amber, wordBreak: "break-all" }}>
+                {window.location.origin}/seguimiento?token={t.token_seguimiento}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Fotos de recepción</div>
             <label style={{ fontSize: 11.5, color: COLORS.amber, cursor: "pointer" }}>
               {subiendoFotos ? "Subiendo..." : "+ Añadir foto"}
@@ -670,6 +879,22 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                 Marcar no reparable
               </button>
             </div>
+          </div>
+        )}
+
+        {["listo", "entregado"].includes(t.estado_actual) && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Firma de recogida</div>
+              {firmaEntregaHecha && <span style={{ fontSize: 11, color: COLORS.green, fontWeight: 600 }}>✓ Firmada</span>}
+            </div>
+            {!mostrarFirmaEntrega ? (
+              <button onClick={() => setMostrarFirmaEntrega(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), width: "100%" }}>
+                {firmaEntregaHecha ? "Firmar de nuevo" : "El cliente firma aquí al recoger"}
+              </button>
+            ) : (
+              <PadFirma onGuardar={guardarFirmaEntrega} guardando={guardandoFirmaEntrega} textoBoton="Confirmar recogida" />
+            )}
           </div>
         )}
 
@@ -970,10 +1195,29 @@ function ClientesView() {
 }
 
 // -------------------- vista: Reportes --------------------
-function ReportesView({ reporteDiario, reporteMensual, contador }) {
+function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
   const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>Últimos 7 días</div>
+        <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 14 }}>Ingresos frente a gastos, día a día</div>
+        <div style={{ height: 180 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={tendencia}>
+              <XAxis dataKey="dia_semana" tick={{ fill: COLORS.textDim, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: COLORS.textDim, fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+              <Tooltip
+                contentStyle={{ background: COLORS.surfaceRaised, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 11 }}
+                formatter={(value, name) => [`${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`, name === "ingresos" ? "Ingresos" : "Gastos"]}
+              />
+              <Bar dataKey="ingresos" fill={COLORS.green} radius={[4, 4, 0, 0]} name="ingresos" />
+              <Bar dataKey="gastos" fill={COLORS.rust} radius={[4, 4, 0, 0]} name="gastos" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
           <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Hoy</div>
@@ -1420,6 +1664,8 @@ function SeguimientoPublico() {
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [mostrarFirmaPresupuesto, setMostrarFirmaPresupuesto] = useState(false);
+  const [guardandoRespuesta, setGuardandoRespuesta] = useState(false);
 
   const tokenDeUrl = useMemo(() => new URLSearchParams(window.location.search).get("token"), []);
 
@@ -1457,6 +1703,27 @@ function SeguimientoPublico() {
       setDatos(null);
     } finally {
       setCargando(false);
+    }
+  }
+
+  async function responderPresupuesto(aceptado, firmaPng) {
+    const token = tokenDeUrl || datos?.token_seguimiento;
+    setGuardandoRespuesta(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE}/seguimiento/${token}/presupuesto/firmar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aceptado, firma_png: firmaPng || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo enviar tu respuesta");
+      setDatos(data);
+      setMostrarFirmaPresupuesto(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardandoRespuesta(false);
     }
   }
 
@@ -1546,6 +1813,41 @@ function SeguimientoPublico() {
               </div>
             )}
 
+            {datos.presupuesto && (
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+                <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }}>Presupuesto</div>
+                <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 2 }}>{datos.presupuesto.descripcion}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, color: COLORS.amber, fontWeight: 600 }}>
+                  {datos.presupuesto.importe.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                </div>
+
+                {datos.presupuesto.estado === "aceptado" && (
+                  <div style={{ fontSize: 12.5, color: COLORS.green, fontWeight: 600, marginTop: 6 }}>✓ Aceptado, gracias</div>
+                )}
+                {datos.presupuesto.estado === "rechazado" && (
+                  <div style={{ fontSize: 12.5, color: COLORS.rust, fontWeight: 600, marginTop: 6 }}>Rechazado. Contáctanos si quieres comentarlo.</div>
+                )}
+
+                {datos.presupuesto.estado === "pendiente" && !mostrarFirmaPresupuesto && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={() => setMostrarFirmaPresupuesto(true)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "9px 12px", fontSize: 13 }}>
+                      Aceptar y firmar
+                    </button>
+                    <button disabled={guardandoRespuesta} onClick={() => responderPresupuesto(false)} style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), flex: 1, padding: "9px 12px", fontSize: 13 }}>
+                      Rechazar
+                    </button>
+                  </div>
+                )}
+
+                {datos.presupuesto.estado === "pendiente" && mostrarFirmaPresupuesto && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 6 }}>Firma aquí para aceptar:</div>
+                    <PadFirma onGuardar={(png) => responderPresupuesto(true, png)} guardando={guardandoRespuesta} textoBoton="Aceptar presupuesto" />
+                  </div>
+                )}
+              </div>
+            )}
+
             {datos.fecha_fin_garantia && (
               <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}`, display: "flex", alignItems: "center", gap: 6, color: COLORS.green, fontSize: 12.5 }}>
                 <ShieldCheck size={14} /> Garantía hasta {fechaLarga(datos.fecha_fin_garantia)}
@@ -1605,6 +1907,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [contador, setContador] = useState({ total: 0, en_curso: 0, entregadas: 0, no_reparables: 0 });
   const [reporteDiario, setReporteDiario] = useState({ balance_neto: 0 });
   const [reporteMensual, setReporteMensual] = useState({ ingresos: 0, gastos: 0, balance_neto: 0 });
+  const [tendencia, setTendencia] = useState([]);
   const [selected, setSelected] = useState(null);
   const [mostrarNueva, setMostrarNueva] = useState(false);
   const [query, setQuery] = useState("");
@@ -1615,16 +1918,18 @@ function FirztnetPanel({ onCerrarSesion }) {
   const cargarTodo = useCallback(async () => {
     setErrorCarga("");
     try {
-      const [reps, cont, diario, mensual] = await Promise.all([
+      const [reps, cont, diario, mensual, tend] = await Promise.all([
         apiGet("/reparaciones"),
         apiGet("/reportes/contador"),
         apiGet("/reportes/diario"),
         apiGet("/reportes/mensual"),
+        apiGet("/reportes/tendencia"),
       ]);
       setReparaciones(reps);
       setContador(cont);
       setReporteDiario(diario);
       setReporteMensual(mensual);
+      setTendencia(tend);
     } catch (e) {
       setErrorCarga("No se pudo conectar con el backend (" + API_BASE + "). ¿Está corriendo `python run.py`?");
     } finally {
@@ -1760,7 +2065,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           )}
 
           {vista === "clientes" && <ClientesView />}
-          {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} />}
+          {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia} />}
           {vista === "inventario" && <InventarioView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
           {vista === "ajustes" && <AjustesView />}
@@ -1810,18 +2115,22 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: COLORS.amber, fontWeight: 600 }}>
                   {reporteDiario.balance_neto >= 0 ? "+" : ""}{Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
                 </div>
+                <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 2 }}>Tendencia de ingresos, últimos 7 días</div>
                 <div style={{ height: 70, marginTop: 10, marginLeft: -8 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={TREND}>
+                    <AreaChart data={tendencia.length ? tendencia : [{ dia_semana: "", ingresos: 0 }]}>
                       <defs>
                         <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.35} />
                           <stop offset="100%" stopColor={COLORS.amber} stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <XAxis dataKey="d" tick={{ fill: COLORS.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: COLORS.surfaceRaised, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 11 }} />
-                      <Area type="monotone" dataKey="v" stroke={COLORS.amber} strokeWidth={2} fill="url(#fill)" />
+                      <XAxis dataKey="dia_semana" tick={{ fill: COLORS.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ background: COLORS.surfaceRaised, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 11 }}
+                        formatter={(value) => [`${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`, "Ingresos"]}
+                      />
+                      <Area type="monotone" dataKey="ingresos" stroke={COLORS.amber} strokeWidth={2} fill="url(#fill)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
