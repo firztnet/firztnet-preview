@@ -54,6 +54,10 @@ const COLORS = {
   green: "#22C55E",
   statusAmber: "#F59E0B",
   statusBlue: "#3B82F6",
+  sidebarBg: "#0F1B3D",
+  sidebarText: "#E2E8F0",
+  sidebarTextDim: "#8291B5",
+  sidebarActiveBg: "#1B2C5C",
 };
 
 const STAGES = [
@@ -2234,10 +2238,10 @@ function FirztnetPanel({ onCerrarSesion }) {
             align-items: center !important;
             padding: 8px 6px !important;
             border-right: none !important;
-            border-top: 1px solid ${COLORS.line};
+            border-top: 1px solid ${COLORS.sidebarActiveBg};
             position: fixed !important;
             bottom: 0; left: 0; right: 0;
-            background: ${COLORS.surface} !important;
+            background: ${COLORS.sidebarBg} !important;
             z-index: 40;
           }
           .fn-sidebar .fn-logo { display: none !important; }
@@ -2258,12 +2262,12 @@ function FirztnetPanel({ onCerrarSesion }) {
       `}</style>
 
       <div className="fn-shell" style={{ display: "flex" }}>
-        <aside className="fn-sidebar" style={{ width: 210, background: COLORS.surface, borderRight: `1px solid ${COLORS.line}`, minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        <aside className="fn-sidebar" style={{ width: 210, background: COLORS.sidebarBg, borderRight: "none", minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 30, paddingLeft: 4 }}>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Wrench size={16} color="#FFFFFF" />
             </div>
-            <span style={{ fontFamily: "Oswald", fontSize: 17, letterSpacing: 0.5 }}>FIRZTNET</span>
+            <span style={{ fontFamily: "Oswald", fontSize: 17, letterSpacing: 0.5, color: "#FFFFFF" }}>FIRZTNET</span>
           </div>
           {[
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones" },
@@ -2278,7 +2282,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               key={item.label}
               className="fn-navitem"
               onClick={() => setVista(item.key)}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.surfaceRaised : "transparent", color: vista === item.key ? COLORS.amber : COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
             >
               <item.icon size={16} />
               {item.label}
@@ -2287,7 +2291,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div
             onClick={onCerrarSesion}
             className="fn-navitem"
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginTop: "auto", cursor: "pointer", color: COLORS.textDim, fontSize: 13.5, fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginTop: "auto", cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
           >
             <LogOut size={16} />
             Cerrar sesión
