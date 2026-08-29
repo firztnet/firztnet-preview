@@ -364,7 +364,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [avisoPendiente, setAvisoPendiente] = useState(null);
 
   async function guardarPresupuesto() {
-    if (!presupuestoImporte) return;
+    if (!presupuestoImporte) {
+      setErrorPresupuesto("Indica el importe antes de guardar.");
+      return;
+    }
     setGuardandoPresupuesto(true);
     setErrorPresupuesto("");
     try {
@@ -714,12 +717,12 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               type="number"
               value={presupuestoImporte}
               onChange={(e) => setPresupuestoImporte(e.target.value)}
-              placeholder="Importe €"
-              style={{ width: 90, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+              placeholder="Importe € *"
+              style={{ width: 90, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${!presupuestoImporte ? COLORS.rust : COLORS.line}` }}
             />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button disabled={guardandoPresupuesto || !presupuestoImporte} onClick={guardarPresupuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5 }}>
+            <button disabled={guardandoPresupuesto} onClick={guardarPresupuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5 }}>
               {guardandoPresupuesto ? "Guardando..." : t.presupuesto_importe != null ? "Actualizar presupuesto" : "Crear presupuesto"}
             </button>
             {t.presupuesto_importe != null && (
