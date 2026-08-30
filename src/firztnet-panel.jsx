@@ -2601,6 +2601,29 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
+  const hoverTimeoutRef = useRef(null);
+
+  // Al entrar en una tarjeta, se actualiza al instante. Al salir, se espera
+  // un momento antes de olvidar la vista previa — así da tiempo a mover el
+  // ratón hasta un botón del panel de "Próxima acción" sin que se cancele
+  // a mitad de camino.
+  const handleHoverPreview = useCallback((t) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (t) {
+      setHoverPreview(t);
+    } else {
+      hoverTimeoutRef.current = setTimeout(() => setHoverPreview(null), 400);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
 
   const marcasDisponibles = useMemo(
     () => [...new Set(reparaciones.map((r) => r.marca).filter(Boolean))].sort(),
@@ -2884,7 +2907,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 ))}
               </div>
 
-              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={setHoverPreview} />
+              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                 {stagesFor(vistaTrabajo).map((stage) => {
@@ -2899,7 +2922,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {!cargando && items.length === 0 && <div style={{ fontSize: 11.5, color: COLORS.textDim, padding: "10px 4px" }}>Sin equipos aquí</div>}
                         {items.map((t) => (
-                          <RepairTag key={t.id} t={t} onClick={() => setSelected(t)} onHover={setHoverPreview} />
+                          <RepairTag key={t.id} t={t} onClick={() => setSelected(t)} onHover={handleHoverPreview} />
                         ))}
                       </div>
                     </div>
