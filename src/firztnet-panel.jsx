@@ -1246,6 +1246,43 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
         )}
         {guardandoFecha && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>Guardando fecha...</div>}
 
+        {t.cliente?.telefono && !esFinal && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Mensajes rápidos</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {t.tipo_trabajo === "domicilio" && t.direccion_servicio && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const minutos = window.prompt("¿Cuántos minutos estimas de llegada?", "20");
+                    if (minutos === null) return;
+                    const nombre = t.cliente.nombre.split(" ")[0];
+                    const texto = `Hola ${nombre}, soy el técnico de FIRZTNET. Voy en camino a tu dirección (${t.direccion_servicio}). Llegada estimada: ${minutos} min.`;
+                    window.open(`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`, "_blank");
+                  }}
+                  style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), flex: "none", padding: "7px 12px", fontSize: 12 }}
+                >
+                  🚗 En camino
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const pieza = window.prompt("¿Qué repuesto/pieza falta?");
+                  if (!pieza) return;
+                  const horas = window.prompt("¿Tiempo estimado de llegada?", "48h") || "48h";
+                  const nombre = t.cliente.nombre.split(" ")[0];
+                  const texto = `Hola ${nombre}, hemos pedido el repuesto ${pieza} para tu equipo (orden ${t.numero_orden}). Tiempo estimado de llegada: ${horas}.`;
+                  window.open(`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`, "_blank");
+                }}
+                style={{ ...btnStyle("transparent", COLORS.statusAmber, COLORS.line), flex: "none", padding: "7px 12px", fontSize: 12 }}
+              >
+                📦 Falta pieza
+              </button>
+            </div>
+          </div>
+        )}
+
         {t.tipo_trabajo === "domicilio" && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Mano de obra</div>
