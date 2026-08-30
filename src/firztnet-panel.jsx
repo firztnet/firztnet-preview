@@ -1606,7 +1606,7 @@ const ACCION_POR_ESTADO = {
   en_proceso: "Marcar como completado",
 };
 
-function PanelProximaAccion({ reparaciones, onAbrir, resaltada }) {
+function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
   const prioritaria = useMemo(() => {
     const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
     if (activas.length === 0) return null;
@@ -1623,7 +1623,11 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada }) {
     : null;
 
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 18, transition: "border-color 0.2s ease" }}>
+    <div
+      onMouseEnter={() => onHover?.(mostrada)}
+      onMouseLeave={() => onHover?.(null)}
+      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 18, transition: "border-color 0.2s ease" }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
         {resaltada && <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, padding: "2px 7px", borderRadius: 999 }}>En vista previa</span>}
@@ -2932,7 +2936,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
-              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} />
+              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
