@@ -2728,7 +2728,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
           .fn-stat-grid > div { min-width: 0 !important; }
           .fn-content-flex { flex-direction: column !important; }
-          .fn-side-panel { width: 100% !important; }
+          .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
           .fn-search { max-width: 100% !important; }
           .fn-kanban-col { flex: 0 0 200px !important; min-width: 200px !important; }
           .fn-modal-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; }
@@ -2908,7 +2908,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               </div>
             </div>
 
-            <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
