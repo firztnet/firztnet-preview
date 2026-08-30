@@ -1684,7 +1684,7 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 20 }}>
           <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Hoy</div>
           <Row label="Equipos recibidos" value={reporteDiario.equipos_recibidos ?? 0} />
           <Row label="Equipos entregados" value={reporteDiario.equipos_entregados ?? 0} />
@@ -1695,7 +1695,7 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 20 }}>
           <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Este mes ({reporteMensual.mes})</div>
           <Row label="Reparaciones entregadas" value={reporteMensual.reparaciones_entregadas ?? 0} />
           <Row label="No reparables" value={reporteMensual.reparaciones_no_reparables ?? 0} />
@@ -2860,12 +2860,12 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
                 <div style={{ position: "absolute", top: -10, right: -10, width: 64, height: 64, borderRadius: "50%", background: `${COLORS.amber}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Wrench size={22} color={`${COLORS.amber}55`} style={{ marginBottom: 10, marginRight: 10 }} />
                 </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: COLORS.amber, fontWeight: 600 }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust, fontWeight: 600 }}>
                   {reporteDiario.balance_neto >= 0 ? "+" : ""}{Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
                 </div>
                 <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
@@ -2893,16 +2893,16 @@ function FirztnetPanel({ onCerrarSesion }) {
                 </div>
               </div>
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18 }}>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Este mes</div>
                 {[
                   { l: "Ingresos", v: reporteMensual.ingresos, c: COLORS.green },
                   { l: "Gastos", v: reporteMensual.gastos, c: COLORS.rust },
-                  { l: "Balance neto", v: reporteMensual.balance_neto, c: COLORS.text },
+                  { l: "Balance neto", v: reporteMensual.balance_neto, c: reporteMensual.balance_neto >= 0 ? COLORS.green : COLORS.rust },
                 ].map((r) => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${COLORS.line}` }}>
+                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "7px 8px", marginBottom: 4, borderRadius: 7, background: `${r.c}0F`, borderLeft: `3px solid ${r.c}` }}>
                     <span style={{ color: COLORS.textDim }}>{r.l}</span>
-                    <span style={{ color: r.c, fontFamily: "'IBM Plex Mono', monospace" }}>{Number(r.v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                    <span style={{ color: r.c, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>{Number(r.v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
                   </div>
                 ))}
                 <button onClick={() => setVista("reportes")} style={{ ...btnStyle("transparent", COLORS.teal, COLORS.line), marginTop: 12, padding: "8px 10px" }}>
