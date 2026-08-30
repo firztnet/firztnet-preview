@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -155,6 +155,8 @@ function fechaLarga(iso) {
 function StageDot({ color }) {
   return <span style={{ width: 7, height: 7, borderRadius: 999, background: color, display: "inline-block", flexShrink: 0 }} />;
 }
+
+const CHECKLIST_SALIDA_TALLER = ["Cargador incluido", "Teclado probado", "Pantalla probada", "Equipo limpio", "Accesorios devueltos"];
 
 const CATEGORIAS_DOMICILIO = [
   { key: "redes", label: "Redes/Internet", checklist: ["Router revisado", "Cableado comprobado", "Velocidad testeada"], herramientas: ["Crimpadora", "Conectores RJ45", "Probador de red (cable tester)", "Cable UTP", "Latiguillos de repuesto"] },
@@ -681,9 +683,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   }
 
   async function usarPlantillaChecklist() {
-    const cat = CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria);
-    if (!cat) return;
-    for (const texto of cat.checklist) {
+    const lista = t.tipo_trabajo === "domicilio" ? CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.checklist : CHECKLIST_SALIDA_TALLER;
+    if (!lista) return;
+    for (const texto of lista) {
       if (!checklist.some((i) => i.texto === texto)) {
         await añadirItemChecklist(texto);
       }
@@ -827,6 +829,20 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       setErrorPago(e.message);
     } finally {
       setGuardandoFecha(false);
+    }
+  }
+
+  const [tecnicosDisponibles, setTecnicosDisponibles] = useState([]);
+  useEffect(() => {
+    apiGet("/configuracion").then((c) => setTecnicosDisponibles(c.tecnicos || [])).catch(() => {});
+  }, []);
+
+  async function actualizarTecnico(nombre) {
+    try {
+      const actualizado = await apiPatch(`/reparaciones/${t.id}`, { tecnico: nombre || null });
+      onEstadoActualizado(actualizado);
+    } catch (e) {
+      /* silencioso */
     }
   }
 
@@ -1020,6 +1036,19 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           <Row label="Problema reportado" value={t.problema_reportado || "—"} />
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
           <Row label="Estado" value={stage.label} />
+          {tecnicosDisponibles.length > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 13, color: COLORS.textDim }}>Técnico responsable</span>
+              <select
+                value={t.tecnico || ""}
+                onChange={(e) => actualizarTecnico(e.target.value)}
+                style={{ fontSize: 12.5, padding: "5px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+              >
+                <option value="">Sin asignar</option>
+                {tecnicosDisponibles.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+              </select>
+            </div>
+          )}
           {!esFinal ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 13, color: COLORS.textDim }}>Fecha estimada de entrega</span>
@@ -1090,13 +1119,21 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
-        {t.tipo_trabajo === "domicilio" && (
+        {(t.tipo_trabajo === "domicilio" || ["listo", "entregado"].includes(t.estado_actual)) && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Hoja de trabajo</div>
-              {t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                {t.tipo_trabajo === "domicilio" ? "Hoja de trabajo" : "Checklist de salida"}
+              </div>
+              {t.tipo_trabajo === "domicilio" ? (
+                t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
+                  <button onClick={usarPlantillaChecklist} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: 0 }}>
+                    + Usar plantilla de {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label}
+                  </button>
+                )
+              ) : (
                 <button onClick={usarPlantillaChecklist} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: 0 }}>
-                  + Usar plantilla de {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label}
+                  + Usar checklist estándar
                 </button>
               )}
             </div>
@@ -1118,7 +1155,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                 value={nuevoItemChecklist}
                 onChange={(e) => setNuevoItemChecklist(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") añadirItemChecklist(nuevoItemChecklist); }}
-                placeholder="Añadir punto (ej. Cámara 2 alineada)"
+                placeholder={t.tipo_trabajo === "domicilio" ? "Añadir punto (ej. Cámara 2 alineada)" : "Añadir punto (ej. Funda incluida)"}
                 style={{ flex: 1, fontSize: 12.5, padding: "7px 9px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
               />
               <button disabled={guardandoChecklist} onClick={() => añadirItemChecklist(nuevoItemChecklist)} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12 }}>
@@ -1492,12 +1529,17 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
 // -------------------- modal: nueva reparación --------------------
 function NuevaReparacionModal({ onClose, onCreada }) {
-  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", tipoTrabajo: "taller", direccionServicio: "", categoria: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "" });
+  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", tipoTrabajo: "taller", direccionServicio: "", categoria: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "", tecnico: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [sugerencias, setSugerencias] = useState([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [alertaCliente, setAlertaCliente] = useState(null);
+  const [tecnicos, setTecnicos] = useState([]);
+
+  useEffect(() => {
+    apiGet("/configuracion").then((c) => setTecnicos(c.tecnicos || [])).catch(() => {});
+  }, []);
 
   function set(field) {
     return (e) => {
@@ -1559,6 +1601,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         urgente: form.urgente,
         problema_reportado: form.problema,
         fecha_estimada: form.fechaEstimada ? new Date(form.fechaEstimada).toISOString() : null,
+        tecnico: form.tecnico,
       });
       onCreada(reparacion);
     } catch (e) {
@@ -1678,6 +1721,14 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Fecha estimada de entrega <span style={{ fontWeight: 400 }}>(opcional)</span>
           <input style={inputStyle} type="date" value={form.fechaEstimada} onChange={set("fechaEstimada")} />
         </label>
+        {tecnicos.length > 0 && (
+          <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Técnico responsable <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <select style={inputStyle} value={form.tecnico} onChange={set("tecnico")}>
+              <option value="">Sin asignar</option>
+              {tecnicos.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+            </select>
+          </label>
+        )}
         <label style={{ fontSize: 12.5, color: COLORS.text, display: "flex", alignItems: "center", gap: 7, marginTop: 12, cursor: "pointer" }}>
           <input type="checkbox" checked={form.urgente} onChange={(e) => setForm((f) => ({ ...f, urgente: e.target.checked }))} style={{ width: 15, height: 15 }} />
           Marcar como urgente
@@ -1954,8 +2005,41 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
 
 function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
   const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
+  const [mesExportar, setMesExportar] = useState(() => new Date().toISOString().slice(0, 7));
+  const [exportando, setExportando] = useState(false);
+
+  async function descargarCsv() {
+    setExportando(true);
+    try {
+      const res = await fetch(`${API_BASE}/reportes/exportar?mes=${mesExportar}`, { headers: cabecerasAuth() });
+      manejar401(res);
+      if (!res.ok) throw new Error("No se pudo generar la exportación");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `resumen_${mesExportar}.csv`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setExportando(false);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Exportar resumen contable (ingresos, gastos y facturas) de:</div>
+        <input type="month" value={mesExportar} onChange={(e) => setMesExportar(e.target.value)} style={{ fontSize: 12.5, padding: "7px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }} />
+        <button disabled={exportando} onClick={descargarCsv} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
+          {exportando ? "Generando..." : "Descargar CSV"}
+        </button>
+      </div>
+
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
         <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>Últimos 7 días</div>
         <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 14 }}>Ingresos frente a gastos, día a día</div>
@@ -2115,6 +2199,246 @@ function CajaView({ onMovimientoCreado }) {
 
 // -------------------- vista: Ajustes (datos del negocio para el recibo) --------------------
 // -------------------- vista: Inventario --------------------
+// -------------------- vista: Garantías con proveedores (RMA) --------------------
+const ETIQUETAS_RMA = { enviado: "Enviado", en_proceso: "En proceso", resuelto: "Resuelto", rechazado: "Rechazado" };
+const COLORES_RMA = { enviado: COLORS.statusAmber, en_proceso: COLORS.statusBlue, resuelto: COLORS.green, rechazado: COLORS.rust };
+
+// -------------------- vista: Rendimiento de técnicos --------------------
+function RendimientoView() {
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiGet("/reportes/rendimiento")
+      .then(setDatos)
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  }, []);
+
+  const maxCompletados = Math.max(1, ...datos.map((d) => d.completados));
+
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 16 }}>
+        Trabajos completados (entregados) y tiempo medio desde la recepción hasta la entrega, por técnico. Solo cuenta lo que tenga un técnico asignado — puedes asignarlo desde la ficha de cada reparación.
+      </div>
+
+      {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust }}>{error}</div>}
+      {!cargando && datos.length === 0 && (
+        <div style={{ fontSize: 12.5, color: COLORS.textDim, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 16 }}>
+          Todavía no hay datos. Asigna un técnico a tus reparaciones (al darlas de alta o desde la ficha) y, en cuanto entregues alguna, aparecerá aquí.
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {datos.map((d, i) => (
+          <div key={d.tecnico} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.amber, COLORS.violet, COLORS.green, COLORS.statusBlue, COLORS.statusAmber][i % 5]}`, borderRadius: 12, padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{d.tecnico}</div>
+              <div style={{ display: "flex", gap: 18 }}>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: COLORS.text }}>{d.completados}</div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, textTransform: "uppercase" }}>Completados</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: COLORS.text }}>{d.tiempo_promedio_horas}h</div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, textTransform: "uppercase" }}>Tiempo medio</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: COLORS.surfaceRaised, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(d.completados / maxCompletados) * 100}%`, background: [COLORS.amber, COLORS.violet, COLORS.green, COLORS.statusBlue, COLORS.statusAmber][i % 5], borderRadius: 999 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RmaView() {
+  const [rmas, setRmas] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [repuestos, setRepuestos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [form, setForm] = useState({ proveedor_id: "", repuesto_id: "", numero_orden: "", numero_serie: "", motivo: "" });
+  const [guardando, setGuardando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      const [listaRma, listaProv, listaRep] = await Promise.all([
+        apiGet(`/rma${filtroEstado ? `?estado=${filtroEstado}` : ""}`),
+        apiGet("/proveedores"),
+        apiGet("/repuestos"),
+      ]);
+      setRmas(listaRma);
+      setProveedores(listaProv);
+      setRepuestos(listaRep);
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, [filtroEstado]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function crear() {
+    if (!form.proveedor_id || !form.motivo.trim()) return;
+    setGuardando(true);
+    try {
+      let reparacion_id = null;
+      if (form.numero_orden.trim()) {
+        const coincidencias = await apiGet(`/reparaciones?q=${encodeURIComponent(form.numero_orden.trim())}`).catch(() => []);
+        const encontrada = (coincidencias || []).find((r) => r.numero_orden === form.numero_orden.trim());
+        reparacion_id = encontrada?.id || null;
+      }
+      await apiPost("/rma", {
+        proveedor_id: parseInt(form.proveedor_id, 10),
+        repuesto_id: form.repuesto_id ? parseInt(form.repuesto_id, 10) : null,
+        reparacion_id,
+        numero_serie: form.numero_serie,
+        motivo: form.motivo,
+      });
+      setForm({ proveedor_id: "", repuesto_id: "", numero_orden: "", numero_serie: "", motivo: "" });
+      setMostrarForm(false);
+      cargar();
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function actualizarEstado(id, cambios) {
+    try {
+      const res = await fetch(`${API_BASE}/rma/${id}`, { method: "PATCH", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify(cambios) });
+      manejar401(res);
+      const actualizado = await res.json();
+      setRmas((prev) => prev.map((r) => (r.id === id ? actualizado : r)));
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  const inputStyle = { fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["", "enviado", "en_proceso", "resuelto", "rechazado"].map((e) => (
+            <button
+              key={e || "todos"}
+              onClick={() => setFiltroEstado(e)}
+              style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroEstado === e ? COLORS.amber : COLORS.line}`, background: filtroEstado === e ? COLORS.amber : COLORS.surface, color: filtroEstado === e ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
+            >
+              {e ? ETIQUETAS_RMA[e] : "Todos"}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setMostrarForm((v) => !v)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Plus size={14} /> Nueva devolución (RMA)
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div style={{ flex: "1 1 180px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Proveedor *</div>
+            <select style={{ ...inputStyle, width: "100%" }} value={form.proveedor_id} onChange={(e) => setForm((f) => ({ ...f, proveedor_id: e.target.value }))}>
+              <option value="">Elegir...</option>
+              {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: "1 1 180px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Repuesto <span style={{ fontWeight: 400 }}>(opcional)</span></div>
+            <select style={{ ...inputStyle, width: "100%" }} value={form.repuesto_id} onChange={(e) => setForm((f) => ({ ...f, repuesto_id: e.target.value }))}>
+              <option value="">Sin repuesto concreto</option>
+              {repuestos.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 130 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Nº orden <span style={{ fontWeight: 400 }}>(opcional)</span></div>
+            <input style={{ ...inputStyle, width: "100%" }} value={form.numero_orden} onChange={(e) => setForm((f) => ({ ...f, numero_orden: e.target.value }))} placeholder="2026-0007" />
+          </div>
+          <div style={{ width: 150 }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Nº de serie</div>
+            <input style={{ ...inputStyle, width: "100%" }} value={form.numero_serie} onChange={(e) => setForm((f) => ({ ...f, numero_serie: e.target.value }))} placeholder="SN-12345" />
+          </div>
+          <div style={{ flex: "2 1 240px" }}>
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 4 }}>Motivo *</div>
+            <input style={{ ...inputStyle, width: "100%" }} value={form.motivo} onChange={(e) => setForm((f) => ({ ...f, motivo: e.target.value }))} placeholder="Ej. Pantalla con línea vertical" />
+          </div>
+          <button disabled={guardando || !form.proveedor_id || !form.motivo.trim()} onClick={crear} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px" }}>
+            {guardando ? "Guardando..." : "Registrar"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+        {!cargando && rmas.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin devoluciones registradas.</div>}
+        {rmas.map((r) => (
+          <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORES_RMA[r.estado]}`, borderRadius: 10, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>
+                  {r.repuesto?.nombre || "Repuesto sin especificar"} · {r.proveedor?.nombre}
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{r.motivo}</div>
+                <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
+                  {r.numero_serie && <>Nº serie: {r.numero_serie} · </>}
+                  Enviado: {fechaLarga(r.fecha_envio)}
+                  {r.reparacion_numero_orden && <> · Orden #{r.reparacion_numero_orden}</>}
+                </div>
+                {r.resultado && (
+                  <div style={{ fontSize: 12, color: COLORS.green, marginTop: 4 }}>
+                    {r.resultado}{r.importe_recuperado != null && ` (${Number(r.importe_recuperado).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €)`}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#FFFFFF", background: COLORES_RMA[r.estado], borderRadius: 999, padding: "3px 10px", flexShrink: 0 }}>
+                {ETIQUETAS_RMA[r.estado]}
+              </span>
+            </div>
+            {!["resuelto", "rechazado"].includes(r.estado) && (
+              <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                {r.estado === "enviado" && (
+                  <button onClick={() => actualizarEstado(r.id, { estado: "en_proceso" })} style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), flex: "none", padding: "6px 12px", fontSize: 11.5 }}>
+                    Marcar en proceso
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const resultado = window.prompt("¿Cómo se resolvió? (ej. Sustituida por unidad nueva)");
+                    if (resultado === null) return;
+                    const importeStr = window.prompt("¿Importe recuperado en €? (deja en blanco si no aplica)");
+                    actualizarEstado(r.id, { estado: "resuelto", resultado, importe_recuperado: importeStr ? parseFloat(importeStr) : null });
+                  }}
+                  style={{ ...btnStyle("transparent", COLORS.green, COLORS.line), flex: "none", padding: "6px 12px", fontSize: 11.5 }}
+                >
+                  Marcar resuelto
+                </button>
+                <button onClick={() => actualizarEstado(r.id, { estado: "rechazado" })} style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), flex: "none", padding: "6px 12px", fontSize: 11.5 }}>
+                  Marcar rechazado
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function InventarioView() {
   const [repuestos, setRepuestos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -2626,15 +2950,20 @@ function AjustesView() {
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState("");
+  const [tecnicos, setTecnicos] = useState([]);
+  const [nuevoTecnico, setNuevoTecnico] = useState("");
 
   useEffect(() => {
     apiGet("/configuracion")
-      .then((data) => setForm({
-        nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
-        direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
-        nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
-        tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "",
-      }))
+      .then((data) => {
+        setForm({
+          nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
+          direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
+          nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
+          tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "",
+        });
+        setTecnicos(data.tecnicos || []);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, []);
@@ -2650,7 +2979,7 @@ function AjustesView() {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0, tarifa_hora: parseFloat(form.tarifa_hora) || 25 }),
+        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0, tarifa_hora: parseFloat(form.tarifa_hora) || 25, tecnicos }),
       });
       manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
@@ -2717,6 +3046,47 @@ function AjustesView() {
         </label>
         <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>
           Búscate en Google Maps → "Compartir" → "Pedir reseñas" para conseguir este enlace. Úsalo en una plantilla con <code>{"{enlace_resena}"}</code>.
+        </div>
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Técnicos <span style={{ fontWeight: 400, textTransform: "none" }}>(para asignar y medir rendimiento — sin login propio de momento)</span>
+        </div>
+        {tecnicos.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {tecnicos.map((nombre) => (
+              <span key={nombre} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: `${COLORS.statusBlue}18`, color: COLORS.statusBlue }}>
+                {nombre}
+                <button onClick={() => setTecnicos((prev) => prev.filter((n) => n !== nombre))} style={{ background: "none", border: "none", color: COLORS.statusBlue, cursor: "pointer", padding: 0, display: "flex" }}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={nuevoTecnico}
+            onChange={(e) => setNuevoTecnico(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nuevoTecnico.trim() && !tecnicos.includes(nuevoTecnico.trim())) {
+                setTecnicos((prev) => [...prev, nuevoTecnico.trim()]);
+                setNuevoTecnico("");
+              }
+            }}
+            placeholder="Nombre del técnico"
+            style={{ flex: 1, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+          />
+          <button
+            onClick={() => {
+              if (nuevoTecnico.trim() && !tecnicos.includes(nuevoTecnico.trim())) {
+                setTecnicos((prev) => [...prev, nuevoTecnico.trim()]);
+                setNuevoTecnico("");
+              }
+            }}
+            style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "8px 14px", fontSize: 12.5 }}
+          >
+            Añadir
+          </button>
         </div>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
@@ -3294,6 +3664,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "clientes", icon: Users, label: "Clientes" },
             { key: "reportes", icon: FileBarChart, label: "Reportes" },
             { key: "inventario", icon: Package, label: "Inventario" },
+            { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
+            { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
             { key: "caja", icon: Banknote, label: "Caja" },
             { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento" },
@@ -3329,6 +3701,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "clientes" && "Clientes"}
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
+                {vista === "rma" && "Garantías con proveedores (RMA)"}
+                {vista === "rendimiento" && "Rendimiento de técnicos"}
                 {vista === "caja" && "Caja"}
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
@@ -3355,6 +3729,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "clientes" && <ClientesView />}
           {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia} />}
           {vista === "inventario" && <InventarioView />}
+          {vista === "rma" && <RmaView />}
+          {vista === "rendimiento" && <RendimientoView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
