@@ -2449,14 +2449,32 @@ function RecordatoriosView() {
         {recordatorios.map((r) => {
           const estado = diasRestantes(r.fecha_programada);
           return (
-            <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${r.cumplido ? COLORS.green : estado.color}`, borderRadius: 10, padding: 14, display: "flex", alignItems: "center", gap: 12 }}>
-              <input type="checkbox" checked={r.cumplido} onChange={(e) => marcarCumplido(r.id, e.target.checked)} style={{ width: 17, height: 17, cursor: "pointer", flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: r.cumplido ? COLORS.textDim : COLORS.text, textDecoration: r.cumplido ? "line-through" : "none" }}>{r.texto}</div>
-                <div style={{ fontSize: 12, color: COLORS.textDim }}>{r.cliente?.nombre} · {fechaLarga(r.fecha_programada)}</div>
+            <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${r.cumplido ? COLORS.green : estado.color}`, borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input type="checkbox" checked={r.cumplido} onChange={(e) => marcarCumplido(r.id, e.target.checked)} style={{ width: 17, height: 17, cursor: "pointer", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: r.cumplido ? COLORS.textDim : COLORS.text, textDecoration: r.cumplido ? "line-through" : "none" }}>{r.texto}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textDim }}>{r.cliente?.nombre} · {fechaLarga(r.fecha_programada)}</div>
+                </div>
+                {!r.cumplido && (
+                  <span style={{ fontSize: 11, fontWeight: 600, color: estado.color, background: `${estado.color}18`, borderRadius: 999, padding: "3px 9px", flexShrink: 0 }}>{estado.texto}</span>
+                )}
               </div>
               {!r.cumplido && (
-                <span style={{ fontSize: 11, fontWeight: 600, color: estado.color, background: `${estado.color}18`, borderRadius: 999, padding: "3px 9px", flexShrink: 0 }}>{estado.texto}</span>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLORS.line}` }}>
+                  <div style={{ fontSize: 11.5, color: COLORS.textDim, fontStyle: "italic", marginBottom: 8 }}>"{r.mensaje_sugerido}"</div>
+                  {r.enlace_whatsapp ? (
+                    <a
+                      href={r.enlace_whatsapp}
+                      target="_blank" rel="noreferrer"
+                      style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "8px 14px", fontSize: 12, textDecoration: "none", flex: "none", display: "inline-flex" }}
+                    >
+                      Enviar por WhatsApp
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 11, color: COLORS.rust }}>El cliente no tiene teléfono guardado.</span>
+                  )}
+                </div>
               )}
             </div>
           );
