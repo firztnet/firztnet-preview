@@ -2652,6 +2652,49 @@ function FirztnetPanel({ onCerrarSesion }) {
     <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif" }}>
       <link rel="stylesheet" href={FONTS_URL} />
       <style>{`
+        @keyframes fnLogoGlow {
+          0%, 100% { box-shadow: 0 0 0 0 ${COLORS.amber}55; }
+          50% { box-shadow: 0 0 16px 3px ${COLORS.amber}66; }
+        }
+        .fn-logo-badge {
+          animation: fnLogoGlow 3.2s ease-in-out infinite;
+          transition: transform 0.3s ease;
+        }
+        .fn-logo-badge:hover {
+          transform: rotate(-8deg) scale(1.08);
+        }
+        .fn-navitem {
+          position: relative;
+          transition: background-color 0.25s ease, padding-left 0.25s ease, color 0.25s ease;
+          overflow: hidden;
+        }
+        .fn-navitem::before {
+          content: "";
+          position: absolute;
+          left: 0; top: 0; bottom: 0;
+          width: 3px;
+          background: ${COLORS.amber};
+          transform: scaleY(0);
+          transition: transform 0.25s ease;
+        }
+        .fn-navitem:hover {
+          background-color: ${COLORS.sidebarActiveBg} !important;
+          padding-left: 14px !important;
+          color: #FFFFFF !important;
+        }
+        .fn-navitem:hover::before {
+          transform: scaleY(1);
+        }
+        .fn-navitem svg {
+          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .fn-navitem:hover svg {
+          transform: scale(1.18) rotate(-6deg);
+        }
+        .fn-navitem-active::before {
+          transform: scaleY(1);
+        }
+
         @media (max-width: 768px) {
           .fn-sidebar {
             width: 100% !important;
@@ -2687,7 +2730,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       <div className="fn-shell" style={{ display: "flex" }}>
         <aside className="fn-sidebar" style={{ width: 210, background: COLORS.sidebarBg, borderRight: "none", minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 30, paddingLeft: 4 }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="fn-logo-badge" style={{ width: 30, height: 30, borderRadius: 8, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Wrench size={16} color="#FFFFFF" />
             </div>
             <span style={{ fontFamily: "Oswald", fontSize: 17, letterSpacing: 0.5, color: "#FFFFFF" }}>FIRZTNET</span>
@@ -2703,7 +2746,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           ].map((item) => (
             <div
               key={item.label}
-              className="fn-navitem"
+              className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}`}
               onClick={() => setVista(item.key)}
               style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
             >
