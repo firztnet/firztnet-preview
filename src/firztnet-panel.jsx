@@ -160,7 +160,7 @@ const CHECKLIST_SALIDA_TALLER = ["Cargador incluido", "Teclado probado", "Pantal
 
 const CATEGORIAS_DOMICILIO = [
   { key: "redes", label: "Redes/Internet", checklist: ["Router revisado", "Cableado comprobado", "Velocidad testeada"], herramientas: ["Crimpadora", "Conectores RJ45", "Probador de red (cable tester)", "Cable UTP", "Latiguillos de repuesto"] },
-  { key: "camaras", label: "Cámaras CCTV/IP", checklist: ["Cámara 1 alineada", "Grabador configurado", "Acceso remoto probado"], herramientas: ["Crimpadora", "Conectores RJ45", "Cable UTP/coaxial", "Taladro y tacos", "Destornillador", "Escalera"] },
+  { key: "camaras", label: "Cámaras CCTV/IP", checklist: ["Cámara 1 alineada", "Firmware actualizado", "Contraseña por defecto cambiada", "Visión nocturna probada", "Grabación en bucle activa", "Acceso remoto probado"], herramientas: ["Crimpadora", "Conectores RJ45", "Cable UTP/coaxial", "Taladro y tacos", "Destornillador", "Escalera"] },
   { key: "impresoras", label: "Impresoras/Periféricos", checklist: ["Impresora en red configurada", "Driver instalado", "Prueba de impresión OK"], herramientas: ["Cable USB/red", "Cartuchos o tóner de prueba", "Pendrive con drivers"] },
   { key: "mantenimiento_empresas", label: "Mantenimiento empresas", checklist: ["Equipos revisados", "Copias de seguridad comprobadas"], herramientas: ["Kit de destornilladores", "Aire comprimido", "Pendrive de arranque", "Disco externo para copias"] },
 ];
@@ -396,6 +396,84 @@ const TIPO_COMPROBANTE = {
 };
 
 // -------------------- pad de firma (reutilizable) --------------------
+// -------------------- escáner de código de barras/QR (cámara) --------------------
+function BotonEscanear({ onLeido }) {
+  const [activo, setActivo] = useState(false);
+  const [soportado, setSoportado] = useState(true);
+  const [error, setError] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const detectorRef = useRef(null);
+
+  async function iniciar() {
+    if (!("BarcodeDetector" in window)) {
+      setSoportado(false);
+      return;
+    }
+    setError("");
+    setActivo(true);
+    try {
+      detectorRef.current = new window.BarcodeDetector({ formats: ["code_128", "ean_13", "qr_code", "code_39", "upc_a", "upc_e"] });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        buclearDeteccion();
+      }
+    } catch (e) {
+      setError("No se pudo acceder a la cámara. Comprueba los permisos.");
+      setActivo(false);
+    }
+  }
+
+  function buclearDeteccion() {
+    const paso = async () => {
+      if (!videoRef.current || !detectorRef.current) return;
+      try {
+        const codigos = await detectorRef.current.detect(videoRef.current);
+        if (codigos.length > 0) {
+          onLeido(codigos[0].rawValue);
+          detener();
+          return;
+        }
+      } catch (e) {
+        /* frame no válido, se intenta con el siguiente */
+      }
+      if (streamRef.current) requestAnimationFrame(paso);
+    };
+    requestAnimationFrame(paso);
+  }
+
+  function detener() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setActivo(false);
+  }
+
+  useEffect(() => () => detener(), []);
+
+  if (activo) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 60, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <video ref={videoRef} style={{ width: "90%", maxWidth: 420, borderRadius: 12 }} muted playsInline />
+        <div style={{ color: "#FFF", fontSize: 13, marginTop: 14 }}>Apunta al código de barras o QR...</div>
+        <button onClick={detener} style={{ ...btnStyle(COLORS.rust, "#FFFFFF"), marginTop: 16, padding: "9px 20px" }}>Cancelar</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={iniciar} style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), padding: "7px 12px", fontSize: 12 }}>
+        <Camera size={13} /> Escanear
+      </button>
+      {!soportado && <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>Tu navegador no soporta el escáner (funciona en Chrome/Android) — escribe el número a mano.</div>}
+      {error && <div style={{ fontSize: 10.5, color: COLORS.rust, marginTop: 4 }}>{error}</div>}
+    </div>
+  );
+}
+
 function PadFirma({ onGuardar, guardando, textoBoton = "Confirmar firma" }) {
   const canvasRef = useRef(null);
   const dibujando = useRef(false);
@@ -582,7 +660,12 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [cantidadRepuesto, setCantidadRepuesto] = useState(1);
   const [asignandoRepuesto, setAsignandoRepuesto] = useState(false);
   const [errorRepuesto, setErrorRepuesto] = useState("");
+  const [mostrarTrazabilidad, setMostrarTrazabilidad] = useState(false);
+  const [numeroSerieRepuesto, setNumeroSerieRepuesto] = useState("");
+  const [facturaCompraRepuesto, setFacturaCompraRepuesto] = useState("");
+  const [fechaCompraRepuesto, setFechaCompraRepuesto] = useState("");
   const [checklist, setChecklist] = useState([]);
+  const [firmasDetalle, setFirmasDetalle] = useState([]);
   const [sesionesInfo, setSesionesInfo] = useState({ minutos_totales: 0, coste_mano_obra: 0, hay_sesion_abierta: false, tarifa_hora: 25 });
   const [cronometroTexto, setCronometroTexto] = useState("00:00:00");
   const [guardandoSesion, setGuardandoSesion] = useState(false);
@@ -766,6 +849,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       const uso = await apiPost(`/reparaciones/${t.id}/repuestos`, {
         repuesto_id: parseInt(repuestoSeleccionado, 10),
         cantidad: parseInt(cantidadRepuesto, 10) || 1,
+        numero_serie: numeroSerieRepuesto || null,
+        numero_factura_compra: facturaCompraRepuesto || null,
+        fecha_compra: fechaCompraRepuesto || null,
       });
       setRepuestosUsados((prev) => [...prev, uso]);
       setListaRepuestos((prev) =>
@@ -773,6 +859,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       );
       setRepuestoSeleccionado("");
       setCantidadRepuesto(1);
+      setNumeroSerieRepuesto("");
+      setFacturaCompraRepuesto("");
+      setFechaCompraRepuesto("");
+      setMostrarTrazabilidad(false);
     } catch (e) {
       setErrorRepuesto(e.message);
     } finally {
@@ -846,6 +936,16 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     }
   }
 
+  async function actualizarWifi(campo, valor) {
+    if (valor === (t[campo] || "")) return;
+    try {
+      const actualizado = await apiPatch(`/reparaciones/${t.id}`, { [campo]: valor || null });
+      onEstadoActualizado(actualizado);
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
   useEffect(() => {
     if (!t) return;
     setCargandoCobros(true);
@@ -854,6 +954,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
         setMovimientos(data.movimientos || []);
         setRepuestosUsados(data.repuestos_usados || []);
         setChecklist(data.checklist || []);
+        setFirmasDetalle(data.firmas || []);
       })
       .catch(() => {})
       .finally(() => setCargandoCobros(false));
@@ -963,6 +1064,29 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     }
   }
 
+  async function cobrarYFacturar() {
+    setErrorCobro("");
+    if (!montoCobro || parseFloat(montoCobro) <= 0) {
+      setErrorCobro("Indica un importe válido.");
+      return;
+    }
+    setGuardandoCobro(true);
+    try {
+      const resultado = await apiPost(`/reparaciones/${t.id}/cobrar-y-facturar`, {
+        concepto: conceptoCobro,
+        monto: parseFloat(montoCobro),
+        metodo_pago: metodoCobro,
+      });
+      setMovimientos((prev) => [resultado.movimiento, ...prev]);
+      setFacturaExistente(resultado.factura);
+      setMontoCobro("");
+    } catch (e) {
+      setErrorCobro(e.message);
+    } finally {
+      setGuardandoCobro(false);
+    }
+  }
+
   async function generarComprobante() {
     setGenerando(true);
     setErrorComprobante("");
@@ -993,6 +1117,16 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     if (nuevoEstado === "no_reparable" && !motivo.trim()) {
       setError("Indica el motivo antes de marcarlo como no reparable.");
       return;
+    }
+    const esCierre = ["entregado", "completado"].includes(nuevoEstado);
+    if (esCierre && checklist.length > 0) {
+      const pendientes = checklist.filter((i) => !i.completado);
+      if (pendientes.length > 0) {
+        const continuar = window.confirm(
+          `Quedan ${pendientes.length} punto(s) sin marcar en el checklist:\n\n${pendientes.map((i) => "• " + i.texto).join("\n")}\n\n¿Cerrar el servicio de todos modos?`
+        );
+        if (!continuar) return;
+      }
     }
     setGuardando(true);
     try {
@@ -1032,6 +1166,22 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           {t.tipo_trabajo === "domicilio" && t.direccion_servicio && <Row label="Dirección" value={t.direccion_servicio} />}
           {t.tipo_trabajo === "domicilio" && t.categoria && (
             <Row label="Categoría" value={CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label || t.categoria} />
+          )}
+          {t.tipo_trabajo === "domicilio" && ["redes", "camaras"].includes(t.categoria) && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                defaultValue={t.wifi_ssid || ""}
+                onBlur={(e) => actualizarWifi("wifi_ssid", e.target.value)}
+                placeholder="Red WiFi (SSID)"
+                style={{ flex: 1, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+              />
+              <input
+                defaultValue={t.wifi_password || ""}
+                onBlur={(e) => actualizarWifi("wifi_password", e.target.value)}
+                placeholder="Contraseña WiFi"
+                style={{ flex: 1, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+              />
+            </div>
           )}
           <Row label="Problema reportado" value={t.problema_reportado || "—"} />
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
@@ -1178,6 +1328,15 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               </span>
             )}
           </div>
+          {t.presupuesto_estado === "aceptado" && firmasDetalle.find((f) => f.tipo === "presupuesto") && (
+            <div style={{ fontSize: 11, color: COLORS.textDim, marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
+              <ShieldCheck size={12} color={COLORS.green} />
+              Firmado el {fechaLarga(firmasDetalle.find((f) => f.tipo === "presupuesto").fecha)}
+              {firmasDetalle.find((f) => f.tipo === "presupuesto").ip_aceptacion && (
+                <> · IP: {firmasDetalle.find((f) => f.tipo === "presupuesto").ip_aceptacion}</>
+              )}
+            </div>
+          )}
           {errorPresupuesto && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorPresupuesto}</div>}
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             <input
@@ -1273,24 +1432,39 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
               {repuestosUsados.map((u) => (
                 <div key={u.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: COLORS.textDim }}>
-                  <span>{u.cantidad}× {u.repuesto?.nombre}</span>
+                  <span>{u.cantidad}× {u.repuesto?.nombre}{u.numero_serie && <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: COLORS.statusBlue }}> · SN: {u.numero_serie}</span>}</span>
                   <span>{(u.cantidad * u.precio_aplicado).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
                 </div>
               ))}
             </div>
           )}
           {!esFinal && (
-            <div style={{ display: "flex", gap: 6 }}>
-              <select value={repuestoSeleccionado} onChange={(e) => setRepuestoSeleccionado(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}>
-                <option value="">Elegir repuesto...</option>
-                {listaRepuestos.map((r) => (
-                  <option key={r.id} value={r.id} disabled={r.stock_actual <= 0}>
-                    {r.nombre} (stock: {r.stock_actual})
-                  </option>
-                ))}
-              </select>
-              <input type="number" min="1" value={cantidadRepuesto} onChange={(e) => setCantidadRepuesto(e.target.value)} style={{ width: 50, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
-              <button disabled={asignandoRepuesto || !repuestoSeleccionado} onClick={asignarRepuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12 }}>
+            <div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={repuestoSeleccionado} onChange={(e) => setRepuestoSeleccionado(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}>
+                  <option value="">Elegir repuesto...</option>
+                  {listaRepuestos.map((r) => (
+                    <option key={r.id} value={r.id} disabled={r.stock_actual <= 0}>
+                      {r.nombre} (stock: {r.stock_actual})
+                    </option>
+                  ))}
+                </select>
+                <input type="number" min="1" value={cantidadRepuesto} onChange={(e) => setCantidadRepuesto(e.target.value)} style={{ width: 50, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+              </div>
+              <button type="button" onClick={() => setMostrarTrazabilidad((v) => !v)} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: "6px 0", display: "block" }}>
+                {mostrarTrazabilidad ? "− Ocultar trazabilidad" : "+ Añadir nº de serie / proveedor de compra (opcional)"}
+              </button>
+              {mostrarTrazabilidad && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, background: COLORS.surfaceRaised, borderRadius: 8, padding: 10 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input value={numeroSerieRepuesto} onChange={(e) => setNumeroSerieRepuesto(e.target.value)} placeholder="Nº de serie" style={{ flex: 1, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                    <BotonEscanear onLeido={(valor) => setNumeroSerieRepuesto(valor)} />
+                  </div>
+                  <input value={facturaCompraRepuesto} onChange={(e) => setFacturaCompraRepuesto(e.target.value)} placeholder="Nº de factura de compra" style={{ fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                  <input type="date" value={fechaCompraRepuesto} onChange={(e) => setFechaCompraRepuesto(e.target.value)} style={{ fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+              )}
+              <button disabled={asignandoRepuesto || !repuestoSeleccionado} onClick={asignarRepuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", padding: "7px 12px", fontSize: 12 }}>
                 Usar
               </button>
             </div>
@@ -1308,9 +1482,27 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           {!cargandoCobros && movimientos.filter((m) => m.tipo === "ingreso").length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
               {movimientos.filter((m) => m.tipo === "ingreso").map((m) => (
-                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: COLORS.textDim }}>
-                  <span>{m.concepto} · {m.metodo_pago}</span>
-                  <span style={{ color: COLORS.green }}>+{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: COLORS.textDim, gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.concepto} · {m.metodo_pago}</span>
+                  <span style={{ color: COLORS.green, flexShrink: 0 }}>+{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ventana = window.open("", "_blank");
+                      try {
+                        const res = await fetch(`${API_BASE}/recibos/movimiento/${m.id}/pdf`, { headers: cabecerasAuth() });
+                        manejar401(res);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        if (ventana) ventana.location.href = url;
+                      } catch (e) {
+                        ventana?.close();
+                      }
+                    }}
+                    style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  >
+                    Recibo
+                  </button>
                 </div>
               ))}
             </div>
@@ -1348,8 +1540,34 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               <option value="transferencia">Transferencia</option>
             </select>
           </div>
-          <button disabled={guardandoCobro} onClick={registrarCobro} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 8, padding: "9px 12px" }}>
-            {guardandoCobro ? "Registrando..." : "Registrar cobro"}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button disabled={guardandoCobro} onClick={registrarCobro} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "9px 12px" }}>
+              {guardandoCobro ? "Registrando..." : "Registrar cobro"}
+            </button>
+            {!facturaExistente && (
+              <button disabled={guardandoCobro} onClick={cobrarYFacturar} title="Registra el cobro y emite la factura de golpe" style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "9px 12px", fontSize: 12.5 }}>
+                Cobrar y facturar
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={guardandoCobro || !montoCobro}
+            onClick={async () => {
+              setGuardandoCobro(true);
+              try {
+                const nuevo = await apiPost("/finanzas", { reparacion_id: t.id, tipo: "gasto", concepto: conceptoCobro || "Gasto de esta visita", monto: parseFloat(montoCobro), metodo_pago: metodoCobro });
+                setMovimientos((prev) => [nuevo, ...prev]);
+                setMontoCobro("");
+              } catch (e) {
+                setErrorCobro(e.message);
+              } finally {
+                setGuardandoCobro(false);
+              }
+            }}
+            style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 11, cursor: "pointer", padding: "6px 0", display: "block" }}
+          >
+            Registrar como gasto de esta visita (material, gasolina, peajes...) en vez de cobro
           </button>
         </div>
 
@@ -1536,6 +1754,8 @@ function NuevaReparacionModal({ onClose, onCreada }) {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [alertaCliente, setAlertaCliente] = useState(null);
   const [tecnicos, setTecnicos] = useState([]);
+  const [sugerenciasFallos, setSugerenciasFallos] = useState(null);
+  const [buscandoSugerencias, setBuscandoSugerencias] = useState(false);
 
   useEffect(() => {
     apiGet("/configuracion").then((c) => setTecnicos(c.tecnicos || [])).catch(() => {});
@@ -1718,6 +1938,42 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Problema reportado
           <input style={inputStyle} value={form.problema} onChange={set("problema")} placeholder="Ej. No enciende" />
         </label>
+        {(form.marca || form.problema) && (
+          <button
+            type="button"
+            onClick={async () => {
+              setBuscandoSugerencias(true);
+              try {
+                const params = new URLSearchParams();
+                if (form.marca) params.set("marca", form.marca);
+                if (form.modelo) params.set("modelo", form.modelo);
+                if (form.problema) params.set("problema", form.problema);
+                setSugerenciasFallos(await apiGet(`/sugerencias/fallos-frecuentes?${params}`));
+              } catch (e) {
+                setSugerenciasFallos(null);
+              } finally {
+                setBuscandoSugerencias(false);
+              }
+            }}
+            style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: "4px 0", display: "block" }}
+          >
+            {buscandoSugerencias ? "Buscando en tu historial..." : "Ver casos parecidos en tu historial"}
+          </button>
+        )}
+        {sugerenciasFallos && (
+          <div style={{ fontSize: 11.5, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 10, marginBottom: 4 }}>
+            {sugerenciasFallos.sugerencias.length === 0 ? (
+              <span style={{ color: COLORS.textDim }}>Sin casos parecidos todavía.</span>
+            ) : (
+              <>
+                <div style={{ color: COLORS.statusBlue, fontWeight: 600, marginBottom: 4 }}>Encontrados en {sugerenciasFallos.encontradas} caso(s) parecido(s):</div>
+                {sugerenciasFallos.sugerencias.map((s, i) => (
+                  <div key={i} style={{ color: COLORS.text }}>• {s.descripcion} <span style={{ color: COLORS.textDim }}>({s.veces_visto}×)</span></div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Fecha estimada de entrega <span style={{ fontWeight: 400 }}>(opcional)</span>
           <input style={inputStyle} type="date" value={form.fechaEstimada} onChange={set("fechaEstimada")} />
         </label>
@@ -1940,6 +2196,65 @@ const ACCION_POR_ESTADO = {
   contratado: "Iniciar servicio",
   en_proceso: "Marcar como completado",
 };
+
+// -------------------- Panel de alertas del negocio --------------------
+function PanelAlertas({ reparaciones, onAbrir }) {
+  const [stockBajo, setStockBajo] = useState([]);
+  const [abandonados, setAbandonados] = useState([]);
+
+  useEffect(() => {
+    apiGet("/repuestos").then((lista) => setStockBajo(lista.filter((r) => r.stock_bajo))).catch(() => {});
+    apiGet("/reportes/abandonados?dias=30").then(setAbandonados).catch(() => {});
+  }, []);
+
+  const rechazados = reparaciones.filter((r) => r.presupuesto_estado === "rechazado");
+
+  if (stockBajo.length === 0 && rechazados.length === 0 && abandonados.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+      {rechazados.length > 0 && (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <TriangleAlert size={14} /> {rechazados.length} presupuesto{rechazados.length === 1 ? "" : "s"} rechazado{rechazados.length === 1 ? "" : "s"}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {rechazados.map((r) => (
+              <button key={r.id} onClick={() => onAbrir(r)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FECACA", background: "#FFFFFF", color: "#991B1B", cursor: "pointer" }}>
+                {r.cliente?.nombre} · #{r.numero_orden}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {abandonados.length > 0 && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#78350F", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <Bell size={14} /> {abandonados.length} equipo{abandonados.length === 1 ? "" : "s"} listo{abandonados.length === 1 ? "" : "s"} sin recoger hace 30+ días
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {abandonados.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => { const rep = reparaciones.find((r) => r.id === a.id); if (rep) onAbrir(rep); }}
+                style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FDE68A", background: "#FFFFFF", color: "#78350F", cursor: "pointer" }}
+              >
+                {a.cliente?.nombre} · {a.dias_abandonado} días
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {stockBajo.length > 0 && (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
+            <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
   const prioritaria = useMemo(() => {
@@ -2204,6 +2519,61 @@ const ETIQUETAS_RMA = { enviado: "Enviado", en_proceso: "En proceso", resuelto: 
 const COLORES_RMA = { enviado: COLORS.statusAmber, en_proceso: COLORS.statusBlue, resuelto: COLORS.green, rechazado: COLORS.rust };
 
 // -------------------- vista: Rendimiento de técnicos --------------------
+// -------------------- vista: Rentabilidad por línea de servicio --------------------
+const NOMBRES_CATEGORIA_RENTABILIDAD = {
+  reparacion_general: "Reparación general",
+  redes: "Redes/Internet",
+  camaras: "Cámaras CCTV/IP",
+  impresoras: "Impresoras/Periféricos",
+  mantenimiento_empresas: "Mantenimiento empresas",
+};
+
+function RentabilidadView() {
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    apiGet("/reportes/rentabilidad").then(setDatos).catch(() => {}).finally(() => setCargando(false));
+  }, []);
+
+  const maxIngresos = Math.max(1, ...datos.map((d) => d.ingresos));
+
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 16 }}>
+        Ingresos, coste de piezas (a precio de compra) y margen, por línea de servicio — solo con trabajos ya entregados/completados.
+      </div>
+      {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+      {!cargando && datos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Todavía no hay suficientes trabajos entregados para calcular esto.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {datos.map((d, i) => (
+          <div key={d.categoria} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.green, COLORS.statusBlue, COLORS.violet, COLORS.statusAmber, COLORS.teal][i % 5]}`, borderRadius: 12, padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{NOMBRES_CATEGORIA_RENTABILIDAD[d.categoria] || d.categoria}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{d.trabajos} trabajo{d.trabajos === 1 ? "" : "s"}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: d.margen >= 0 ? COLORS.green : COLORS.rust }}>
+                  {d.margen.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                </div>
+                <div style={{ fontSize: 10.5, color: COLORS.textDim, textTransform: "uppercase" }}>Margen ({d.margen_pct}%)</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: COLORS.textDim, marginBottom: 8 }}>
+              <span>Ingresos: <strong style={{ color: COLORS.text }}>{d.ingresos.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong></span>
+              <span>Coste piezas: <strong style={{ color: COLORS.text }}>{d.coste_piezas.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</strong></span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: COLORS.surfaceRaised, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(d.ingresos / maxIngresos) * 100}%`, background: [COLORS.green, COLORS.statusBlue, COLORS.violet, COLORS.statusAmber, COLORS.teal][i % 5], borderRadius: 999 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RendimientoView() {
   const [datos, setDatos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -2267,6 +2637,25 @@ function RmaView() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [form, setForm] = useState({ proveedor_id: "", repuesto_id: "", numero_orden: "", numero_serie: "", motivo: "" });
   const [guardando, setGuardando] = useState(false);
+  const [buscarSerie, setBuscarSerie] = useState("");
+  const [resultadoSerie, setResultadoSerie] = useState(null);
+  const [errorSerie, setErrorSerie] = useState("");
+  const [buscandoSerie, setBuscandoSerie] = useState(false);
+
+  async function buscarPorSerie() {
+    if (!buscarSerie.trim()) return;
+    setBuscandoSerie(true);
+    setErrorSerie("");
+    setResultadoSerie(null);
+    try {
+      const data = await apiGet(`/reparaciones/buscar-serie/${encodeURIComponent(buscarSerie.trim())}`);
+      setResultadoSerie(data);
+    } catch (e) {
+      setErrorSerie("No se encontró ningún repuesto con ese número de serie.");
+    } finally {
+      setBuscandoSerie(false);
+    }
+  }
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -2332,6 +2721,36 @@ function RmaView() {
 
   return (
     <div>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 8 }}>Trazabilidad: busca en qué reparación se usó una pieza por su nº de serie</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={buscarSerie}
+            onChange={(e) => setBuscarSerie(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") buscarPorSerie(); }}
+            placeholder="Nº de serie..."
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button disabled={buscandoSerie} onClick={buscarPorSerie} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "8px 16px" }}>
+            Buscar
+          </button>
+        </div>
+        {errorSerie && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 8 }}>{errorSerie}</div>}
+        {resultadoSerie && (
+          <div style={{ marginTop: 10, background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{resultadoSerie.repuesto?.nombre}</div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
+              Proveedor: <strong>{resultadoSerie.proveedor_compra?.nombre || "—"}</strong> · Factura: <strong>{resultadoSerie.numero_factura_compra || "—"}</strong> · Comprado: <strong>{resultadoSerie.fecha_compra ? fechaLarga(resultadoSerie.fecha_compra) : "—"}</strong>
+            </div>
+            {resultadoSerie.reparacion && (
+              <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
+                Usado en orden <strong>#{resultadoSerie.reparacion.numero_orden}</strong> ({resultadoSerie.reparacion.cliente?.nombre}) — {resultadoSerie.reparacion.equipo}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6 }}>
           {["", "enviado", "en_proceso", "resuelto", "rechazado"].map((e) => (
@@ -2724,6 +3143,69 @@ function ConocimientoView() {
 }
 
 // -------------------- vista: Recordatorios de mantenimiento --------------------
+// -------------------- vista: Solicitudes de servicio --------------------
+function SolicitudesView({ onCrearReparacion }) {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [verTodas, setVerTodas] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      setSolicitudes(await apiGet(`/solicitudes${verTodas ? "?todas=true" : ""}`));
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, [verTodas]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function marcarAtendida(id) {
+    setSolicitudes((prev) => prev.map((s) => (s.id === id ? { ...s, atendida: true } : s)));
+    try {
+      const res = await fetch(`${API_BASE}/solicitudes/${id}`, { method: "PATCH", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ atendida: true }) });
+      manejar401(res);
+      if (!verTodas) cargar();
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <button onClick={() => setVerTodas((v) => !v)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
+          {verTodas ? "Ver solo pendientes" : "Ver todas (incluye atendidas)"}
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+        {!cargando && solicitudes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin solicitudes pendientes. Aparecerán aquí cuando un cliente pida un nuevo servicio desde su página de seguimiento.</div>}
+        {solicitudes.map((s) => (
+          <div key={s.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</div>
+                <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{s.mensaje || "Sin mensaje adicional"}</div>
+                <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(s.fecha)}</div>
+              </div>
+              {!s.atendida && (
+                <button onClick={() => marcarAtendida(s.id)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 11.5 }}>
+                  Marcar atendida
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RecordatoriosView() {
   const [recordatorios, setRecordatorios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -2945,13 +3427,15 @@ function PlantillasView() {
 }
 
 function AjustesView() {
-  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "" });
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "", coste_almacenamiento_diario: 1, telegram_chat_id: "" });
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState("");
   const [tecnicos, setTecnicos] = useState([]);
   const [nuevoTecnico, setNuevoTecnico] = useState("");
+  const [probandoTelegram, setProbandoTelegram] = useState(false);
+  const [resultadoTelegram, setResultadoTelegram] = useState(null);
 
   useEffect(() => {
     apiGet("/configuracion")
@@ -2960,7 +3444,7 @@ function AjustesView() {
           nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
           direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
           nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
-          tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "",
+          tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "", coste_almacenamiento_diario: data.coste_almacenamiento_diario ?? 1, telegram_chat_id: data.telegram_chat_id || "",
         });
         setTecnicos(data.tecnicos || []);
       })
@@ -2979,7 +3463,7 @@ function AjustesView() {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0, tarifa_hora: parseFloat(form.tarifa_hora) || 25, tecnicos }),
+        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0, tarifa_hora: parseFloat(form.tarifa_hora) || 25, coste_almacenamiento_diario: parseFloat(form.coste_almacenamiento_diario) || 1, tecnicos }),
       });
       manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
@@ -3039,6 +3523,16 @@ function AjustesView() {
         </label>
 
         <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Equipos sin recoger
+        </div>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Coste de almacenamiento (€/día)
+          <input style={inputStyle} type="number" value={form.coste_almacenamiento_diario} onChange={set("coste_almacenamiento_diario")} placeholder="1" />
+        </label>
+        <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>
+          Se usa para calcular el coste acumulado en el aviso a clientes con equipos listos hace 30+ días sin recoger. Confirma con un profesional el importe y la base legal antes de aplicarlo de verdad.
+        </div>
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           Reseñas
         </div>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Enlace a tu ficha de Google <span style={{ fontWeight: 400 }}>(para pedir reseñas)</span>
@@ -3047,6 +3541,43 @@ function AjustesView() {
         <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>
           Búscate en Google Maps → "Compartir" → "Pedir reseñas" para conseguir este enlace. Úsalo en una plantilla con <code>{"{enlace_resena}"}</code>.
         </div>
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Avisos por Telegram <span style={{ fontWeight: 400, textTransform: "none" }}>(gratis, sin cuenta de pago)</span>
+        </div>
+        <ol style={{ fontSize: 11.5, color: COLORS.textDim, paddingLeft: 18, margin: "0 0 10px 0", lineHeight: 1.7 }}>
+          <li>En Telegram, busca <strong>@BotFather</strong> y escríbele <code>/newbot</code>, sigue los pasos y te dará un <strong>token</strong>.</li>
+          <li>Pide a tu servidor (Railway → Variables) que añada <code>TELEGRAM_BOT_TOKEN</code> con ese valor.</li>
+          <li>Busca <strong>@userinfobot</strong> en Telegram y escríbele cualquier cosa — te dirá tu <strong>chat_id</strong> (un número). Pégalo abajo.</li>
+        </ol>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block" }}>Tu chat_id de Telegram
+          <input style={inputStyle} value={form.telegram_chat_id} onChange={set("telegram_chat_id")} placeholder="123456789" />
+        </label>
+        <button
+          type="button"
+          disabled={probandoTelegram}
+          onClick={async () => {
+            setProbandoTelegram(true);
+            setResultadoTelegram(null);
+            try {
+              const res = await fetch(`${API_BASE}/configuracion/telegram/probar`, { method: "POST", headers: cabecerasAuth() });
+              const data = await res.json();
+              setResultadoTelegram({ ok: res.ok, detalle: data.detalle });
+            } catch (e) {
+              setResultadoTelegram({ ok: false, detalle: e.message });
+            } finally {
+              setProbandoTelegram(false);
+            }
+          }}
+          style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), marginTop: 8, padding: "8px 14px", fontSize: 12.5 }}
+        >
+          {probandoTelegram ? "Probando..." : "Enviar mensaje de prueba"}
+        </button>
+        {resultadoTelegram && (
+          <div style={{ fontSize: 11.5, color: resultadoTelegram.ok ? COLORS.green : COLORS.rust, marginTop: 6 }}>
+            {resultadoTelegram.ok ? "✓ Enviado — revisa tu Telegram" : `✗ ${resultadoTelegram.detalle}`}
+          </div>
+        )}
 
         <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           Técnicos <span style={{ fontWeight: 400, textTransform: "none" }}>(para asignar y medir rendimiento — sin login propio de momento)</span>
@@ -3172,6 +3703,10 @@ function SeguimientoPublico() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [mostrarFirmaPresupuesto, setMostrarFirmaPresupuesto] = useState(false);
+  const [mostrarSolicitud, setMostrarSolicitud] = useState(false);
+  const [mensajeSolicitud, setMensajeSolicitud] = useState("");
+  const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
+  const [solicitudEnviada, setSolicitudEnviada] = useState(false);
   const [guardandoRespuesta, setGuardandoRespuesta] = useState(false);
 
   const tokenDeUrl = useMemo(() => new URLSearchParams(window.location.search).get("token"), []);
@@ -3394,6 +3929,14 @@ function SeguimientoPublico() {
               </div>
             )}
 
+            {datos.wifi_ssid && (
+              <div style={{ marginTop: 16, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: 12 }}>
+                <div style={{ fontSize: 11, color: COLORS.statusBlue, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Tu WiFi</div>
+                <div style={{ fontSize: 13, color: COLORS.text }}>Red: <strong>{datos.wifi_ssid}</strong></div>
+                {datos.wifi_password && <div style={{ fontSize: 13, color: COLORS.text }}>Contraseña: <strong style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{datos.wifi_password}</strong></div>}
+              </div>
+            )}
+
             {datos.fecha_fin_garantia && (
               <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 7, color: COLORS.green, fontSize: 12.5, background: "#F0FDF4", borderRadius: 9, padding: "9px 12px" }}>
                 <ShieldCheck size={15} /> Garantía hasta {fechaLarga(datos.fecha_fin_garantia)}
@@ -3409,6 +3952,48 @@ function SeguimientoPublico() {
               >
                 Escribir por WhatsApp
               </a>
+            )}
+
+            {!mostrarSolicitud ? (
+              <button
+                onClick={() => setMostrarSolicitud(true)}
+                style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), width: "100%", marginTop: 10, padding: "9px 12px", fontSize: 12.5 }}
+              >
+                Solicitar un nuevo servicio
+              </button>
+            ) : solicitudEnviada ? (
+              <div style={{ marginTop: 10, fontSize: 12.5, color: COLORS.green, textAlign: "center" }}>✓ Solicitud enviada, nos pondremos en contacto</div>
+            ) : (
+              <div style={{ marginTop: 10 }}>
+                <textarea
+                  value={mensajeSolicitud}
+                  onChange={(e) => setMensajeSolicitud(e.target.value)}
+                  placeholder="Cuéntanos brevemente qué necesitas..."
+                  style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 9, border: "1.5px solid #E2E8F0", boxSizing: "border-box", minHeight: 60, fontFamily: "inherit", resize: "vertical" }}
+                />
+                <button
+                  disabled={enviandoSolicitud}
+                  onClick={async () => {
+                    setEnviandoSolicitud(true);
+                    try {
+                      const tok = tokenDeUrl || datos.token_seguimiento;
+                      await fetch(`${API_BASE}/seguimiento/${tok}/solicitar-servicio`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ mensaje: mensajeSolicitud }),
+                      });
+                      setSolicitudEnviada(true);
+                    } catch (e) {
+                      /* silencioso */
+                    } finally {
+                      setEnviandoSolicitud(false);
+                    }
+                  }}
+                  style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), width: "100%", marginTop: 8, padding: "9px 12px", fontSize: 12.5 }}
+                >
+                  {enviandoSolicitud ? "Enviando..." : "Enviar solicitud"}
+                </button>
+              </div>
             )}
 
             {!tokenDeUrl && (
@@ -3666,10 +4251,12 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "inventario", icon: Package, label: "Inventario" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
             { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
+            { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
             { key: "caja", icon: Banknote, label: "Caja" },
             { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento" },
             { key: "recordatorios", icon: Bell, label: "Recordatorios" },
+            { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
             { key: "ajustes", icon: Settings, label: "Ajustes" },
           ].map((item) => (
             <div
@@ -3703,10 +4290,12 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
                 {vista === "rendimiento" && "Rendimiento de técnicos"}
+                {vista === "rentabilidad" && "Rentabilidad por línea de servicio"}
                 {vista === "caja" && "Caja"}
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
                 {vista === "recordatorios" && "Recordatorios"}
+                {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
               {vista === "reparaciones" && (
@@ -3731,10 +4320,12 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "inventario" && <InventarioView />}
           {vista === "rma" && <RmaView />}
           {vista === "rendimiento" && <RendimientoView />}
+          {vista === "rentabilidad" && <RentabilidadView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
           {vista === "recordatorios" && <RecordatoriosView />}
+          {vista === "solicitudes" && <SolicitudesView />}
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
@@ -3837,6 +4428,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
+              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
