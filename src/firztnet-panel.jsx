@@ -1491,9 +1491,48 @@ function NuevaReparacionModal({ onClose, onCreada }) {
   const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", tipoTrabajo: "taller", direccionServicio: "", categoria: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [sugerencias, setSugerencias] = useState([]);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [alertaCliente, setAlertaCliente] = useState(null);
 
   function set(field) {
-    return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+    return (e) => {
+      setForm((f) => ({ ...f, [field]: e.target.value }));
+      if (field === "nombreCliente") {
+        setClienteSeleccionado(null);
+        setAlertaCliente(null);
+      }
+    };
+  }
+
+  useEffect(() => {
+    if (clienteSeleccionado || form.nombreCliente.trim().length < 2) {
+      setSugerencias([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apiGet(`/clientes?q=${encodeURIComponent(form.nombreCliente)}`).then(setSugerencias).catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [form.nombreCliente, clienteSeleccionado]);
+
+  async function elegirCliente(c) {
+    setClienteSeleccionado(c);
+    setForm((f) => ({ ...f, nombreCliente: c.nombre, telefono: c.telefono || "", email: c.email || "" }));
+    setSugerencias([]);
+    try {
+      const detalle = await apiGet(`/clientes/${c.id}`);
+      const partes = [];
+      if (detalle.resumen?.sin_cobrar?.length > 0) {
+        partes.push(`${detalle.resumen.sin_cobrar.length} reparación(es) entregada(s) sin cobrar (${detalle.resumen.sin_cobrar.map((r) => "#" + r.numero_orden).join(", ")})`);
+      }
+      if (detalle.resumen?.en_garantia?.length > 0) {
+        partes.push(`${detalle.resumen.en_garantia.length} equipo(s) todavía en garantía: ${detalle.resumen.en_garantia.map((r) => `${r.equipo} (hasta ${fechaLarga(r.fecha_fin_garantia)})`).join("; ")}`);
+      }
+      setAlertaCliente(partes.length > 0 ? partes : null);
+    } catch (e) {
+      /* silencioso */
+    }
   }
 
   async function guardar() {
@@ -1504,7 +1543,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
     }
     setGuardando(true);
     try {
-      const cliente = await apiPost("/clientes", { nombre: form.nombreCliente, telefono: form.telefono, email: form.email });
+      const cliente = clienteSeleccionado || await apiPost("/clientes", { nombre: form.nombreCliente, telefono: form.telefono, email: form.email });
       const reparacion = await apiPost("/reparaciones", {
         cliente_id: cliente.id,
         equipo: form.equipo,
@@ -1554,9 +1593,39 @@ function NuevaReparacionModal({ onClose, onCreada }) {
           </button>
         </div>
 
-        <label style={{ fontSize: 12, color: COLORS.textDim }}>Cliente
-          <input style={inputStyle} value={form.nombreCliente} onChange={set("nombreCliente")} placeholder="Nombre y apellidos" />
+        <label style={{ fontSize: 12, color: COLORS.textDim, position: "relative", display: "block" }}>Cliente
+          <input style={inputStyle} value={form.nombreCliente} onChange={set("nombreCliente")} placeholder="Nombre y apellidos" autoComplete="off" />
+          {sugerencias.length > 0 && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 8, marginTop: 2, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 160, overflowY: "auto" }}>
+              {sugerencias.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => elegirCliente(c)}
+                  style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 11px", background: "none", border: "none", cursor: "pointer", fontSize: 12.5, borderBottom: `1px solid ${COLORS.line}` }}
+                >
+                  <div style={{ fontWeight: 600, color: COLORS.text }}>{c.nombre}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textDim }}>{c.codigo}{c.telefono ? ` · ${c.telefono}` : ""}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </label>
+        {clienteSeleccionado && (
+          <div style={{ fontSize: 11, color: COLORS.green, marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <CheckCircle2 size={12} /> Cliente existente ({clienteSeleccionado.codigo}) — no se creará uno nuevo.
+          </div>
+        )}
+        {alertaCliente && (
+          <div style={{ marginTop: 8, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 10 }}>
+            {alertaCliente.map((texto, i) => (
+              <div key={i} style={{ fontSize: 11.5, color: "#78350F", display: "flex", gap: 6, marginBottom: i === alertaCliente.length - 1 ? 0 : 4 }}>
+                <TriangleAlert size={13} color={COLORS.statusAmber} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{texto}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Teléfono
           <input style={inputStyle} value={form.telefono} onChange={set("telefono")} placeholder="600 000 000" />
         </label>
@@ -1757,6 +1826,27 @@ function ClientesView() {
                       Cancelar
                     </button>
                   </div>
+                </div>
+              )}
+
+              {detalle.resumen && (detalle.resumen.sin_cobrar?.length > 0 || detalle.resumen.en_garantia?.length > 0) && (
+                <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {detalle.resumen.sin_cobrar?.length > 0 && (
+                    <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <TriangleAlert size={14} color={COLORS.rust} style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ fontSize: 12, color: "#991B1B" }}>
+                        <strong>{detalle.resumen.sin_cobrar.length}</strong> reparación{detalle.resumen.sin_cobrar.length === 1 ? "" : "es"} entregada{detalle.resumen.sin_cobrar.length === 1 ? "" : "s"} sin cobrar: {detalle.resumen.sin_cobrar.map((r) => `#${r.numero_orden}`).join(", ")}
+                      </div>
+                    </div>
+                  )}
+                  {detalle.resumen.en_garantia?.length > 0 && (
+                    <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <ShieldCheck size={14} color={COLORS.green} style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ fontSize: 12, color: "#166534" }}>
+                        <strong>{detalle.resumen.en_garantia.length}</strong> equipo{detalle.resumen.en_garantia.length === 1 ? "" : "s"} en garantía: {detalle.resumen.en_garantia.map((r) => `${r.equipo} (hasta ${fechaLarga(r.fecha_fin_garantia)})`).join("; ")}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
