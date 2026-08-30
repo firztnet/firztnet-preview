@@ -2651,7 +2651,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   return (
     <div style={{
       minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif",
-      background: `radial-gradient(circle at 15% 20%, ${COLORS.amber}22, transparent 45%), radial-gradient(circle at 85% 15%, ${COLORS.violet}22, transparent 45%), radial-gradient(circle at 50% 90%, ${COLORS.green}1F, transparent 45%), ${COLORS.bg}`,
+      background: `radial-gradient(circle at 15% 20%, ${COLORS.amber}4D, transparent 65%), radial-gradient(circle at 85% 15%, ${COLORS.violet}4D, transparent 65%), radial-gradient(circle at 50% 95%, ${COLORS.green}45, transparent 65%), ${COLORS.bg}`,
     }}>
       <link rel="stylesheet" href={FONTS_URL} />
       <style>{`
