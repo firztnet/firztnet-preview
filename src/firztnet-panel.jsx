@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -60,7 +60,7 @@ const COLORS = {
   sidebarActiveBg: "#1B2C5C",
 };
 
-const STAGES = [
+const STAGES_TALLER = [
   { key: "recibido", label: "Recibido", accent: COLORS.textDim },
   { key: "diagnostico", label: "Diagnóstico", accent: COLORS.statusAmber },
   { key: "reparacion", label: "En reparación", accent: COLORS.statusBlue },
@@ -68,6 +68,21 @@ const STAGES = [
   { key: "entregado", label: "Entregado", accent: COLORS.textDim },
   { key: "no_reparable", label: "No reparable", accent: COLORS.rust },
 ];
+
+const STAGES_DOMICILIO = [
+  { key: "contratado", label: "Contratado", accent: COLORS.textDim },
+  { key: "en_proceso", label: "En proceso", accent: COLORS.statusBlue },
+  { key: "completado", label: "Completado", accent: COLORS.green },
+  { key: "no_reparable", label: "No realizado", accent: COLORS.rust },
+];
+
+// Alias: la mayoría del código ya existente asume el flujo de taller —
+// mantenemos STAGES apuntando ahí para no tener que tocar todos los usos.
+const STAGES = STAGES_TALLER;
+
+function stagesFor(tipoTrabajo) {
+  return tipoTrabajo === "domicilio" ? STAGES_DOMICILIO : STAGES_TALLER;
+}
 
 // -------------------- helpers de API --------------------
 let authToken = null;
@@ -140,6 +155,13 @@ function StageDot({ color }) {
   return <span style={{ width: 7, height: 7, borderRadius: 999, background: color, display: "inline-block", flexShrink: 0 }} />;
 }
 
+const CATEGORIAS_DOMICILIO = [
+  { key: "redes", label: "Redes/Internet", checklist: ["Router revisado", "Cableado comprobado", "Velocidad testeada"] },
+  { key: "camaras", label: "Cámaras CCTV/IP", checklist: ["Cámara 1 alineada", "Grabador configurado", "Acceso remoto probado"] },
+  { key: "impresoras", label: "Impresoras/Periféricos", checklist: ["Impresora en red configurada", "Driver instalado", "Prueba de impresión OK"] },
+  { key: "mantenimiento_empresas", label: "Mantenimiento empresas", checklist: ["Equipos revisados", "Copias de seguridad comprobadas"] },
+];
+
 function tiempoEnTaller(fechaRecepcion) {
   const horas = (Date.now() - new Date(fechaRecepcion).getTime()) / (1000 * 60 * 60);
   if (horas < 24) return { texto: "< 24h", color: "#22C55E", fondo: "#F0FDF4" };
@@ -162,7 +184,8 @@ function iniciales(nombre) {
 
 // -------------------- Reparaciones destacadas: En curso / Por entregar --------------------
 function TarjetaDestacada({ t, onAbrir }) {
-  const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+  const lista = stagesFor(t.tipo_trabajo);
+  const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
   return (
     <button
       onClick={() => onAbrir(t)}
@@ -193,7 +216,7 @@ function TarjetaDestacada({ t, onAbrir }) {
 
 function ReparacionesDestacadas({ reparaciones, onAbrir }) {
   const enCurso = reparaciones
-    .filter((r) => ["diagnostico", "reparacion"].includes(r.estado_actual))
+    .filter((r) => ["diagnostico", "reparacion", "en_proceso"].includes(r.estado_actual))
     .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
     .slice(0, 4);
   const porEntregar = reparaciones
@@ -233,8 +256,9 @@ function ReparacionesDestacadas({ reparaciones, onAbrir }) {
 }
 
 function RepairTag({ t, onClick }) {
-  const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
-  const enTaller = !["entregado", "no_reparable"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
+  const listaEstados = stagesFor(t.tipo_trabajo);
+  const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
+  const enTaller = !["entregado", "no_reparable", "completado"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
   return (
     <button
       onClick={onClick}
@@ -280,7 +304,13 @@ function RepairTag({ t, onClick }) {
             </span>
           )}
         </div>
-        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{t.equipo}</div>
+        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+          {t.tipo_trabajo === "domicilio" && <MapPin size={11} color={COLORS.statusBlue} />}
+          {t.equipo}
+        </div>
+        {t.tipo_trabajo === "domicilio" && t.direccion_servicio && (
+          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>{t.direccion_servicio}</div>
+        )}
         {t.problema_reportado && (
           <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4, fontStyle: "italic" }}>
             "{t.problema_reportado}"
@@ -357,6 +387,7 @@ function Row({ label, value }) {
 const TIPO_COMPROBANTE = {
   recibido: "recepcion", diagnostico: "recepcion", reparacion: "recepcion",
   listo: "recepcion", entregado: "entrega", no_reparable: "no_reparable",
+  contratado: "recepcion", en_proceso: "recepcion", completado: "entrega",
 };
 
 // -------------------- pad de firma (reutilizable) --------------------
@@ -471,6 +502,11 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [cargandoCobros, setCargandoCobros] = useState(true);
   const [montoCobro, setMontoCobro] = useState("");
   const [conceptoCobro, setConceptoCobro] = useState("Reparación");
+  const [suplementoDesplazamiento, setSuplementoDesplazamiento] = useState(20);
+
+  useEffect(() => {
+    apiGet("/configuracion").then((c) => setSuplementoDesplazamiento(c.suplemento_desplazamiento ?? 20)).catch(() => {});
+  }, []);
   const [metodoCobro, setMetodoCobro] = useState("efectivo");
   const [guardandoCobro, setGuardandoCobro] = useState(false);
   const [errorCobro, setErrorCobro] = useState("");
@@ -488,6 +524,57 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [cantidadRepuesto, setCantidadRepuesto] = useState(1);
   const [asignandoRepuesto, setAsignandoRepuesto] = useState(false);
   const [errorRepuesto, setErrorRepuesto] = useState("");
+  const [checklist, setChecklist] = useState([]);
+  const [nuevoItemChecklist, setNuevoItemChecklist] = useState("");
+  const [guardandoChecklist, setGuardandoChecklist] = useState(false);
+
+  async function añadirItemChecklist(texto) {
+    if (!texto.trim()) return;
+    setGuardandoChecklist(true);
+    try {
+      const item = await apiPost(`/reparaciones/${t.id}/checklist`, { texto });
+      setChecklist((prev) => [...prev, item]);
+      setNuevoItemChecklist("");
+    } catch (e) {
+      /* silencioso */
+    } finally {
+      setGuardandoChecklist(false);
+    }
+  }
+
+  async function toggleItemChecklist(item) {
+    setChecklist((prev) => prev.map((i) => (i.id === item.id ? { ...i, completado: !i.completado } : i)));
+    try {
+      const res = await fetch(`${API_BASE}/checklist/${item.id}`, {
+        method: "PATCH",
+        headers: cabecerasAuth({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ completado: !item.completado }),
+      });
+      manejar401(res);
+    } catch (e) {
+      setChecklist((prev) => prev.map((i) => (i.id === item.id ? { ...i, completado: item.completado } : i)));
+    }
+  }
+
+  async function borrarItemChecklist(itemId) {
+    try {
+      const res = await fetch(`${API_BASE}/checklist/${itemId}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      if (res.ok) setChecklist((prev) => prev.filter((i) => i.id !== itemId));
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  async function usarPlantillaChecklist() {
+    const cat = CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria);
+    if (!cat) return;
+    for (const texto of cat.checklist) {
+      if (!checklist.some((i) => i.texto === texto)) {
+        await añadirItemChecklist(texto);
+      }
+    }
+  }
   const [presupuestoImporte, setPresupuestoImporte] = useState(t?.presupuesto_importe ?? "");
   const [presupuestoDescripcion, setPresupuestoDescripcion] = useState(t?.presupuesto_descripcion ?? "");
   const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
@@ -636,6 +723,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       .then((data) => {
         setMovimientos(data.movimientos || []);
         setRepuestosUsados(data.repuestos_usados || []);
+        setChecklist(data.checklist || []);
       })
       .catch(() => {})
       .finally(() => setCargandoCobros(false));
@@ -668,7 +756,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   }, [t?.id]);
 
   if (!t) return null;
-  const stage = STAGES.find((s) => s.key === t.estado_actual) || STAGES[0];
+  const listaEstados = stagesFor(t.tipo_trabajo);
+  const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
+  const esFinal = ["entregado", "no_reparable", "completado"].includes(t.estado_actual);
 
   const totalCobrado = movimientos.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + Number(m.monto), 0);
 
@@ -786,8 +876,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     }
   }
 
-  const idx = STAGES.findIndex((s) => s.key === t.estado_actual);
-  const siguiente = idx >= 0 && idx < 4 ? STAGES[idx + 1] : null;
+  const idx = listaEstados.findIndex((s) => s.key === t.estado_actual);
+  const pasosLineales = t.tipo_trabajo === "domicilio" ? 3 : 5; // sin contar la rama "no_reparable" al final
+  const siguiente = idx >= 0 && idx < pasosLineales - 1 ? listaEstados[idx + 1] : null;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
@@ -807,10 +898,14 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
         <div style={{ borderTop: `1px dashed ${COLORS.line}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <Row label="Cliente" value={t.cliente?.nombre} />
           <Row label="Equipo" value={t.equipo} />
+          {t.tipo_trabajo === "domicilio" && t.direccion_servicio && <Row label="Dirección" value={t.direccion_servicio} />}
+          {t.tipo_trabajo === "domicilio" && t.categoria && (
+            <Row label="Categoría" value={CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label || t.categoria} />
+          )}
           <Row label="Problema reportado" value={t.problema_reportado || "—"} />
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
           <Row label="Estado" value={stage.label} />
-          {!["entregado", "no_reparable"].includes(t.estado_actual) ? (
+          {!esFinal ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 13, color: COLORS.textDim }}>Fecha estimada de entrega</span>
               <input
@@ -825,7 +920,64 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           )}
           {t.fecha_fin_garantia && <Row label="Garantía hasta" value={fechaLarga(t.fecha_fin_garantia)} />}
         </div>
+
+        {t.tipo_trabajo === "domicilio" && t.direccion_servicio && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(t.direccion_servicio)}`}
+              target="_blank" rel="noreferrer"
+              style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), flex: 1, padding: "8px 10px", fontSize: 12, textDecoration: "none" }}
+            >
+              <MapPin size={13} /> Google Maps
+            </a>
+            <a
+              href={`https://waze.com/ul?q=${encodeURIComponent(t.direccion_servicio)}&navigate=yes`}
+              target="_blank" rel="noreferrer"
+              style={{ ...btnStyle("transparent", "#33CCFF", COLORS.line), flex: 1, padding: "8px 10px", fontSize: 12, textDecoration: "none" }}
+            >
+              <MapPin size={13} /> Waze
+            </a>
+          </div>
+        )}
         {guardandoFecha && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>Guardando fecha...</div>}
+
+        {t.tipo_trabajo === "domicilio" && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Hoja de trabajo</div>
+              {t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
+                <button onClick={usarPlantillaChecklist} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: 0 }}>
+                  + Usar plantilla de {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label}
+                </button>
+              )}
+            </div>
+            {checklist.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                {checklist.map((item) => (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={item.completado} onChange={() => toggleItemChecklist(item)} style={{ width: 15, height: 15, cursor: "pointer", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: item.completado ? COLORS.textDim : COLORS.text, textDecoration: item.completado ? "line-through" : "none", flex: 1 }}>{item.texto}</span>
+                    <button onClick={() => borrarItemChecklist(item.id)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={nuevoItemChecklist}
+                onChange={(e) => setNuevoItemChecklist(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") añadirItemChecklist(nuevoItemChecklist); }}
+                placeholder="Añadir punto (ej. Cámara 2 alineada)"
+                style={{ flex: 1, fontSize: 12.5, padding: "7px 9px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+              />
+              <button disabled={guardandoChecklist} onClick={() => añadirItemChecklist(nuevoItemChecklist)} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12 }}>
+                Añadir
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -941,7 +1093,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               ))}
             </div>
           )}
-          {!["entregado", "no_reparable"].includes(t.estado_actual) && (
+          {!esFinal && (
             <div style={{ display: "flex", gap: 6 }}>
               <select value={repuestoSeleccionado} onChange={(e) => setRepuestoSeleccionado(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "7px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}>
                 <option value="">Elegir repuesto...</option>
@@ -980,6 +1132,16 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
           {errorCobro && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorCobro}</div>}
 
+          {t.tipo_trabajo === "domicilio" && (
+            <button
+              type="button"
+              onClick={() => { setConceptoCobro("Suplemento de desplazamiento"); setMontoCobro(String(suplementoDesplazamiento)); }}
+              style={{ fontSize: 11.5, color: COLORS.statusBlue, background: "none", border: `1px dashed ${COLORS.statusBlue}`, borderRadius: 7, padding: "6px 10px", cursor: "pointer", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}
+            >
+              <MapPin size={12} /> + Añadir suplemento de desplazamiento ({Number(suplementoDesplazamiento).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €)
+            </button>
+          )}
+
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input
               value={conceptoCobro}
@@ -1005,7 +1167,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </button>
         </div>
 
-        {!["entregado", "no_reparable"].includes(t.estado_actual) && (
+        {!esFinal && (
           <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Avanzar reparación</div>
             {error && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{error}</div>}
@@ -1020,11 +1182,11 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               <input
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Motivo si no es reparable..."
+                placeholder={t.tipo_trabajo === "domicilio" ? "Motivo si no se pudo realizar..." : "Motivo si no es reparable..."}
                 style={{ width: "100%", fontSize: 12, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, marginBottom: 6, boxSizing: "border-box" }}
               />
               <button disabled={guardando} onClick={() => avanzar("no_reparable")} style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), width: "100%", padding: "8px 12px" }}>
-                Marcar no reparable
+                {t.tipo_trabajo === "domicilio" ? "Marcar no realizado" : "Marcar no reparable"}
               </button>
             </div>
           </div>
@@ -1055,18 +1217,20 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
-        {["listo", "entregado"].includes(t.estado_actual) && (
+        {["listo", "entregado", "completado"].includes(t.estado_actual) && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Firma de recogida</div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                {t.tipo_trabajo === "domicilio" ? "Firma de conformidad" : "Firma de recogida"}
+              </div>
               {firmaEntregaHecha && <span style={{ fontSize: 11, color: COLORS.green, fontWeight: 600 }}>✓ Firmada</span>}
             </div>
             {!mostrarFirmaEntrega ? (
               <button onClick={() => setMostrarFirmaEntrega(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), width: "100%" }}>
-                {firmaEntregaHecha ? "Firmar de nuevo" : "El cliente firma aquí al recoger"}
+                {firmaEntregaHecha ? "Firmar de nuevo" : t.tipo_trabajo === "domicilio" ? "El cliente firma aquí al terminar" : "El cliente firma aquí al recoger"}
               </button>
             ) : (
-              <PadFirma onGuardar={guardarFirmaEntrega} guardando={guardandoFirmaEntrega} textoBoton="Confirmar recogida" />
+              <PadFirma onGuardar={guardarFirmaEntrega} guardando={guardandoFirmaEntrega} textoBoton={t.tipo_trabajo === "domicilio" ? "Confirmar conformidad" : "Confirmar recogida"} />
             )}
           </div>
         )}
@@ -1131,7 +1295,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
 // -------------------- modal: nueva reparación --------------------
 function NuevaReparacionModal({ onClose, onCreada }) {
-  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "" });
+  const [form, setForm] = useState({ nombreCliente: "", telefono: "", email: "", tipoTrabajo: "taller", direccionServicio: "", categoria: "", equipo: "", marca: "", modelo: "", urgente: false, problema: "", fechaEstimada: "" });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -1142,7 +1306,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
   async function guardar() {
     setError("");
     if (!form.nombreCliente.trim() || !form.equipo.trim()) {
-      setError("Cliente y equipo son obligatorios.");
+      setError(form.tipoTrabajo === "domicilio" ? "Cliente y descripción del servicio son obligatorios." : "Cliente y equipo son obligatorios.");
       return;
     }
     setGuardando(true);
@@ -1151,6 +1315,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
       const reparacion = await apiPost("/reparaciones", {
         cliente_id: cliente.id,
         equipo: form.equipo,
+        tipo_trabajo: form.tipoTrabajo,
+        direccion_servicio: form.direccionServicio,
+        categoria: form.categoria,
         marca: form.marca,
         modelo: form.modelo,
         urgente: form.urgente,
@@ -1177,6 +1344,23 @@ function NuevaReparacionModal({ onClose, onCreada }) {
 
         {error && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 10 }}>{error}</div>}
 
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, tipoTrabajo: "taller" }))}
+            style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${form.tipoTrabajo === "taller" ? COLORS.amber : COLORS.line}`, background: form.tipoTrabajo === "taller" ? "#EFF6FF" : COLORS.surface, color: form.tipoTrabajo === "taller" ? COLORS.amber : COLORS.textDim, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            En el taller
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, tipoTrabajo: "domicilio" }))}
+            style={{ flex: 1, padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${form.tipoTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.line}`, background: form.tipoTrabajo === "domicilio" ? "#EFF6FF" : COLORS.surface, color: form.tipoTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+          >
+            <MapPin size={13} /> A domicilio
+          </button>
+        </div>
+
         <label style={{ fontSize: 12, color: COLORS.textDim }}>Cliente
           <input style={inputStyle} value={form.nombreCliente} onChange={set("nombreCliente")} placeholder="Nombre y apellidos" />
         </label>
@@ -1186,17 +1370,42 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Email <span style={{ color: COLORS.textDim, fontWeight: 400 }}>(para enviarle el comprobante)</span>
           <input style={inputStyle} type="email" value={form.email} onChange={set("email")} placeholder="cliente@email.com" />
         </label>
-        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Equipo
-          <input style={inputStyle} value={form.equipo} onChange={set("equipo")} placeholder="Ej. HP Pavilion 15" />
+
+        {form.tipoTrabajo === "domicilio" && (
+          <>
+            <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Dirección del servicio
+              <input style={inputStyle} value={form.direccionServicio} onChange={set("direccionServicio")} placeholder="Calle, número, población" />
+            </label>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 10 }}>Categoría <span style={{ fontWeight: 400 }}>(opcional)</span></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+              {CATEGORIAS_DOMICILIO.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, categoria: f.categoria === c.key ? "" : c.key }))}
+                  style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 10px", borderRadius: 999, border: `1px solid ${form.categoria === c.key ? COLORS.statusBlue : COLORS.line}`, background: form.categoria === c.key ? COLORS.statusBlue : COLORS.surface, color: form.categoria === c.key ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>
+          {form.tipoTrabajo === "domicilio" ? "Descripción del servicio" : "Equipo"}
+          <input style={inputStyle} value={form.equipo} onChange={set("equipo")} placeholder={form.tipoTrabajo === "domicilio" ? "Ej. Instalación CCTV, 4 cámaras" : "Ej. HP Pavilion 15"} />
         </label>
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Marca <span style={{ fontWeight: 400 }}>(opcional)</span>
-            <input style={inputStyle} value={form.marca} onChange={set("marca")} placeholder="HP" />
-          </label>
-          <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Modelo <span style={{ fontWeight: 400 }}>(opcional)</span>
-            <input style={inputStyle} value={form.modelo} onChange={set("modelo")} placeholder="Pavilion 15" />
-          </label>
-        </div>
+        {form.tipoTrabajo === "taller" && (
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Marca <span style={{ fontWeight: 400 }}>(opcional)</span>
+              <input style={inputStyle} value={form.marca} onChange={set("marca")} placeholder="HP" />
+            </label>
+            <label style={{ fontSize: 12, color: COLORS.textDim, flex: 1 }}>Modelo <span style={{ fontWeight: 400 }}>(opcional)</span>
+              <input style={inputStyle} value={form.modelo} onChange={set("modelo")} placeholder="Pavilion 15" />
+            </label>
+          </div>
+        )}
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Problema reportado
           <input style={inputStyle} value={form.problema} onChange={set("problema")} placeholder="Ej. No enciende" />
         </label>
@@ -1363,7 +1572,8 @@ function ClientesView() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(detalle.reparaciones || []).map((r) => {
-                  const st = STAGES.find((s) => s.key === r.estado_actual) || STAGES[0];
+                  const listaHist = stagesFor(r.tipo_trabajo);
+                  const st = listaHist.find((s) => s.key === r.estado_actual) || listaHist[0];
                   return (
                     <div key={r.id} style={{ borderLeft: `2px solid ${st.accent}`, paddingLeft: 8 }}>
                       <div style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", color: st.accent }}>#{r.numero_orden}</div>
@@ -1389,11 +1599,13 @@ const ACCION_POR_ESTADO = {
   diagnostico: "Iniciar reparación (en taller)",
   reparacion: "Marcar como listo",
   listo: "Marcar como entregado",
+  contratado: "Iniciar servicio",
+  en_proceso: "Marcar como completado",
 };
 
 function PanelProximaAccion({ reparaciones, onAbrir }) {
   const prioritaria = useMemo(() => {
-    const activas = reparaciones.filter((r) => !["entregado", "no_reparable"].includes(r.estado_actual));
+    const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
     if (activas.length === 0) return null;
     return [...activas].sort(
       (a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
@@ -1889,7 +2101,7 @@ function PlantillasView() {
 }
 
 function AjustesView() {
-  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21 });
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20 });
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -1900,7 +2112,7 @@ function AjustesView() {
       .then((data) => setForm({
         nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
         direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
-        nif: data.nif || "", iva_pct: data.iva_pct ?? 21,
+        nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
       }))
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
@@ -1917,7 +2129,7 @@ function AjustesView() {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21 }),
+        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0 }),
       });
       manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
@@ -1964,6 +2176,13 @@ function AjustesView() {
         </label>
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>% de IVA que aplicas
           <input style={inputStyle} type="number" value={form.iva_pct} onChange={set("iva_pct")} placeholder="21" />
+        </label>
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Servicios a domicilio
+        </div>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Suplemento de desplazamiento (€)
+          <input style={inputStyle} type="number" value={form.suplemento_desplazamiento} onChange={set("suplemento_desplazamiento")} placeholder="20" />
         </label>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
@@ -2115,8 +2334,8 @@ function SeguimientoPublico() {
     if (tokenDeUrl) consultar(tokenDeUrl);
   }, [tokenDeUrl, consultar]);
 
-  const stage = datos && (STAGES.find((s) => s.key === datos.estado_actual) || STAGES[0]);
-  const ICONOS_ESTADO = { recibido: Package, diagnostico: Search, reparacion: Wrench, listo: CheckCircle2, entregado: ShieldCheck, no_reparable: XCircle };
+  const stage = datos && (stagesFor(datos.tipo_trabajo).find((s) => s.key === datos.estado_actual) || stagesFor(datos.tipo_trabajo)[0]);
+  const ICONOS_ESTADO = { recibido: Package, diagnostico: Search, reparacion: Wrench, listo: CheckCircle2, entregado: ShieldCheck, no_reparable: XCircle, contratado: Package, en_proceso: Wrench, completado: ShieldCheck };
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #EFF6FF 0%, #F8FAFC 45%, #F8FAFC 100%)", fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -2180,9 +2399,10 @@ function SeguimientoPublico() {
             </div>
 
             <div style={{ position: "relative", paddingLeft: 4 }}>
-              {STAGES.filter((s) => s.key !== "no_reparable").map((s, i, arr) => {
-                const idxActual = STAGES.findIndex((x) => x.key === datos.estado_actual);
-                const idxEsta = STAGES.findIndex((x) => x.key === s.key);
+              {stagesFor(datos.tipo_trabajo).filter((s) => s.key !== "no_reparable").map((s, i, arr) => {
+                const listaPublica = stagesFor(datos.tipo_trabajo);
+                const idxActual = listaPublica.findIndex((x) => x.key === datos.estado_actual);
+                const idxEsta = listaPublica.findIndex((x) => x.key === s.key);
                 const completado = datos.estado_actual !== "no_reparable" && idxEsta <= idxActual;
                 const esActual = datos.estado_actual !== "no_reparable" && idxEsta === idxActual;
                 const Icono = ICONOS_ESTADO[s.key] || Package;
@@ -2368,6 +2588,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroHoy, setFiltroHoy] = useState(false);
   const [filtroUrgente, setFiltroUrgente] = useState(false);
+  const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
 
   const marcasDisponibles = useMemo(
     () => [...new Set(reparaciones.map((r) => r.marca).filter(Boolean))].sort(),
@@ -2403,9 +2624,10 @@ function FirztnetPanel({ onCerrarSesion }) {
       if (filtroCliente && String(t.cliente?.id) !== filtroCliente) return false;
       if (filtroHoy && new Date(t.fecha_recepcion).toDateString() !== hoyStr) return false;
       if (filtroUrgente && !t.urgente) return false;
+      if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
       return true;
     });
-  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente]);
+  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, vistaTrabajo]);
 
   function handleEstadoActualizado(actualizado) {
     setReparaciones((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)));
@@ -2542,11 +2764,28 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                <button
+                  onClick={() => setVistaTrabajo("taller")}
+                  style={{ padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${vistaTrabajo === "taller" ? COLORS.amber : COLORS.line}`, background: vistaTrabajo === "taller" ? COLORS.amber : COLORS.surface, color: vistaTrabajo === "taller" ? "#FFFFFF" : COLORS.textDim, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  En el taller
+                </button>
+                <button
+                  onClick={() => setVistaTrabajo("domicilio")}
+                  style={{ padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${vistaTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.line}`, background: vistaTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.surface, color: vistaTrabajo === "domicilio" ? "#FFFFFF" : COLORS.textDim, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <MapPin size={13} /> A domicilio
+                </button>
+              </div>
+
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "1 1 200px", maxWidth: 320 }}>
                   <Search size={14} color={COLORS.textDim} />
                   <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
                 </div>
+                {vistaTrabajo === "taller" && (
+                <>
                 <select value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroMarca ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
                   <option value="">Marca</option>
                   {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -2555,6 +2794,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                   <option value="">Modelo</option>
                   {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
+                </>
+                )}
                 <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroCliente ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
                   <option value="">Cliente</option>
                   {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -2574,7 +2815,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 >
                   <Flame size={11} /> Urgente
                 </button>
-                {chipsMarca.map((marca) => (
+                {vistaTrabajo === "taller" && chipsMarca.map((marca) => (
                   <button
                     key={marca}
                     onClick={() => setFiltroMarca((v) => (v === marca ? "" : marca))}
@@ -2588,7 +2829,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} />
 
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
-                {STAGES.map((stage) => {
+                {stagesFor(vistaTrabajo).map((stage) => {
                   const items = filtered.filter((t) => t.estado_actual === stage.key);
                   return (
                     <div key={stage.key} className="fn-kanban-col" style={{ minWidth: 240, flex: "0 0 240px" }}>
