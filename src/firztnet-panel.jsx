@@ -190,26 +190,27 @@ function TarjetaDestacada({ t, onAbrir }) {
     <button
       onClick={() => onAbrir(t)}
       style={{
-        background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14,
-        padding: 12, textAlign: "left", cursor: "pointer", width: "100%",
+        background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${stage.accent}`, borderRadius: 12,
+        padding: "12px 14px", textAlign: "left", cursor: "pointer", width: "100%",
         display: "flex", alignItems: "center", gap: 10,
+        boxShadow: `0 2px 6px ${stage.accent}18`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = stage.accent)}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.line)}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 12px ${stage.accent}33`)}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `0 2px 6px ${stage.accent}18`)}
     >
-      <div style={{ width: 34, height: 34, borderRadius: "50%", background: `${stage.accent}22`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#FFFFFF", border: `2.5px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
         {iniciales(t.cliente?.nombre)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: stage.accent }}>#{t.numero_orden}</span>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: stage.accent, fontWeight: 700 }}>#{t.numero_orden}</span>
           {t.urgente && <Flame size={11} color={COLORS.rust} />}
-          <span style={{ fontSize: 10.5, color: COLORS.textDim, marginLeft: "auto" }}>{tiempoRelativo(t.fecha_recepcion)}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "1px 7px", marginLeft: "auto" }}>{tiempoRelativo(t.fecha_recepcion)}</span>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
         <div style={{ fontSize: 11.5, color: COLORS.textDim, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.marca ? `${t.marca} ${t.modelo || ""}` : t.equipo}</div>
       </div>
-      <Eye size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+      <Eye size={14} color={stage.accent} style={{ flexShrink: 0 }} />
     </button>
   );
 }
