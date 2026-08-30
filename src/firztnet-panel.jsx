@@ -58,19 +58,20 @@ const COLORS = {
   sidebarText: "#E2E8F0",
   sidebarTextDim: "#8291B5",
   sidebarActiveBg: "#1B2C5C",
+  violet: "#8B5CF6",
 };
 
 const STAGES_TALLER = [
-  { key: "recibido", label: "Recibido", accent: COLORS.textDim },
+  { key: "recibido", label: "Recibido", accent: COLORS.violet },
   { key: "diagnostico", label: "Diagnóstico", accent: COLORS.statusAmber },
   { key: "reparacion", label: "En reparación", accent: COLORS.statusBlue },
   { key: "listo", label: "Listo para entrega", accent: COLORS.green },
-  { key: "entregado", label: "Entregado", accent: COLORS.textDim },
+  { key: "entregado", label: "Entregado", accent: COLORS.teal },
   { key: "no_reparable", label: "No reparable", accent: COLORS.rust },
 ];
 
 const STAGES_DOMICILIO = [
-  { key: "contratado", label: "Contratado", accent: COLORS.textDim },
+  { key: "contratado", label: "Contratado", accent: COLORS.violet },
   { key: "en_proceso", label: "En proceso", accent: COLORS.statusBlue },
   { key: "completado", label: "Completado", accent: COLORS.green },
   { key: "no_reparable", label: "No realizado", accent: COLORS.rust },
@@ -266,6 +267,7 @@ function RepairTag({ t, onClick }) {
       style={{
         background: COLORS.surfaceRaised,
         border: `1px solid ${COLORS.line}`,
+        borderLeft: `4px solid ${stage.accent}`,
         borderRadius: 10,
         padding: "12px 14px 12px 12px",
         textAlign: "left",
@@ -274,19 +276,19 @@ function RepairTag({ t, onClick }) {
         display: "flex",
         gap: 10,
         alignItems: "flex-start",
+        boxShadow: `0 2px 5px ${stage.accent}15`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = stage.accent)}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.line)}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 10px ${stage.accent}30`)}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `0 2px 5px ${stage.accent}15`)}
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 2 }}>
-        <div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${COLORS.line}`, background: COLORS.bg }} />
-        <div style={{ width: 1, flex: 1, background: COLORS.line, marginTop: 4 }} />
+      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#FFFFFF", border: `2px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700, flexShrink: 0 }}>
+        {iniciales(t.cliente?.nombre)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {t.urgente && <Flame size={12} color={COLORS.rust} />}
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: stage.accent, letterSpacing: 0.5 }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: stage.accent, letterSpacing: 0.5, fontWeight: 700 }}>
               #{t.numero_orden}
             </span>
           </span>
