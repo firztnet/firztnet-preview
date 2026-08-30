@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -157,10 +157,10 @@ function StageDot({ color }) {
 }
 
 const CATEGORIAS_DOMICILIO = [
-  { key: "redes", label: "Redes/Internet", checklist: ["Router revisado", "Cableado comprobado", "Velocidad testeada"] },
-  { key: "camaras", label: "Cámaras CCTV/IP", checklist: ["Cámara 1 alineada", "Grabador configurado", "Acceso remoto probado"] },
-  { key: "impresoras", label: "Impresoras/Periféricos", checklist: ["Impresora en red configurada", "Driver instalado", "Prueba de impresión OK"] },
-  { key: "mantenimiento_empresas", label: "Mantenimiento empresas", checklist: ["Equipos revisados", "Copias de seguridad comprobadas"] },
+  { key: "redes", label: "Redes/Internet", checklist: ["Router revisado", "Cableado comprobado", "Velocidad testeada"], herramientas: ["Crimpadora", "Conectores RJ45", "Probador de red (cable tester)", "Cable UTP", "Latiguillos de repuesto"] },
+  { key: "camaras", label: "Cámaras CCTV/IP", checklist: ["Cámara 1 alineada", "Grabador configurado", "Acceso remoto probado"], herramientas: ["Crimpadora", "Conectores RJ45", "Cable UTP/coaxial", "Taladro y tacos", "Destornillador", "Escalera"] },
+  { key: "impresoras", label: "Impresoras/Periféricos", checklist: ["Impresora en red configurada", "Driver instalado", "Prueba de impresión OK"], herramientas: ["Cable USB/red", "Cartuchos o tóner de prueba", "Pendrive con drivers"] },
+  { key: "mantenimiento_empresas", label: "Mantenimiento empresas", checklist: ["Equipos revisados", "Copias de seguridad comprobadas"], herramientas: ["Kit de destornilladores", "Aire comprimido", "Pendrive de arranque", "Disco externo para copias"] },
 ];
 
 function tiempoEnTaller(fechaRecepcion) {
@@ -467,6 +467,59 @@ function PadFirma({ onGuardar, guardando, textoBoton = "Confirmar firma" }) {
   );
 }
 
+function CrearRecordatorio({ reparacion }) {
+  const [texto, setTexto] = useState("");
+  const [meses, setMeses] = useState("6");
+  const [guardando, setGuardando] = useState(false);
+  const [creado, setCreado] = useState(false);
+
+  async function crear() {
+    if (!texto.trim()) return;
+    setGuardando(true);
+    try {
+      await apiPost("/recordatorios", {
+        cliente_id: reparacion.cliente?.id,
+        reparacion_id: reparacion.id,
+        texto,
+        meses: parseInt(meses, 10),
+      });
+      setCreado(true);
+      setTexto("");
+    } catch (e) {
+      /* silencioso */
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (creado) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12.5, color: COLORS.green }}>
+        <span>✓ Recordatorio programado</span>
+        <button onClick={() => setCreado(false)} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11.5, cursor: "pointer" }}>Añadir otro</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        placeholder="Ej. Revisión anual DVR/cámaras"
+        style={{ flex: "1 1 160px", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}
+      />
+      <select value={meses} onChange={(e) => setMeses(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}>
+        <option value="6">En 6 meses</option>
+        <option value="12">En 12 meses</option>
+      </select>
+      <button disabled={guardando || !texto.trim()} onClick={crear} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
+        Programar
+      </button>
+    </div>
+  );
+}
+
 function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -528,6 +581,64 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [asignandoRepuesto, setAsignandoRepuesto] = useState(false);
   const [errorRepuesto, setErrorRepuesto] = useState("");
   const [checklist, setChecklist] = useState([]);
+  const [sesionesInfo, setSesionesInfo] = useState({ minutos_totales: 0, coste_mano_obra: 0, hay_sesion_abierta: false, tarifa_hora: 25 });
+  const [cronometroTexto, setCronometroTexto] = useState("00:00:00");
+  const [guardandoSesion, setGuardandoSesion] = useState(false);
+
+  async function cargarSesiones() {
+    try {
+      const info = await apiGet(`/reparaciones/${t.id}/sesiones`);
+      setSesionesInfo(info);
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  async function iniciarServicio() {
+    setGuardandoSesion(true);
+    try {
+      await apiPost(`/reparaciones/${t.id}/sesiones/iniciar`, {});
+      await cargarSesiones();
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setGuardandoSesion(false);
+    }
+  }
+
+  async function finalizarServicio() {
+    setGuardandoSesion(true);
+    try {
+      await apiPost(`/reparaciones/${t.id}/sesiones/finalizar`, {});
+      await cargarSesiones();
+    } catch (e) {
+      /* silencioso */
+    } finally {
+      setGuardandoSesion(false);
+    }
+  }
+
+  // Actualiza el cronómetro en pantalla cada segundo mientras hay una
+  // sesión abierta, sin tener que recargar del servidor a cada tic.
+  useEffect(() => {
+    if (!sesionesInfo.hay_sesion_abierta) {
+      const mins = sesionesInfo.minutos_totales || 0;
+      const h = Math.floor(mins / 60), m = Math.floor(mins % 60), s = Math.round((mins % 1) * 60);
+      setCronometroTexto(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+      return;
+    }
+    const sesionAbierta = sesionesInfo.sesiones?.find((s) => !s.fin);
+    if (!sesionAbierta) return;
+    const inicioMs = new Date(sesionAbierta.inicio).getTime();
+    const minutosCerradas = sesionesInfo.sesiones.filter((s) => s.fin).reduce((acc, s) => acc + (new Date(s.fin) - new Date(s.inicio)) / 60000, 0);
+    const intervalo = setInterval(() => {
+      const segundosAbierta = (Date.now() - inicioMs) / 1000;
+      const totalSegundos = minutosCerradas * 60 + segundosAbierta;
+      const h = Math.floor(totalSegundos / 3600), m = Math.floor((totalSegundos % 3600) / 60), s = Math.floor(totalSegundos % 60);
+      setCronometroTexto(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(intervalo);
+  }, [sesionesInfo]);
   const [nuevoItemChecklist, setNuevoItemChecklist] = useState("");
   const [guardandoChecklist, setGuardandoChecklist] = useState(false);
 
@@ -734,6 +845,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       .then((data) => setFacturaExistente(data[0] || null))
       .catch(() => {});
     apiGet("/repuestos").then(setListaRepuestos).catch(() => {});
+    apiGet(`/reparaciones/${t.id}/sesiones`).then(setSesionesInfo).catch(() => {});
   }, [t?.id]);
 
   // Olvida el comprobante anterior al abrir otra reparación, o al avanzar
@@ -942,7 +1054,41 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             </a>
           </div>
         )}
+
+        {t.tipo_trabajo === "domicilio" && t.estado_actual === "contratado" && t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
+          <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+            <div style={{ fontSize: 11.5, color: COLORS.statusAmber, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+              <Wrench size={12} /> Antes de salir, ¿llevas esto?
+            </div>
+            <div style={{ fontSize: 12, color: "#78350F", lineHeight: 1.6 }}>
+              {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.herramientas.join(" · ")}
+            </div>
+          </div>
+        )}
         {guardandoFecha && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>Guardando fecha...</div>}
+
+        {t.tipo_trabajo === "domicilio" && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Mano de obra</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: sesionesInfo.hay_sesion_abierta ? "#F0FDF4" : COLORS.surfaceRaised, border: `1px solid ${sesionesInfo.hay_sesion_abierta ? "#86EFAC" : COLORS.line}`, borderRadius: 9, padding: "10px 14px" }}>
+              <div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: sesionesInfo.hay_sesion_abierta ? COLORS.green : COLORS.text }}>{cronometroTexto}</div>
+                <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 2 }}>
+                  {sesionesInfo.coste_mano_obra?.toFixed(2)} € a {sesionesInfo.tarifa_hora}€/h
+                </div>
+              </div>
+              {sesionesInfo.hay_sesion_abierta ? (
+                <button disabled={guardandoSesion} onClick={finalizarServicio} style={{ ...btnStyle(COLORS.rust, "#FFFFFF"), flex: "none", padding: "9px 16px", fontSize: 12.5 }}>
+                  Finalizar servicio
+                </button>
+              ) : (
+                <button disabled={guardandoSesion} onClick={iniciarServicio} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "9px 16px", fontSize: 12.5 }}>
+                  Iniciar servicio
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {t.tipo_trabajo === "domicilio" && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
@@ -1235,6 +1381,50 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             ) : (
               <PadFirma onGuardar={guardarFirmaEntrega} guardando={guardandoFirmaEntrega} textoBoton={t.tipo_trabajo === "domicilio" ? "Confirmar conformidad" : "Confirmar recogida"} />
             )}
+          </div>
+        )}
+
+        {t.tipo_trabajo === "domicilio" && ["completado", "entregado"].includes(t.estado_actual) && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Parte de trabajo</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={async () => {
+                  const ventana = window.open("", "_blank");
+                  try {
+                    const res = await fetch(`${API_BASE}/reparaciones/${t.id}/parte-trabajo/pdf`, { headers: cabecerasAuth() });
+                    manejar401(res);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    if (ventana) ventana.location.href = url;
+                  } catch (e) {
+                    ventana?.close();
+                  }
+                }}
+                style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "9px 12px", fontSize: 12.5 }}
+              >
+                Ver / descargar PDF
+              </button>
+              {t.cliente?.telefono && (
+                <a
+                  href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te paso el parte del servicio realizado (orden ${t.numero_orden}). Descarga el PDF del enlace que te acabo de enviar por aquí y te lo adjunto.`)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "9px 12px", fontSize: 12.5, textDecoration: "none" }}
+                >
+                  Avisar por WhatsApp
+                </a>
+              )}
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 6 }}>
+              Descarga el PDF y adjúntalo manualmente en WhatsApp — no se puede enviar el archivo directo desde aquí.
+            </div>
+          </div>
+        )}
+
+        {t.tipo_trabajo === "domicilio" && ["completado", "entregado"].includes(t.estado_actual) && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Recordatorio de mantenimiento</div>
+            <CrearRecordatorio reparacion={t} />
           </div>
         )}
 
@@ -1982,6 +2172,209 @@ const NOMBRES_ESTADOS_PLANTILLA = {
   recibido: "Recibido", diagnostico: "En diagnóstico", reparacion: "En reparación",
   listo: "Listo para entrega", entregado: "Entregado", no_reparable: "No reparable",
 };
+
+// -------------------- vista: Base de conocimiento --------------------
+function ConocimientoView() {
+  const [articulos, setArticulos] = useState([]);
+  const [query, setQuery] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ titulo: "", contenido: "", categoria: "" });
+  const [guardando, setGuardando] = useState(false);
+
+  const buscar = useCallback(async (q) => {
+    setCargando(true);
+    try {
+      setArticulos(await apiGet(`/conocimiento${q ? `?q=${encodeURIComponent(q)}` : ""}`));
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => buscar(query), 250);
+    return () => clearTimeout(timer);
+  }, [query, buscar]);
+
+  function abrirNuevo() {
+    setEditando(null);
+    setForm({ titulo: "", contenido: "", categoria: "" });
+    setMostrarForm(true);
+  }
+  function abrirEdicion(a) {
+    setEditando(a);
+    setForm({ titulo: a.titulo, contenido: a.contenido, categoria: a.categoria || "" });
+    setMostrarForm(true);
+  }
+
+  async function guardar() {
+    if (!form.titulo.trim() || !form.contenido.trim()) return;
+    setGuardando(true);
+    try {
+      if (editando) {
+        const res = await fetch(`${API_BASE}/conocimiento/${editando.id}`, { method: "PUT", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify(form) });
+        manejar401(res);
+      } else {
+        await apiPost("/conocimiento", form);
+      }
+      setMostrarForm(false);
+      buscar(query);
+    } catch (e) {
+      /* se puede mejorar con mensaje visible si hace falta */
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function borrar(id) {
+    try {
+      const res = await fetch(`${API_BASE}/conocimiento/${id}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      if (res.ok) setArticulos((prev) => prev.filter((a) => a.id !== id));
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  const inputStyle = { width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: 1, maxWidth: 380 }}>
+          <Search size={14} color={COLORS.textDim} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar: IP de router, comandos, puertos..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
+        </div>
+        <button onClick={abrirNuevo} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Plus size={14} /> Nuevo artículo
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: COLORS.textDim }}>Título
+            <input style={inputStyle} value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} placeholder="Ej. IP por defecto router Movistar" />
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Categoría <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <select style={inputStyle} value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}>
+              <option value="">Sin categoría</option>
+              {CATEGORIAS_DOMICILIO.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Contenido
+            <textarea style={{ ...inputStyle, minHeight: 90, fontFamily: "inherit", resize: "vertical" }} value={form.contenido} onChange={(e) => setForm((f) => ({ ...f, contenido: e.target.value }))} placeholder="192.168.1.1, usuario admin, contraseña en la etiqueta del router..." />
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "9px 12px" }}>
+              {guardando ? "Guardando..." : "Guardar"}
+            </button>
+            <button onClick={() => setMostrarForm(false)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "9px 14px" }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Buscando...</div>}
+        {!cargando && articulos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin resultados. Añade tu primer artículo con "Nuevo artículo".</div>}
+        {articulos.map((a) => (
+          <div key={a.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{a.titulo}</div>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button onClick={() => abrirEdicion(a)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
+                <button onClick={() => borrar(a.id)} style={{ background: "none", border: "none", color: COLORS.rust, cursor: "pointer", padding: 0, display: "flex" }}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+            {a.categoria && (
+              <span style={{ fontSize: 10, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, borderRadius: 999, padding: "1px 8px", display: "inline-block", marginTop: 4 }}>
+                {CATEGORIAS_DOMICILIO.find((c) => c.key === a.categoria)?.label || a.categoria}
+              </span>
+            )}
+            <div style={{ fontSize: 12.5, color: COLORS.textDim, marginTop: 6, whiteSpace: "pre-wrap" }}>{a.contenido}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Recordatorios de mantenimiento --------------------
+function RecordatoriosView() {
+  const [recordatorios, setRecordatorios] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [verTodos, setVerTodos] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    try {
+      setRecordatorios(await apiGet(`/recordatorios${verTodos ? "?todos=true" : ""}`));
+    } catch (e) {
+      /* el aviso general ya se ve en Reparaciones */
+    } finally {
+      setCargando(false);
+    }
+  }, [verTodos]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  async function marcarCumplido(id, cumplido) {
+    setRecordatorios((prev) => prev.map((r) => (r.id === id ? { ...r, cumplido } : r)));
+    try {
+      const res = await fetch(`${API_BASE}/recordatorios/${id}`, { method: "PATCH", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ cumplido }) });
+      manejar401(res);
+      if (!verTodos && cumplido) cargar();
+    } catch (e) {
+      /* silencioso */
+    }
+  }
+
+  function diasRestantes(fecha) {
+    const dias = Math.ceil((new Date(fecha) - new Date()) / (1000 * 60 * 60 * 24));
+    if (dias < 0) return { texto: `Vencido hace ${Math.abs(dias)} días`, color: COLORS.rust };
+    if (dias === 0) return { texto: "Hoy", color: COLORS.statusAmber };
+    if (dias <= 30) return { texto: `En ${dias} días`, color: COLORS.statusAmber };
+    return { texto: `En ${dias} días`, color: COLORS.textDim };
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <button onClick={() => setVerTodos((v) => !v)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
+          {verTodos ? "Ver solo pendientes" : "Ver todos (incluye cumplidos)"}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+        {!cargando && recordatorios.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin recordatorios pendientes. Se crean desde la ficha de una reparación a domicilio ya completada.</div>}
+        {recordatorios.map((r) => {
+          const estado = diasRestantes(r.fecha_programada);
+          return (
+            <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${r.cumplido ? COLORS.green : estado.color}`, borderRadius: 10, padding: 14, display: "flex", alignItems: "center", gap: 12 }}>
+              <input type="checkbox" checked={r.cumplido} onChange={(e) => marcarCumplido(r.id, e.target.checked)} style={{ width: 17, height: 17, cursor: "pointer", flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: r.cumplido ? COLORS.textDim : COLORS.text, textDecoration: r.cumplido ? "line-through" : "none" }}>{r.texto}</div>
+                <div style={{ fontSize: 12, color: COLORS.textDim }}>{r.cliente?.nombre} · {fechaLarga(r.fecha_programada)}</div>
+              </div>
+              {!r.cumplido && (
+                <span style={{ fontSize: 11, fontWeight: 600, color: estado.color, background: `${estado.color}18`, borderRadius: 999, padding: "3px 9px", flexShrink: 0 }}>{estado.texto}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PlantillasView() {
   const [plantillas, setPlantillas] = useState([]);
@@ -2777,6 +3170,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "inventario", icon: Package, label: "Inventario" },
             { key: "caja", icon: Banknote, label: "Caja" },
             { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
+            { key: "conocimiento", icon: Search, label: "Base conocimiento" },
+            { key: "recordatorios", icon: Bell, label: "Recordatorios" },
             { key: "ajustes", icon: Settings, label: "Ajustes" },
           ].map((item) => (
             <div
@@ -2810,6 +3205,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "inventario" && "Inventario"}
                 {vista === "caja" && "Caja"}
                 {vista === "plantillas" && "Plantillas"}
+                {vista === "conocimiento" && "Base de conocimiento"}
+                {vista === "recordatorios" && "Recordatorios"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
               {vista === "reparaciones" && (
@@ -2834,6 +3231,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "inventario" && <InventarioView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
           {vista === "plantillas" && <PlantillasView />}
+          {vista === "conocimiento" && <ConocimientoView />}
+          {vista === "recordatorios" && <RecordatoriosView />}
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
