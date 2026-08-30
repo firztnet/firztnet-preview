@@ -697,7 +697,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [mostrarFirmaEntrega, setMostrarFirmaEntrega] = useState(false);
   const [guardandoFirmaEntrega, setGuardandoFirmaEntrega] = useState(false);
   const [firmaEntregaHecha, setFirmaEntregaHecha] = useState(false);
-  const [avisoPendiente, setAvisoPendiente] = useState(null);
+  const [avisosPendientes, setAvisosPendientes] = useState([]);
 
   async function guardarPresupuesto() {
     if (!presupuestoImporte) {
@@ -867,7 +867,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     setErrorPresupuesto("");
     setMostrarFirmaEntrega(false);
     setFirmaEntregaHecha(false);
-    setAvisoPendiente(null);
+    setAvisosPendientes([]);
   }, [t?.id]);
 
   if (!t) return null;
@@ -983,7 +983,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       const body = nuevoEstado === "no_reparable" ? { estado: nuevoEstado, motivo } : { estado: nuevoEstado };
       const actualizado = await apiPatch(`/reparaciones/${t.id}/estado`, body);
       onEstadoActualizado(actualizado);
-      setAvisoPendiente(actualizado.aviso || null);
+      setAvisosPendientes(actualizado.avisos || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1341,28 +1341,32 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
-        {avisoPendiente && (
-          <div style={{ marginTop: 14, background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 11.5, color: COLORS.green, fontWeight: 600, marginBottom: 4 }}>Aviso listo para enviar</div>
-            <div style={{ fontSize: 12.5, color: COLORS.text, marginBottom: 8 }}>{avisoPendiente.texto}</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {avisoPendiente.enlace_whatsapp ? (
-                <a
-                  href={avisoPendiente.enlace_whatsapp}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setAvisoPendiente(null)}
-                  style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5, textDecoration: "none" }}
-                >
-                  Enviar por WhatsApp
-                </a>
-              ) : (
-                <div style={{ fontSize: 11.5, color: COLORS.textDim }}>El cliente no tiene teléfono guardado.</div>
-              )}
-              <button onClick={() => setAvisoPendiente(null)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
-                Descartar
-              </button>
-            </div>
+        {avisosPendientes.length > 0 && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+            {avisosPendientes.map((aviso, i) => (
+              <div key={i} style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11.5, color: COLORS.green, fontWeight: 600, marginBottom: 4 }}>{aviso.nombre || "Aviso listo para enviar"}</div>
+                <div style={{ fontSize: 12.5, color: COLORS.text, marginBottom: 8 }}>{aviso.texto}</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {aviso.enlace_whatsapp ? (
+                    <a
+                      href={aviso.enlace_whatsapp}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setAvisosPendientes((prev) => prev.filter((_, idx) => idx !== i))}
+                      style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5, textDecoration: "none" }}
+                    >
+                      Enviar por WhatsApp
+                    </a>
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: COLORS.textDim }}>El cliente no tiene teléfono guardado.</div>
+                  )}
+                  <button onClick={() => setAvisosPendientes((prev) => prev.filter((_, idx) => idx !== i))} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -2553,7 +2557,7 @@ function PlantillasView() {
   return (
     <div>
       <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 14 }}>
-        Mensajes predefinidos para casos comunes. Si le asignas un estado, se prepara automáticamente (con el enlace de WhatsApp listo) cada vez que muevas una reparación a ese estado — usa <code>{"{cliente}"}</code>, <code>{"{equipo}"}</code>, <code>{"{numero_orden}"}</code>, <code>{"{estado}"}</code>, <code>{"{fecha_estimada}"}</code>, <code>{"{garantia}"}</code> en el texto.
+        Mensajes predefinidos para casos comunes. Si le asignas un estado, se prepara automáticamente (con el enlace de WhatsApp listo) cada vez que muevas una reparación a ese estado — puedes tener varias plantillas activas en el mismo estado, todas se dispararán juntas. Usa <code>{"{cliente}"}</code>, <code>{"{equipo}"}</code>, <code>{"{numero_orden}"}</code>, <code>{"{estado}"}</code>, <code>{"{fecha_estimada}"}</code>, <code>{"{garantia}"}</code>, <code>{"{enlace_seguimiento}"}</code>, <code>{"{enlace_resena}"}</code> en el texto.
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
@@ -2617,7 +2621,7 @@ function PlantillasView() {
 }
 
 function AjustesView() {
-  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20 });
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "" });
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -2629,6 +2633,7 @@ function AjustesView() {
         nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
         direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
         nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
+        tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "",
       }))
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
@@ -2645,7 +2650,7 @@ function AjustesView() {
       const res = await fetch(`${API_BASE}/configuracion`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0 }),
+        body: JSON.stringify({ ...form, iva_pct: parseFloat(form.iva_pct) || 21, suplemento_desplazamiento: parseFloat(form.suplemento_desplazamiento) || 0, tarifa_hora: parseFloat(form.tarifa_hora) || 25 }),
       });
       manejar401(res);
       if (!res.ok) throw new Error("No se pudo guardar");
@@ -2700,6 +2705,19 @@ function AjustesView() {
         <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Suplemento de desplazamiento (€)
           <input style={inputStyle} type="number" value={form.suplemento_desplazamiento} onChange={set("suplemento_desplazamiento")} placeholder="20" />
         </label>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 10 }}>Tarifa de mano de obra (€/hora)
+          <input style={inputStyle} type="number" value={form.tarifa_hora} onChange={set("tarifa_hora")} placeholder="25" />
+        </label>
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 4, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Reseñas
+        </div>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 8 }}>Enlace a tu ficha de Google <span style={{ fontWeight: 400 }}>(para pedir reseñas)</span>
+          <input style={inputStyle} value={form.enlace_resenas_google} onChange={set("enlace_resenas_google")} placeholder="https://g.page/r/..." />
+        </label>
+        <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>
+          Búscate en Google Maps → "Compartir" → "Pedir reseñas" para conseguir este enlace. Úsalo en una plantilla con <code>{"{enlace_resena}"}</code>.
+        </div>
 
         <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 18, padding: "10px 12px" }}>
           {guardando ? "Guardando..." : "Guardar cambios"}
