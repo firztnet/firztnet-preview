@@ -2904,8 +2904,8 @@ function FirztnetPanel({ onCerrarSesion }) {
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
-                <div style={{ position: "absolute", top: -10, right: -10, width: 64, height: 64, borderRadius: "50%", background: `${COLORS.amber}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Wrench size={22} color={`${COLORS.amber}55`} style={{ marginBottom: 10, marginRight: 10 }} />
+                <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Wrench size={24} color={COLORS.amber} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
                 </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust, fontWeight: 600 }}>
@@ -2936,7 +2936,10 @@ function FirztnetPanel({ onCerrarSesion }) {
                 </div>
               </div>
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18 }}>
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.statusBlue}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <FileBarChart size={24} color={COLORS.statusBlue} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
+                </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Este mes</div>
                 {[
                   { l: "Ingresos", v: reporteMensual.ingresos, c: COLORS.green },
