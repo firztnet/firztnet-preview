@@ -1625,7 +1625,11 @@ function PanelProximaAccion({ reparaciones, onAbrir }) {
         {prioritaria.urgente && <Flame size={12} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
         {prioritaria.cliente?.nombre} · #{prioritaria.numero_orden}
       </div>
-      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 12 }}>{prioritaria.equipo}</div>
+      <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{prioritaria.equipo}</div>
+      {prioritaria.problema_reportado && (
+        <div style={{ fontSize: 11, color: COLORS.textDim, fontStyle: "italic", marginTop: 2, marginBottom: 12 }}>"{prioritaria.problema_reportado}"</div>
+      )}
+      {!prioritaria.problema_reportado && <div style={{ marginBottom: 12 }} />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <button
@@ -2853,13 +2857,20 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
+              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -10, right: -10, width: 64, height: 64, borderRadius: "50%", background: `${COLORS.amber}12`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Wrench size={22} color={`${COLORS.amber}55`} style={{ marginBottom: 10, marginRight: 10 }} />
+                </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
                 <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: COLORS.amber, fontWeight: 600 }}>
                   {reporteDiario.balance_neto >= 0 ? "+" : ""}{Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
                 </div>
-                <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 2 }}>Tendencia de ingresos, últimos 7 días</div>
-                <div style={{ height: 70, marginTop: 10, marginLeft: -8 }}>
+                <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
+                  <div style={{ fontSize: 11, color: COLORS.textDim }}>Recibidas hoy: <strong style={{ color: COLORS.text }}>{reporteDiario.equipos_recibidos ?? 0}</strong></div>
+                  <div style={{ fontSize: 11, color: COLORS.textDim }}>Clientes nuevos: <strong style={{ color: COLORS.text }}>{reporteDiario.nuevos_clientes ?? 0}</strong></div>
+                </div>
+                <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 8 }}>Tendencia de ingresos, últimos 7 días</div>
+                <div style={{ height: 70, marginTop: 6, marginLeft: -8 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={tendencia.length ? tendencia : [{ dia_semana: "", ingresos: 0 }]}>
                       <defs>
