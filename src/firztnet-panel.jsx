@@ -184,7 +184,7 @@ function iniciales(nombre) {
 }
 
 // -------------------- Reparaciones destacadas: En curso / Por entregar --------------------
-function TarjetaDestacada({ t, onAbrir }) {
+function TarjetaDestacada({ t, onAbrir, onHover }) {
   const lista = stagesFor(t.tipo_trabajo);
   const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
   return (
@@ -196,8 +196,8 @@ function TarjetaDestacada({ t, onAbrir }) {
         display: "flex", alignItems: "center", gap: 10,
         boxShadow: `0 2px 6px ${stage.accent}18`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 12px ${stage.accent}33`)}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `0 2px 6px ${stage.accent}18`)}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 12px ${stage.accent}33`; onHover?.(t); }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 2px 6px ${stage.accent}18`; onHover?.(null); }}
     >
       <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#FFFFFF", border: `2.5px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
         {iniciales(t.cliente?.nombre)}
@@ -216,7 +216,7 @@ function TarjetaDestacada({ t, onAbrir }) {
   );
 }
 
-function ReparacionesDestacadas({ reparaciones, onAbrir }) {
+function ReparacionesDestacadas({ reparaciones, onAbrir, onHover }) {
   const enCurso = reparaciones
     .filter((r) => ["diagnostico", "reparacion", "en_proceso"].includes(r.estado_actual))
     .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
@@ -239,7 +239,7 @@ function ReparacionesDestacadas({ reparaciones, onAbrir }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {enCurso.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada en curso ahora mismo.</div>}
-            {enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} />)}
+            {enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
           </div>
         </div>
         <div style={{ flex: "1 1 260px" }}>
@@ -249,7 +249,7 @@ function ReparacionesDestacadas({ reparaciones, onAbrir }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {porEntregar.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada listo para entregar todavía.</div>}
-            {porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} />)}
+            {porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
           </div>
         </div>
       </div>
@@ -257,7 +257,7 @@ function ReparacionesDestacadas({ reparaciones, onAbrir }) {
   );
 }
 
-function RepairTag({ t, onClick }) {
+function RepairTag({ t, onClick, onHover }) {
   const listaEstados = stagesFor(t.tipo_trabajo);
   const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
   const enTaller = !["entregado", "no_reparable", "completado"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
@@ -278,8 +278,8 @@ function RepairTag({ t, onClick }) {
         alignItems: "flex-start",
         boxShadow: `0 2px 5px ${stage.accent}15`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = `0 4px 10px ${stage.accent}30`)}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = `0 2px 5px ${stage.accent}15`)}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 10px ${stage.accent}30`; onHover?.(t); }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 2px 5px ${stage.accent}15`; onHover?.(null); }}
     >
       <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#FFFFFF", border: `2px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700, flexShrink: 0 }}>
         {iniciales(t.cliente?.nombre)}
@@ -1606,7 +1606,7 @@ const ACCION_POR_ESTADO = {
   en_proceso: "Marcar como completado",
 };
 
-function PanelProximaAccion({ reparaciones, onAbrir }) {
+function PanelProximaAccion({ reparaciones, onAbrir, resaltada }) {
   const prioritaria = useMemo(() => {
     const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
     if (activas.length === 0) return null;
@@ -1615,31 +1615,35 @@ function PanelProximaAccion({ reparaciones, onAbrir }) {
     )[0];
   }, [reparaciones]);
 
-  if (!prioritaria) return null;
+  const mostrada = resaltada || prioritaria;
+  if (!mostrada) return null;
 
-  const enlaceWhatsapp = prioritaria.cliente?.telefono
-    ? `https://wa.me/${prioritaria.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${prioritaria.cliente.nombre.split(" ")[0]}, te escribimos sobre tu reparación nº ${prioritaria.numero_orden}.`)}`
+  const enlaceWhatsapp = mostrada.cliente?.telefono
+    ? `https://wa.me/${mostrada.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${mostrada.cliente.nombre.split(" ")[0]}, te escribimos sobre tu reparación nº ${mostrada.numero_orden}.`)}`
     : null;
 
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
-      <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 }}>Próxima acción</div>
-      <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600, marginTop: 6 }}>
-        {prioritaria.urgente && <Flame size={12} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
-        {prioritaria.cliente?.nombre} · #{prioritaria.numero_orden}
+    <div style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 18, transition: "border-color 0.2s ease" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
+        {resaltada && <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, padding: "2px 7px", borderRadius: 999 }}>En vista previa</span>}
       </div>
-      <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{prioritaria.equipo}</div>
-      {prioritaria.problema_reportado && (
-        <div style={{ fontSize: 11, color: COLORS.textDim, fontStyle: "italic", marginTop: 2, marginBottom: 12 }}>"{prioritaria.problema_reportado}"</div>
+      <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600, marginTop: 6 }}>
+        {mostrada.urgente && <Flame size={12} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
+        {mostrada.cliente?.nombre} · #{mostrada.numero_orden}
+      </div>
+      <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{mostrada.equipo}</div>
+      {mostrada.problema_reportado && (
+        <div style={{ fontSize: 11, color: COLORS.textDim, fontStyle: "italic", marginTop: 2, marginBottom: 12 }}>"{mostrada.problema_reportado}"</div>
       )}
-      {!prioritaria.problema_reportado && <div style={{ marginBottom: 12 }} />}
+      {!mostrada.problema_reportado && <div style={{ marginBottom: 12 }} />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <button
-          onClick={() => onAbrir(prioritaria)}
+          onClick={() => onAbrir(mostrada)}
           style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}
         >
-          {ACCION_POR_ESTADO[prioritaria.estado_actual] || "Ver reparación"}
+          {ACCION_POR_ESTADO[mostrada.estado_actual] || "Ver reparación"}
         </button>
         <a
           href={enlaceWhatsapp || undefined}
@@ -1650,7 +1654,7 @@ function PanelProximaAccion({ reparaciones, onAbrir }) {
           Contactar cliente (WhatsApp)
         </a>
         <button
-          onClick={() => onAbrir(prioritaria)}
+          onClick={() => onAbrir(mostrada)}
           style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(37,99,235,0.3)" }}
         >
           Generar presupuesto
@@ -2596,6 +2600,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroHoy, setFiltroHoy] = useState(false);
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
+  const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
 
   const marcasDisponibles = useMemo(
     () => [...new Set(reparaciones.map((r) => r.marca).filter(Boolean))].sort(),
@@ -2879,7 +2884,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 ))}
               </div>
 
-              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} />
+              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={setHoverPreview} />
 
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                 {stagesFor(vistaTrabajo).map((stage) => {
@@ -2894,7 +2899,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {!cargando && items.length === 0 && <div style={{ fontSize: 11.5, color: COLORS.textDim, padding: "10px 4px" }}>Sin equipos aquí</div>}
                         {items.map((t) => (
-                          <RepairTag key={t.id} t={t} onClick={() => setSelected(t)} />
+                          <RepairTag key={t.id} t={t} onClick={() => setSelected(t)} onHover={setHoverPreview} />
                         ))}
                       </div>
                     </div>
@@ -2904,7 +2909,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
+              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
