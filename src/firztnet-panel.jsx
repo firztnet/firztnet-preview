@@ -230,18 +230,24 @@ function ReparacionesDestacadas({ reparaciones, onAbrir, onHover }) {
 
   if (enCurso.length === 0 && porEntregar.length === 0) return null;
 
+  const EstadoVacio = ({ icono: Icono, texto }) => (
+    <div style={{ border: `1.5px dashed ${COLORS.line}`, borderRadius: 12, padding: "22px 14px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}>
+      <Icono size={20} color={COLORS.textDim} style={{ opacity: 0.6 }} />
+      <span style={{ fontSize: 12, color: COLORS.textDim }}>{texto}</span>
+    </div>
+  );
+
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Reparaciones destacadas</div>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "stretch" }}>
         <div style={{ flex: "1 1 260px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <StageDot color={COLORS.statusBlue} />
             <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>En curso</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {enCurso.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada en curso ahora mismo.</div>}
-            {enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+            {enCurso.length === 0 ? <EstadoVacio icono={Wrench} texto="Nada en curso ahora mismo." /> : enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
           </div>
         </div>
         <div style={{ flex: "1 1 260px" }}>
@@ -249,9 +255,8 @@ function ReparacionesDestacadas({ reparaciones, onAbrir, onHover }) {
             <StageDot color={COLORS.green} />
             <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>Por entregar</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {porEntregar.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Nada listo para entregar todavía.</div>}
-            {porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+            {porEntregar.length === 0 ? <EstadoVacio icono={CheckCircle2} texto="Nada listo para entregar todavía." /> : porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
           </div>
         </div>
       </div>
@@ -4664,6 +4669,9 @@ function FirztnetPanel({ onCerrarSesion }) {
 
               <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
+                Tablero completo
+              </div>
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                 {stagesFor(vistaTrabajo).map((stage) => {
                   const items = filtered.filter((t) => t.estado_actual === stage.key);
