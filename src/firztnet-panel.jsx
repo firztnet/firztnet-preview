@@ -4488,7 +4488,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div
             onClick={() => setMostrarMasMovil((v) => !v)}
             className={`fn-navitem fn-navitem-boton-mas${mostrarMasMovil ? " fn-navitem-active" : ""}`}
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
+            style={{ alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
           >
             <MoreHorizontal size={16} />
             Más
