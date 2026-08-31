@@ -649,6 +649,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   const [viendoRecibo, setViendoRecibo] = useState(false);
   const [generandoFactura, setGenerandoFactura] = useState(false);
   const [facturaExistente, setFacturaExistente] = useState(null);
+  const [rectificando, setRectificando] = useState(false);
   const [errorPago, setErrorPago] = useState("");
   const [guardandoFecha, setGuardandoFecha] = useState(false);
   const [fotos, setFotos] = useState([]);
@@ -891,6 +892,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       const nuevas = await res.json();
       if (!res.ok) throw new Error(nuevas.error || "No se pudieron subir las fotos");
       setFotos((prev) => [...prev, ...nuevas]);
+      if (nuevas.length < fileList.length) {
+        setErrorFotos(`${fileList.length - nuevas.length} foto(s) no se subieron (formato no soportado o pesan más de 10 MB). El resto sí se guardó.`);
+      }
     } catch (e) {
       setErrorFotos(e.message);
     } finally {
@@ -1185,6 +1189,24 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           )}
           <Row label="Problema reportado" value={t.problema_reportado || "—"} />
           <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
+          <button
+            type="button"
+            onClick={async () => {
+              const ventana = window.open("", "_blank");
+              try {
+                const res = await fetch(`${API_BASE}/reparaciones/${t.id}/etiqueta-qr/pdf`, { headers: cabecerasAuth() });
+                manejar401(res);
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                if (ventana) ventana.location.href = url;
+              } catch (e) {
+                ventana?.close();
+              }
+            }}
+            style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), width: "100%", padding: "7px 10px", fontSize: 12, marginTop: -2 }}
+          >
+            🏷️ Imprimir etiqueta con QR (para pegar en el equipo)
+          </button>
           <Row label="Estado" value={stage.label} />
           {tecnicosDisponibles.length > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -1776,6 +1798,38 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             </button>
           </div>
           {totalCobrado <= 0 && <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 6 }}>Registra un cobro antes de generar el recibo o la factura.</div>}
+          {facturaExistente && !facturaExistente.es_rectificativa && (
+            <button
+              type="button"
+              disabled={rectificando}
+              onClick={async () => {
+                const motivo = window.prompt("¿Cuál es el motivo de la rectificación? (obligatorio, queda registrado en la factura)");
+                if (!motivo) return;
+                const nuevoTotalStr = window.prompt("¿Nuevo importe total en €? (deja en blanco si el error no era de importe, ej. solo el NIF)", String(facturaExistente.total));
+                setRectificando(true);
+                try {
+                  const rectificativa = await apiPost(`/facturas/${facturaExistente.id}/rectificar`, {
+                    motivo,
+                    nuevo_total: nuevoTotalStr ? parseFloat(nuevoTotalStr) : null,
+                  });
+                  setFacturaExistente(rectificativa);
+                  window.open(`${API_BASE}/facturas/${rectificativa.id}/pdf`, "_blank");
+                } catch (e) {
+                  setErrorPago(e.message);
+                } finally {
+                  setRectificando(false);
+                }
+              }}
+              style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 11, cursor: "pointer", padding: "6px 0", display: "block", marginTop: 4 }}
+            >
+              {rectificando ? "Generando rectificativa..." : "¿Error en esta factura? Emitir una rectificativa"}
+            </button>
+          )}
+          {facturaExistente?.es_rectificativa && (
+            <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 6 }}>
+              Esta es una factura rectificativa (corrige a {facturaExistente.factura_original_numero}).
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -3473,6 +3527,9 @@ function AjustesView() {
   const [nuevoTecnico, setNuevoTecnico] = useState("");
   const [probandoTelegram, setProbandoTelegram] = useState(false);
   const [resultadoTelegram, setResultadoTelegram] = useState(null);
+  const [descargandoBackup, setDescargandoBackup] = useState(false);
+  const [enviandoBackupTelegram, setEnviandoBackupTelegram] = useState(false);
+  const [resultadoBackupTelegram, setResultadoBackupTelegram] = useState(null);
 
   useEffect(() => {
     apiGet("/configuracion")
@@ -3613,6 +3670,68 @@ function AjustesView() {
         {resultadoTelegram && (
           <div style={{ fontSize: 11.5, color: resultadoTelegram.ok ? COLORS.green : COLORS.rust, marginTop: 6 }}>
             {resultadoTelegram.ok ? "✓ Enviado — revisa tu Telegram" : `✗ ${resultadoTelegram.detalle}`}
+          </div>
+        )}
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Copia de seguridad
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 8 }}>
+          Incluye toda la base de datos (clientes, reparaciones, facturas...), fotos y firmas. Se envía también automáticamente cada noche por Telegram si lo tienes configurado arriba.
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            disabled={descargandoBackup}
+            onClick={async () => {
+              setDescargandoBackup(true);
+              try {
+                const res = await fetch(`${API_BASE}/backup/descargar`, { headers: cabecerasAuth() });
+                manejar401(res);
+                if (!res.ok) throw new Error("No se pudo generar el backup");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const enlace = document.createElement("a");
+                enlace.href = url;
+                enlace.download = `firztnet_backup_${new Date().toISOString().slice(0, 10)}.zip`;
+                document.body.appendChild(enlace);
+                enlace.click();
+                enlace.remove();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                /* silencioso */
+              } finally {
+                setDescargandoBackup(false);
+              }
+            }}
+            style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 14px", fontSize: 12.5 }}
+          >
+            {descargandoBackup ? "Generando..." : "Descargar ahora"}
+          </button>
+          <button
+            type="button"
+            disabled={enviandoBackupTelegram}
+            onClick={async () => {
+              setEnviandoBackupTelegram(true);
+              setResultadoBackupTelegram(null);
+              try {
+                const res = await fetch(`${API_BASE}/backup/enviar-telegram`, { method: "POST", headers: cabecerasAuth() });
+                const data = await res.json();
+                setResultadoBackupTelegram({ ok: res.ok, detalle: data.detalle });
+              } catch (e) {
+                setResultadoBackupTelegram({ ok: false, detalle: e.message });
+              } finally {
+                setEnviandoBackupTelegram(false);
+              }
+            }}
+            style={{ ...btnStyle("transparent", COLORS.statusBlue, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}
+          >
+            {enviandoBackupTelegram ? "Enviando..." : "Enviar por Telegram ahora"}
+          </button>
+        </div>
+        {resultadoBackupTelegram && (
+          <div style={{ fontSize: 11.5, color: resultadoBackupTelegram.ok ? COLORS.green : COLORS.rust, marginTop: 6 }}>
+            {resultadoBackupTelegram.ok ? "✓ Enviado — revisa tu Telegram" : `✗ ${resultadoBackupTelegram.detalle}`}
           </div>
         )}
 
