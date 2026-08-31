@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -2099,6 +2099,32 @@ function ClientesView() {
   const [editando, setEditando] = useState(false);
   const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "" });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [borrandoRgpd, setBorrandoRgpd] = useState(false);
+  const [resultadoRgpd, setResultadoRgpd] = useState(null);
+
+  async function ejercerDerechoAlOlvido() {
+    if (!window.confirm(
+      `Esto borrará PARA SIEMPRE el nombre, teléfono, email, NIF, fotos y firmas de "${detalle.nombre}" — no se puede deshacer.\n\nSe conservarán (por obligación fiscal): las facturas ya emitidas y el historial básico de reparaciones (equipo, fechas, cobros), sin ningún dato personal.\n\n¿Confirmas que quieres continuar?`
+    )) {
+      return;
+    }
+    const motivo = window.prompt("Motivo de la solicitud (queda registrado, por si hay que demostrar que se atendió):", "Solicitud del cliente");
+    if (motivo === null) return;
+
+    setBorrandoRgpd(true);
+    setResultadoRgpd(null);
+    try {
+      const resultado = await apiPost(`/clientes/${detalle.id}/rgpd/olvidar`, { motivo });
+      setResultadoRgpd(resultado);
+      const actualizado = await apiGet(`/clientes/${detalle.id}`);
+      setDetalle(actualizado);
+      cargar(query);
+    } catch (e) {
+      setResultadoRgpd({ ok: false, error: e.message });
+    } finally {
+      setBorrandoRgpd(false);
+    }
+  }
 
   const cargar = useCallback(async (q) => {
     setCargando(true);
@@ -2269,6 +2295,30 @@ function ClientesView() {
                 })}
                 {detalle.reparaciones?.length === 0 && <div style={{ fontSize: 12, color: COLORS.textDim }}>Sin reparaciones registradas.</div>}
               </div>
+
+              {!detalle.nombre?.startsWith("Cliente eliminado (RGPD") && (
+                <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+                  <button
+                    type="button"
+                    disabled={borrandoRgpd}
+                    onClick={ejercerDerechoAlOlvido}
+                    style={{ background: "none", border: `1px solid ${COLORS.rust}`, color: COLORS.rust, fontSize: 11.5, cursor: "pointer", padding: "7px 12px", borderRadius: 7, width: "100%" }}
+                  >
+                    {borrandoRgpd ? "Borrando..." : "🗑️ Ejercer derecho al olvido (RGPD)"}
+                  </button>
+                  {resultadoRgpd?.ok && (
+                    <div style={{ fontSize: 11, color: COLORS.green, marginTop: 6 }}>
+                      ✓ Hecho. Fotos borradas: {resultadoRgpd.fotos_borradas}, firmas borradas: {resultadoRgpd.firmas_borradas}. {resultadoRgpd.conservado}
+                    </div>
+                  )}
+                  {resultadoRgpd?.error && <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 6 }}>Error: {resultadoRgpd.error}</div>}
+                </div>
+              )}
+              {detalle.nombre?.startsWith("Cliente eliminado (RGPD") && (
+                <div style={{ marginTop: 20, paddingTop: 14, borderTop: `1px solid ${COLORS.line}`, fontSize: 11.5, color: COLORS.textDim, fontStyle: "italic" }}>
+                  Los datos personales de este cliente ya fueron eliminados (derecho al olvido).
+                </div>
+              )}
             </>
           )}
         </div>
@@ -4235,6 +4285,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
+  const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const hoverTimeoutRef = useRef(null);
 
   // Al entrar en una tarjeta, se actualiza al instante. Al salir, se espera
@@ -4359,8 +4410,17 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-navitem-active::before {
           transform: scaleY(1);
         }
+        .fn-navitem-boton-mas {
+          display: none;
+        }
 
         @media (max-width: 768px) {
+          .fn-navitem-en-mas {
+            display: none !important;
+          }
+          .fn-navitem-boton-mas {
+            display: flex !important;
+          }
           .fn-sidebar {
             width: 100% !important;
             min-height: auto !important;
@@ -4376,8 +4436,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             z-index: 40;
           }
           .fn-sidebar .fn-logo { display: none !important; }
-          .fn-sidebar .fn-navitem { flex-direction: column !important; gap: 2px !important; font-size: 10px !important; padding: 6px 4px !important; margin-bottom: 0 !important; }
-          .fn-sidebar .fn-navitem svg { width: 18px; height: 18px; }
+          .fn-sidebar .fn-navitem { flex-direction: column !important; gap: 3px !important; font-size: 11px !important; padding: 8px 10px !important; margin-bottom: 0 !important; min-width: 56px; }
+          .fn-sidebar .fn-navitem svg { width: 21px; height: 21px; }
           .fn-shell { flex-direction: column !important; }
           .fn-main { max-width: 100% !important; padding: 16px 14px 78px 14px !important; }
           .fn-header-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
@@ -4401,24 +4461,24 @@ function FirztnetPanel({ onCerrarSesion }) {
             <span style={{ fontFamily: "Oswald", fontSize: 17, letterSpacing: 0.5, color: "#FFFFFF" }}>FIRZTNET</span>
           </div>
           {[
-            { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones" },
-            { key: "clientes", icon: Users, label: "Clientes" },
-            { key: "reportes", icon: FileBarChart, label: "Reportes" },
-            { key: "inventario", icon: Package, label: "Inventario" },
-            { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
-            { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
-            { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
-            { key: "caja", icon: Banknote, label: "Caja" },
-            { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
-            { key: "conocimiento", icon: Search, label: "Base conocimiento" },
-            { key: "recordatorios", icon: Bell, label: "Recordatorios" },
-            { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
-            { key: "ajustes", icon: Settings, label: "Ajustes" },
+            { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
+            { key: "clientes", icon: Users, label: "Clientes", movil: "principal" },
+            { key: "reportes", icon: FileBarChart, label: "Reportes", movil: "mas" },
+            { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
+            { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
+            { key: "rendimiento", icon: FileBarChart, label: "Rendimiento", movil: "mas" },
+            { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad", movil: "mas" },
+            { key: "caja", icon: Banknote, label: "Caja", movil: "principal" },
+            { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
+            { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
+            { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
+            { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
+            { key: "ajustes", icon: Settings, label: "Ajustes", movil: "principal" },
           ].map((item) => (
             <div
               key={item.label}
-              className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}`}
-              onClick={() => setVista(item.key)}
+              className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
+              onClick={() => { setVista(item.key); setMostrarMasMovil(false); }}
               style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
             >
               <item.icon size={16} />
@@ -4426,14 +4486,57 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
           ))}
           <div
+            onClick={() => setMostrarMasMovil((v) => !v)}
+            className={`fn-navitem fn-navitem-boton-mas${mostrarMasMovil ? " fn-navitem-active" : ""}`}
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
+          >
+            <MoreHorizontal size={16} />
+            Más
+          </div>
+          <div
             onClick={onCerrarSesion}
-            className="fn-navitem"
+            className="fn-navitem fn-navitem-en-mas"
             style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginTop: "auto", cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
           >
             <LogOut size={16} />
             Cerrar sesión
           </div>
         </aside>
+
+        {mostrarMasMovil && (
+          <div className="fn-hoja-mas" onClick={() => setMostrarMasMovil(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 55 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.sidebarBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
+              <div style={{ width: 36, height: 4, background: COLORS.sidebarActiveBg, borderRadius: 999, margin: "0 auto 16px" }} />
+              {[
+                { key: "reportes", icon: FileBarChart, label: "Reportes" },
+                { key: "inventario", icon: Package, label: "Inventario" },
+                { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
+                { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
+                { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
+                { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
+                { key: "conocimiento", icon: Search, label: "Base conocimiento" },
+                { key: "recordatorios", icon: Bell, label: "Recordatorios" },
+                { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  onClick={() => { setVista(item.key); setMostrarMasMovil(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", fontSize: 14.5 }}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </div>
+              ))}
+              <div
+                onClick={onCerrarSesion}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 14.5, marginTop: 8, borderTop: `1px solid ${COLORS.sidebarActiveBg}` }}
+              >
+                <LogOut size={18} />
+                Cerrar sesión
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
           <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
