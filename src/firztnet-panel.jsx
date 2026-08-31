@@ -1352,6 +1352,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
+        {t.estado_actual !== "no_reparable" && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Presupuesto</div>
@@ -1416,6 +1417,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 4 }}>El cliente no tiene teléfono guardado — añádelo desde Clientes.</div>
           )}
         </div>
+        )}
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1462,6 +1464,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           )}
         </div>
 
+        {t.estado_actual !== "no_reparable" && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Repuestos usados</div>
           {errorRepuesto && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorRepuesto}</div>}
@@ -1507,6 +1510,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             </div>
           )}
         </div>
+        )}
 
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
