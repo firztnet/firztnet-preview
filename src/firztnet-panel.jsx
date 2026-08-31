@@ -1293,7 +1293,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                   {sesionesInfo.coste_mano_obra?.toFixed(2)} € a {sesionesInfo.tarifa_hora}€/h
                 </div>
               </div>
-              {sesionesInfo.hay_sesion_abierta ? (
+              {esFinal ? (
+                <span style={{ fontSize: 11, color: COLORS.textDim, fontStyle: "italic" }}>Trabajo finalizado</span>
+              ) : sesionesInfo.hay_sesion_abierta ? (
                 <button disabled={guardandoSesion} onClick={finalizarServicio} style={{ ...btnStyle(COLORS.rust, "#FFFFFF"), flex: "none", padding: "9px 16px", fontSize: 12.5 }}>
                   Finalizar servicio
                 </button>
@@ -1352,7 +1354,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </div>
         )}
 
-        {t.estado_actual !== "no_reparable" && (
+        {!esFinal && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Presupuesto</div>
