@@ -219,46 +219,19 @@ function TarjetaDestacada({ t, onAbrir, onHover }) {
 }
 
 function ReparacionesDestacadas({ reparaciones, onAbrir, onHover }) {
-  const enCurso = reparaciones
-    .filter((r) => ["diagnostico", "reparacion", "en_proceso"].includes(r.estado_actual))
+  const prioritarias = reparaciones
+    .filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual))
     .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
-    .slice(0, 4);
-  const porEntregar = reparaciones
-    .filter((r) => r.estado_actual === "listo")
-    .sort((a, b) => new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
-    .slice(0, 4);
+    .slice(0, 6);
 
-  if (enCurso.length === 0 && porEntregar.length === 0) return null;
-
-  const EstadoVacio = ({ icono: Icono, texto }) => (
-    <div style={{ border: `1.5px dashed ${COLORS.line}`, borderRadius: 12, padding: "22px 14px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}>
-      <Icono size={20} color={COLORS.textDim} style={{ opacity: 0.6 }} />
-      <span style={{ fontSize: 12, color: COLORS.textDim }}>{texto}</span>
-    </div>
-  );
+  if (prioritarias.length === 0) return null;
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Reparaciones destacadas</div>
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "stretch" }}>
-        <div style={{ flex: "1 1 260px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <StageDot color={COLORS.statusBlue} />
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>En curso</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-            {enCurso.length === 0 ? <EstadoVacio icono={Wrench} texto="Nada en curso ahora mismo." /> : enCurso.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
-          </div>
-        </div>
-        <div style={{ flex: "1 1 260px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <StageDot color={COLORS.green} />
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>Por entregar</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
-            {porEntregar.length === 0 ? <EstadoVacio icono={CheckCircle2} texto="Nada listo para entregar todavía." /> : porEntregar.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
-          </div>
-        </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Prioritarias</div>
+      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, de un vistazo — sin repetir lo que ya ves en el tablero de abajo.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 560 }}>
+        {prioritarias.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
       </div>
     </div>
   );
