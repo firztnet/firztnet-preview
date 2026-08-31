@@ -1608,6 +1608,19 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           </button>
         </div>
 
+        {t.estado_actual === "no_reparable" && t.tipo_trabajo !== "domicilio" && (
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Retirada del equipo</div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>
+              El equipo no se pudo reparar, pero sigue en el taller hasta que el cliente venga a recogerlo. Cuando pase, márcalo aquí (no se le aplicará garantía, ya que no se reparó nada).
+            </div>
+            {error && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{error}</div>}
+            <button disabled={guardando} onClick={() => avanzar("entregado")} style={{ ...btnStyle(COLORS.textDim, "#FFFFFF"), width: "100%", padding: "9px 12px" }}>
+              {guardando ? <Loader2 size={13} className="spin" /> : "El cliente ha recogido el equipo (sin reparar)"}
+            </button>
+          </div>
+        )}
+
         {!esFinal && (
           <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Avanzar reparación</div>
