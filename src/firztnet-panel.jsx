@@ -4814,8 +4814,11 @@ function FirztnetPanel({ onCerrarSesion }) {
           transform: scaleY(0);
           transition: transform 0.25s ease;
         }
+        .fn-fila-tabla {
+          transition: background-color 0.15s ease;
+        }
         .fn-fila-tabla:hover {
-          background-color: ${COLORS.surfaceRaised} !important;
+          background-color: ${COLORS.line} !important;
         }
         .fn-navitem:hover {
           background-color: ${COLORS.sidebarActiveBg} !important;
