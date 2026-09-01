@@ -2632,7 +2632,7 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
     <div
       onMouseEnter={() => onHover?.(mostrada)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
+      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.statusBlue : COLORS.amber}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
