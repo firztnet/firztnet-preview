@@ -320,11 +320,20 @@ function RepairTag({ t, onClick, onHover }) {
 }
 
 function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa }) {
+  const [hover, setHover] = useState(false);
   if (destacada) {
     return (
       <div
         onClick={onClick}
-        style={{ background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default", boxShadow: activa ? `0 0 0 3px ${accent}40` : "none" }}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150,
+          position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default",
+          boxShadow: activa ? `0 0 0 3px ${accent}40` : hover ? `0 6px 16px -4px ${accent}60` : "none",
+          transform: hover ? "translateY(-2px)" : "translateY(0)",
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        }}
       >
         <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
         <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
@@ -344,7 +353,15 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
   return (
     <div
       onClick={onClick}
-      style={{ background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", boxShadow: activa ? `0 0 0 3px rgba(255,255,255,0.7), 0 8px 20px -6px ${accent}80` : `0 8px 20px -6px ${accent}80`, cursor: onClick ? "pointer" : "default" }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
+        boxShadow: activa ? `0 0 0 3px rgba(255,255,255,0.7), 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
+        transform: hover ? "translateY(-2px)" : "translateY(0)",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        cursor: onClick ? "pointer" : "default",
+      }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.9)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
@@ -2630,7 +2647,7 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
 
   return (
     <div
-      onMouseEnter={() => onHover?.(mostrada)}
+      onMouseEnter={() => { if (resaltada) onHover?.(resaltada); }}
       onMouseLeave={() => onHover?.(null)}
       style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.statusBlue : COLORS.amber}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
     >
@@ -4555,6 +4572,8 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
+  const [hoverBalance, setHoverBalance] = useState(false);
+  const [hoverMes, setHoverMes] = useState(false);
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const hoverTimeoutRef = useRef(null);
 
@@ -4964,7 +4983,11 @@ function FirztnetPanel({ onCerrarSesion }) {
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} />
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
+              <div
+                onMouseEnter={() => setHoverBalance(true)}
+                onMouseLeave={() => setHoverBalance(false)}
+                style={{ background: COLORS.surface, border: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18`, transition: "border-color 0.2s ease" }}
+              >
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Wrench size={24} color={COLORS.amber} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
                 </div>
@@ -4997,7 +5020,11 @@ function FirztnetPanel({ onCerrarSesion }) {
                 </div>
               </div>
 
-              <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden" }}>
+              <div
+                onMouseEnter={() => setHoverMes(true)}
+                onMouseLeave={() => setHoverMes(false)}
+                style={{ background: COLORS.surface, border: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
+              >
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.statusBlue}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <FileBarChart size={24} color={COLORS.statusBlue} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
                 </div>
