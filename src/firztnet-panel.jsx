@@ -4767,14 +4767,6 @@ function FirztnetPanel({ onCerrarSesion }) {
             <MoreHorizontal size={16} />
             Más
           </div>
-          <div
-            onClick={onCerrarSesion}
-            className="fn-navitem fn-navitem-en-mas"
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginTop: "auto", cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
-          >
-            <LogOut size={16} />
-            Cerrar sesión
-          </div>
         </aside>
 
         {mostrarMasMovil && (
@@ -4802,13 +4794,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                   {item.label}
                 </div>
               ))}
-              <div
-                onClick={onCerrarSesion}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 14.5, marginTop: 8, borderTop: `1px solid ${COLORS.sidebarActiveBg}` }}
-              >
-                <LogOut size={18} />
-                Cerrar sesión
-              </div>
             </div>
           </div>
         )}
