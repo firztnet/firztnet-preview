@@ -219,12 +219,13 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
               return (
                 <tr
                   key={t.id}
+                  className="fn-fila-tabla"
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: i % 2 === 0 ? COLORS.surface : COLORS.line }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
                 >
-                  <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
+                  <td style={{ padding: "8px 6px 8px 8px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25, borderLeft: `3px solid ${stage.accent}` }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
                     <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
                     <div>#{numero}</div>
@@ -323,12 +324,13 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
               return (
                 <tr
                   key={t.id}
+                  className="fn-fila-tabla"
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: i % 2 === 0 ? COLORS.surface : COLORS.line }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
                 >
-                  <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
+                  <td style={{ padding: "8px 6px 8px 8px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25, borderLeft: `3px solid ${stage.accent}` }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
                     <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
                     <div>#{numero}</div>
@@ -4811,6 +4813,9 @@ function FirztnetPanel({ onCerrarSesion }) {
           background: ${COLORS.amber};
           transform: scaleY(0);
           transition: transform 0.25s ease;
+        }
+        .fn-fila-tabla:hover {
+          background-color: ${COLORS.surfaceRaised} !important;
         }
         .fn-navitem:hover {
           background-color: ${COLORS.sidebarActiveBg} !important;
