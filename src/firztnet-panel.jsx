@@ -105,6 +105,16 @@ function guardarToken(token) {
     /* almacenamiento no disponible, seguimos solo en memoria */
   }
 }
+function nombreUsuarioDelToken() {
+  // Solo para MOSTRAR el nombre en la esquina — no valida nada, la
+  // seguridad real la hace siempre el backend en cada petición.
+  try {
+    const payload = JSON.parse(atob(authToken.split(".")[1]));
+    return payload.sub || "Admin";
+  } catch (e) {
+    return "Admin";
+  }
+}
 function cabecerasAuth(extra = {}) {
   return authToken ? { ...extra, Authorization: `Bearer ${authToken}` } : extra;
 }
@@ -2426,18 +2436,121 @@ const ACCION_POR_ESTADO = {
 };
 
 // -------------------- Panel de alertas del negocio --------------------
-function PanelAlertas({ reparaciones, onAbrir, onIrInventario }) {
+// -------------------- Campanita de notificaciones (cabecera, global) --------------------
+function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
+  const [abierta, setAbierta] = useState(false);
+  const [items, setItems] = useState([]);
+  const ref = useRef(null);
+
+  const cargar = useCallback(async () => {
+    try {
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes] = await Promise.all([
+        apiGet("/repuestos").catch(() => []),
+        apiGet("/reparaciones").catch(() => []),
+        apiGet("/reportes/abandonados?dias=30").catch(() => []),
+        apiGet("/reportes/garantias-activas").catch(() => []),
+        apiGet("/solicitudes").catch(() => []),
+      ]);
+      const nuevos = [];
+      const stockBajo = repuestos.filter((r) => r.stock_bajo);
+      if (stockBajo.length > 0) nuevos.push({ tipo: "stock", texto: `${stockBajo.length} repuesto(s) con stock bajo`, accion: () => onIrVista("inventario") });
+      const rechazados = todasReparaciones.filter((r) => r.presupuesto_estado === "rechazado");
+      rechazados.forEach((r) => nuevos.push({ tipo: "rechazo", texto: `Presupuesto rechazado — ${r.cliente?.nombre} #${r.numero_orden}`, accion: () => onAbrirTicket(r) }));
+      abandonados.forEach((a) => nuevos.push({ tipo: "abandono", texto: `${a.cliente?.nombre}: equipo sin recoger hace ${a.dias_abandonado} días`, accion: () => { const rep = todasReparaciones.find((r) => r.id === a.id); if (rep) onAbrirTicket(rep); } }));
+      const porCaducar = garantias.filter((g) => g.dias_restantes <= 15);
+      if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
+      const solicitudesPendientes = solicitudes.filter((s) => !s.atendida);
+      if (solicitudesPendientes.length > 0) nuevos.push({ tipo: "solicitud", texto: `${solicitudesPendientes.length} solicitud(es) de servicio sin atender`, accion: () => onIrVista("solicitudes") });
+      setItems(nuevos);
+    } catch (e) {
+      /* silencioso */
+    }
+  }, [onIrVista, onAbrirTicket]);
+
+  useEffect(() => {
+    cargar();
+    const intervalo = setInterval(cargar, 60000); // refresca cada minuto, sin que haga falta recargar la página
+    return () => clearInterval(intervalo);
+  }, [cargar]);
+
+  useEffect(() => {
+    function alClicarFuera(e) {
+      if (ref.current && !ref.current.contains(e.target)) setAbierta(false);
+    }
+    document.addEventListener("mousedown", alClicarFuera);
+    return () => document.removeEventListener("mousedown", alClicarFuera);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setAbierta((v) => !v)}
+        style={{ display: "flex", alignItems: "center", gap: 6, background: items.length > 0 ? "#FEF2F2" : COLORS.surface, border: `1px solid ${items.length > 0 ? "#FECACA" : COLORS.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer", position: "relative" }}
+      >
+        <Bell size={15} color={items.length > 0 ? COLORS.rust : COLORS.textDim} />
+        {items.length > 0 && (
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.rust }}>{items.length}</span>
+        )}
+      </button>
+      {abierta && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
+          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 12.5, fontWeight: 700, color: COLORS.text }}>Notificaciones</div>
+          {items.length === 0 ? (
+            <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>Todo al día — sin avisos pendientes.</div>
+          ) : (
+            items.map((item, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { item.accion(); setAbierta(false); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", borderBottom: i < items.length - 1 ? `1px solid ${COLORS.line}` : "none", cursor: "pointer", fontSize: 12.5, color: COLORS.text }}
+              >
+                {item.texto}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------- Insignia de usuario (cabecera, global) --------------------
+function InsigniaUsuario({ onCerrarSesion }) {
+  const [nombre] = useState(() => nombreUsuarioDelToken());
+  return (
+    <button
+      type="button"
+      onClick={onCerrarSesion}
+      title="Cerrar sesión"
+      style={{ display: "flex", alignItems: "center", gap: 7, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 999, padding: "6px 12px 6px 6px", cursor: "pointer" }}
+    >
+      <div style={{ width: 24, height: 24, borderRadius: "50%", background: COLORS.sidebarBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Users size={12} color="#FFFFFF" />
+      </div>
+      <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.text, textTransform: "capitalize" }}>{nombre}</span>
+      <span style={{ fontSize: 11, color: COLORS.textDim, display: "flex", alignItems: "center", gap: 2 }}>
+        <LogOut size={11} /> Salir
+      </span>
+    </button>
+  );
+}
+
+function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias }) {
   const [stockBajo, setStockBajo] = useState([]);
   const [abandonados, setAbandonados] = useState([]);
+  const [garantiasPorCaducar, setGarantiasPorCaducar] = useState([]);
 
   useEffect(() => {
     apiGet("/repuestos").then((lista) => setStockBajo(lista.filter((r) => r.stock_bajo))).catch(() => {});
     apiGet("/reportes/abandonados?dias=30").then(setAbandonados).catch(() => {});
+    apiGet("/reportes/garantias-activas").then((lista) => setGarantiasPorCaducar(lista.filter((g) => g.dias_restantes <= 15))).catch(() => {});
   }, []);
 
   const rechazados = reparaciones.filter((r) => r.presupuesto_estado === "rechazado");
 
-  if (stockBajo.length === 0 && rechazados.length === 0 && abandonados.length === 0) return null;
+  if (stockBajo.length === 0 && rechazados.length === 0 && abandonados.length === 0 && garantiasPorCaducar.length === 0) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
@@ -2472,6 +2585,17 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario }) {
             ))}
           </div>
         </div>
+      )}
+      {garantiasPorCaducar.length > 0 && (
+        <button
+          type="button"
+          onClick={onIrGarantias}
+          style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.statusBlue, display: "flex", alignItems: "center", gap: 6 }}>
+            <ShieldCheck size={14} /> {garantiasPorCaducar.length} garantía{garantiasPorCaducar.length === 1 ? "" : "s"} a punto de caducar (15 días o menos): {garantiasPorCaducar.map((g) => g.cliente?.nombre).join(", ")}
+          </div>
+        </button>
       )}
       {stockBajo.length > 0 && (
         <button
@@ -2854,6 +2978,49 @@ function RendimientoView() {
             <div style={{ height: 8, borderRadius: 999, background: COLORS.surfaceRaised, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${(d.completados / maxCompletados) * 100}%`, background: [COLORS.amber, COLORS.violet, COLORS.green, COLORS.statusBlue, COLORS.statusAmber][i % 5], borderRadius: 999 }} />
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Garantías activas --------------------
+function GarantiasActivasView({ onAbrir, reparaciones }) {
+  const [lista, setLista] = useState([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    apiGet("/reportes/garantias-activas").then(setLista).catch(() => {}).finally(() => setCargando(false));
+  }, []);
+
+  function colorPorDias(dias) {
+    if (dias <= 15) return COLORS.rust;
+    if (dias <= 30) return COLORS.statusAmber;
+    return COLORS.green;
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 16 }}>
+        Todas las reparaciones que siguen dentro del plazo de garantía ahora mismo, de la que antes caduca a la que más tarda.
+      </div>
+      {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+      {!cargando && lista.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 16 }}>No hay ninguna garantía activa ahora mismo.</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {lista.map((g) => (
+          <div
+            key={g.id}
+            onClick={() => { const rep = reparaciones.find((r) => r.id === g.id); if (rep) onAbrir(rep); }}
+            style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${colorPorDias(g.dias_restantes)}`, borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, cursor: "pointer" }}
+          >
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{g.cliente?.nombre} · #{g.numero_orden}</div>
+              <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{g.equipo} — caduca el {fechaLarga(g.fecha_fin_garantia)}</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#FFFFFF", background: colorPorDias(g.dias_restantes), borderRadius: 999, padding: "3px 10px", flexShrink: 0, whiteSpace: "nowrap" }}>
+              {g.dias_restantes} día{g.dias_restantes === 1 ? "" : "s"}
+            </span>
           </div>
         ))}
       </div>
@@ -4572,6 +4739,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "reportes", icon: FileBarChart, label: "Reportes", movil: "mas" },
             { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
+            { key: "garantias", icon: ShieldCheck, label: "Garantías activas", movil: "mas" },
             { key: "rendimiento", icon: FileBarChart, label: "Rendimiento", movil: "mas" },
             { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad", movil: "mas" },
             { key: "caja", icon: Banknote, label: "Caja", movil: "principal" },
@@ -4617,6 +4785,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "reportes", icon: FileBarChart, label: "Reportes" },
                 { key: "inventario", icon: Package, label: "Inventario" },
                 { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
+                { key: "garantias", icon: ShieldCheck, label: "Garantías activas" },
                 { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
                 { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
@@ -4645,6 +4814,10 @@ function FirztnetPanel({ onCerrarSesion }) {
         )}
 
         <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
+            <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
+          </div>
           <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
@@ -4654,6 +4827,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
+                {vista === "garantias" && "Garantías activas de clientes"}
                 {vista === "rendimiento" && "Rendimiento de técnicos"}
                 {vista === "rentabilidad" && "Rentabilidad por línea de servicio"}
                 {vista === "caja" && "Caja"}
@@ -4689,6 +4863,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           )}
           {vista === "inventario" && <InventarioView />}
           {vista === "rma" && <RmaView />}
+          {vista === "garantias" && <GarantiasActivasView onAbrir={(t) => setSelected(t)} reparaciones={reparaciones} />}
           {vista === "rendimiento" && <RendimientoView />}
           {vista === "rentabilidad" && <RentabilidadView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
@@ -4801,7 +4976,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
-              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} />
+              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} />
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
