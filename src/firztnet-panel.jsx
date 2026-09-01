@@ -309,10 +309,13 @@ function RepairTag({ t, onClick, onHover }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada }) {
+function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa }) {
   if (destacada) {
     return (
-      <div style={{ background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden" }}>
+      <div
+        onClick={onClick}
+        style={{ background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default", boxShadow: activa ? `0 0 0 3px ${accent}40` : "none" }}
+      >
         <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
         <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
         {sub && (
@@ -329,7 +332,10 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada }) {
     );
   }
   return (
-    <div style={{ background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", boxShadow: `0 8px 20px -6px ${accent}80` }}>
+    <div
+      onClick={onClick}
+      style={{ background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden", boxShadow: activa ? `0 0 0 3px rgba(255,255,255,0.7), 0 8px 20px -6px ${accent}80` : `0 8px 20px -6px ${accent}80`, cursor: onClick ? "pointer" : "default" }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.9)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
         <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -755,6 +761,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   }
   const [presupuestoImporte, setPresupuestoImporte] = useState(t?.presupuesto_importe ?? "");
   const [presupuestoDescripcion, setPresupuestoDescripcion] = useState(t?.presupuesto_descripcion ?? "");
+  const [mostrarEstimador, setMostrarEstimador] = useState(false);
+  const [costePiezasEstimador, setCostePiezasEstimador] = useState("");
+  const [resultadoEstimador, setResultadoEstimador] = useState(null);
+  const [cargandoEstimador, setCargandoEstimador] = useState(false);
   const [guardandoPresupuesto, setGuardandoPresupuesto] = useState(false);
   const [errorPresupuesto, setErrorPresupuesto] = useState("");
   const [viendoPdfPresupuesto, setViendoPdfPresupuesto] = useState(false);
@@ -905,8 +915,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
   }
 
   const [tecnicosDisponibles, setTecnicosDisponibles] = useState([]);
+  const [telefonoBizum, setTelefonoBizum] = useState("");
   useEffect(() => {
-    apiGet("/configuracion").then((c) => setTecnicosDisponibles(c.tecnicos || [])).catch(() => {});
+    apiGet("/configuracion").then((c) => { setTecnicosDisponibles(c.tecnicos || []); setTelefonoBizum(c.telefono_bizum || ""); }).catch(() => {});
   }, []);
 
   async function actualizarTecnico(nombre) {
@@ -967,6 +978,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     setMostrarFirmaEntrega(false);
     setFirmaEntregaHecha(false);
     setAvisosPendientes([]);
+    setMostrarEstimador(false);
+    setCostePiezasEstimador("");
+    setResultadoEstimador(null);
   }, [t?.id]);
 
   if (!t) return null;
@@ -1279,6 +1293,22 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               >
                 📦 Falta pieza
               </button>
+              {telefonoBizum && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sugerido = t.presupuesto_importe ?? "";
+                    const monto = window.prompt("¿Importe a pedir por Bizum (€)?", sugerido !== "" ? String(sugerido) : "");
+                    if (!monto) return;
+                    const nombre = t.cliente.nombre.split(" ")[0];
+                    const texto = `Hola ${nombre}, puedes hacerme un Bizum de ${monto}€ al ${telefonoBizum}, con el concepto "${t.numero_orden}". Cuando lo hagas, avísame y te lo registro. ¡Gracias!`;
+                    window.open(`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`, "_blank");
+                  }}
+                  style={{ ...btnStyle("transparent", "#7C3AED", COLORS.line), flex: "none", padding: "7px 12px", fontSize: 12 }}
+                >
+                  💳 Solicitar por Bizum
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1393,6 +1423,65 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               style={{ width: 90, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${!presupuestoImporte ? COLORS.rust : COLORS.line}` }}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMostrarEstimador((v) => !v)}
+            style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: "0 0 8px 0", display: "block" }}
+          >
+            💡 {mostrarEstimador ? "Ocultar sugerencia de precio" : "Sugerir precio según mi historial"}
+          </button>
+
+          {mostrarEstimador && (
+            <div style={{ background: COLORS.surfaceRaised, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <input
+                  type="number"
+                  value={costePiezasEstimador}
+                  onChange={(e) => setCostePiezasEstimador(e.target.value)}
+                  placeholder="Coste de piezas € (opcional)"
+                  style={{ flex: 1, fontSize: 12, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                />
+                <button
+                  disabled={cargandoEstimador}
+                  onClick={async () => {
+                    setCargandoEstimador(true);
+                    try {
+                      const params = new URLSearchParams({ tipo_trabajo: t.tipo_trabajo || "taller", coste_piezas: costePiezasEstimador || "0" });
+                      if (t.categoria) params.set("categoria", t.categoria);
+                      setResultadoEstimador(await apiGet(`/sugerencias/estimador?${params}`));
+                    } catch (e) {
+                      setResultadoEstimador(null);
+                    } finally {
+                      setCargandoEstimador(false);
+                    }
+                  }}
+                  style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12 }}
+                >
+                  {cargandoEstimador ? "Calculando..." : "Calcular"}
+                </button>
+              </div>
+              {resultadoEstimador && (
+                resultadoEstimador.encontradas === 0 ? (
+                  <div style={{ fontSize: 11.5, color: COLORS.textDim }}>Todavía no hay suficiente historial de este tipo de trabajo para sugerir un precio.</div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 6 }}>
+                      Basado en {resultadoEstimador.encontradas} trabajo(s) similar(es): ~{resultadoEstimador.horas_promedio}h de media × {sesionesInfo.tarifa_hora}€/h = {resultadoEstimador.coste_mano_obra_estimado.toFixed(2)}€ de mano de obra
+                      {resultadoEstimador.coste_piezas > 0 && <> + {resultadoEstimador.coste_piezas.toFixed(2)}€ de piezas</>}
+                      {resultadoEstimador.suplemento_desplazamiento > 0 && <> + {resultadoEstimador.suplemento_desplazamiento.toFixed(2)}€ de desplazamiento</>}.
+                    </div>
+                    <button
+                      onClick={() => setPresupuestoImporte(String(resultadoEstimador.precio_sugerido))}
+                      style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", padding: "7px 12px", fontSize: 12.5 }}
+                    >
+                      Usar {resultadoEstimador.precio_sugerido.toFixed(2)}€ como importe
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button disabled={guardandoPresupuesto} onClick={guardarPresupuesto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: 1, padding: "8px 12px", fontSize: 12.5 }}>
               {guardandoPresupuesto ? "Guardando..." : t.presupuesto_importe != null ? "Actualizar presupuesto" : "Crear presupuesto"}
@@ -1581,6 +1670,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               <option value="efectivo">Efectivo</option>
               <option value="tarjeta">Tarjeta</option>
               <option value="transferencia">Transferencia</option>
+              <option value="bizum">Bizum</option>
             </select>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -2336,7 +2426,7 @@ const ACCION_POR_ESTADO = {
 };
 
 // -------------------- Panel de alertas del negocio --------------------
-function PanelAlertas({ reparaciones, onAbrir }) {
+function PanelAlertas({ reparaciones, onAbrir, onIrInventario }) {
   const [stockBajo, setStockBajo] = useState([]);
   const [abandonados, setAbandonados] = useState([]);
 
@@ -2384,11 +2474,15 @@ function PanelAlertas({ reparaciones, onAbrir }) {
         </div>
       )}
       {stockBajo.length > 0 && (
-        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
+        <button
+          type="button"
+          onClick={onIrInventario}
+          style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+        >
           <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
             <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
           </div>
-        </div>
+        </button>
       )}
     </div>
   );
@@ -2456,7 +2550,7 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
   );
 }
 
-function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
+function ReportesView({ reporteDiario, reporteMensual, contador, tendencia, onFiltrarPorEstado }) {
   const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
   const [mesExportar, setMesExportar] = useState(() => new Date().toISOString().slice(0, 7));
   const [exportando, setExportando] = useState(false);
@@ -2540,10 +2634,10 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia }) {
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
         <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Contador de reparaciones</div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <StatCard label="Totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada />
-          <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
-          <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
-          <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} />
+          <StatCard label="Totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => onFiltrarPorEstado(null)} />
+          <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => onFiltrarPorEstado("en_curso")} />
+          <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => onFiltrarPorEstado("entregadas")} />
+          <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => onFiltrarPorEstado("no_reparables")} />
         </div>
       </div>
     </div>
@@ -2623,6 +2717,7 @@ function CajaView({ onMovimientoCreado }) {
               <option value="efectivo">Efectivo</option>
               <option value="tarjeta">Tarjeta</option>
               <option value="transferencia">Transferencia</option>
+              <option value="bizum">Bizum</option>
             </select>
           </div>
           <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px" }}>
@@ -3565,7 +3660,7 @@ function PlantillasView() {
 }
 
 function AjustesView() {
-  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "", coste_almacenamiento_diario: 1, telegram_chat_id: "" });
+  const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "", coste_almacenamiento_diario: 1, telegram_chat_id: "", telefono_bizum: "" });
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -3585,7 +3680,7 @@ function AjustesView() {
           nombre_negocio: data.nombre_negocio || "", eslogan: data.eslogan || "",
           direccion: data.direccion || "", telefono: data.telefono || "", email: data.email || "",
           nif: data.nif || "", iva_pct: data.iva_pct ?? 21, suplemento_desplazamiento: data.suplemento_desplazamiento ?? 20,
-          tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "", coste_almacenamiento_diario: data.coste_almacenamiento_diario ?? 1, telegram_chat_id: data.telegram_chat_id || "",
+          tarifa_hora: data.tarifa_hora ?? 25, enlace_resenas_google: data.enlace_resenas_google || "", coste_almacenamiento_diario: data.coste_almacenamiento_diario ?? 1, telegram_chat_id: data.telegram_chat_id || "", telefono_bizum: data.telefono_bizum || "",
         });
         setTecnicos(data.tecnicos || []);
       })
@@ -3719,6 +3814,16 @@ function AjustesView() {
             {resultadoTelegram.ok ? "✓ Enviado — revisa tu Telegram" : `✗ ${resultadoTelegram.detalle}`}
           </div>
         )}
+
+        <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+          Cobro por Bizum
+        </div>
+        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block" }}>Tu número de Bizum
+          <input style={inputStyle} value={form.telefono_bizum} onChange={set("telefono_bizum")} placeholder="611222333" />
+        </label>
+        <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 4 }}>
+          Esto NO cobra solo — el cliente te lo manda desde su propia app del banco, y tú confirmas el cobro a mano cuando lo veas llegar (elige "Bizum" al registrar el cobro en la ficha). Si más adelante quieres que se cobre automático con un QR real, hace falta contratarlo con un banco.
+        </div>
 
         <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 18, marginBottom: 8, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           Copia de seguridad
@@ -4276,6 +4381,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [cargarTodo]);
 
   const [filtroMarca, setFiltroMarca] = useState("");
+  const [filtroEstadoResumen, setFiltroEstadoResumen] = useState(null); // null | "en_curso" | "entregadas" | "no_reparables" — desde las tarjetas de resumen
   const [filtroModelo, setFiltroModelo] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroHoy, setFiltroHoy] = useState(false);
@@ -4341,10 +4447,13 @@ function FirztnetPanel({ onCerrarSesion }) {
       if (filtroCliente && String(t.cliente?.id) !== filtroCliente) return false;
       if (filtroHoy && new Date(t.fecha_recepcion).toDateString() !== hoyStr) return false;
       if (filtroUrgente && !t.urgente) return false;
+      if (filtroEstadoResumen === "en_curso" && ["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
+      if (filtroEstadoResumen === "entregadas" && !["entregado", "completado"].includes(t.estado_actual)) return false;
+      if (filtroEstadoResumen === "no_reparables" && t.estado_actual !== "no_reparable") return false;
       if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
       return true;
     });
-  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, vistaTrabajo]);
+  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstadoResumen, vistaTrabajo]);
 
   function handleEstadoActualizado(actualizado) {
     setReparaciones((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)));
@@ -4572,7 +4681,12 @@ function FirztnetPanel({ onCerrarSesion }) {
           )}
 
           {vista === "clientes" && <ClientesView />}
-          {vista === "reportes" && <ReportesView reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia} />}
+          {vista === "reportes" && (
+            <ReportesView
+              reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia}
+              onFiltrarPorEstado={(estado) => { setFiltroEstadoResumen(estado); setVista("reparaciones"); }}
+            />
+          )}
           {vista === "inventario" && <InventarioView />}
           {vista === "rma" && <RmaView />}
           {vista === "rendimiento" && <RendimientoView />}
@@ -4586,10 +4700,10 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           {vista === "reparaciones" && (
           <div className="fn-stat-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada />
-            <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} />
-            <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} />
-            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} />
+            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
+            <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
+            <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
+            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
           </div>
           )}
           </div>
@@ -4687,7 +4801,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
-              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} />
+              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} />
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18` }}>
