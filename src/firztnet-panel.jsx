@@ -2632,26 +2632,26 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
     <div
       onMouseEnter={() => onHover?.(mostrada)}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 18, transition: "border-color 0.2s ease" }}
+      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
-        {resaltada && <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, padding: "2px 7px", borderRadius: 999 }}>En vista previa</span>}
+        <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
+        {resaltada && <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, padding: "2px 6px", borderRadius: 999 }}>En vista previa</span>}
       </div>
-      <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 600, marginTop: 6 }}>
-        {mostrada.urgente && <Flame size={12} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
+      <div style={{ fontSize: 12.5, color: COLORS.text, fontWeight: 600, marginTop: 4 }}>
+        {mostrada.urgente && <Flame size={11} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
         {mostrada.cliente?.nombre} · #{mostrada.numero_orden}
       </div>
-      <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{mostrada.equipo}</div>
+      <div style={{ fontSize: 11, color: COLORS.textDim }}>{mostrada.equipo}</div>
       {mostrada.problema_reportado && (
-        <div style={{ fontSize: 11, color: COLORS.textDim, fontStyle: "italic", marginTop: 2, marginBottom: 12 }}>"{mostrada.problema_reportado}"</div>
+        <div style={{ fontSize: 10.5, color: COLORS.textDim, fontStyle: "italic", marginTop: 2, marginBottom: 8 }}>"{mostrada.problema_reportado}"</div>
       )}
-      {!mostrada.problema_reportado && <div style={{ marginBottom: 12 }} />}
+      {!mostrada.problema_reportado && <div style={{ marginBottom: 8 }} />}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <button
           onClick={() => onAbrir(mostrada)}
-          style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}
+          style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "8px 12px", fontSize: 12, borderRadius: 8, boxShadow: "0 4px 10px rgba(34,197,94,0.3)" }}
         >
           {ACCION_POR_ESTADO[mostrada.estado_actual] || "Ver reparación"}
         </button>
@@ -2659,13 +2659,13 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
           href={enlaceWhatsapp || undefined}
           target="_blank"
           rel="noreferrer"
-          style={{ ...btnStyle(COLORS.statusAmber, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, textDecoration: "none", opacity: enlaceWhatsapp ? 1 : 0.5, pointerEvents: enlaceWhatsapp ? "auto" : "none", boxShadow: enlaceWhatsapp ? "0 4px 10px rgba(245,158,11,0.3)" : "none" }}
+          style={{ ...btnStyle(COLORS.statusAmber, "#FFFFFF"), padding: "8px 12px", fontSize: 12, borderRadius: 8, textDecoration: "none", opacity: enlaceWhatsapp ? 1 : 0.5, pointerEvents: enlaceWhatsapp ? "auto" : "none", boxShadow: enlaceWhatsapp ? "0 4px 10px rgba(245,158,11,0.3)" : "none" }}
         >
           Contactar cliente (WhatsApp)
         </a>
         <button
           onClick={() => onAbrir(mostrada)}
-          style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "11px 12px", fontSize: 12.5, borderRadius: 9, boxShadow: "0 4px 10px rgba(37,99,235,0.3)" }}
+          style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "8px 12px", fontSize: 12, borderRadius: 8, boxShadow: "0 4px 10px rgba(37,99,235,0.3)" }}
         >
           Generar presupuesto
         </button>
