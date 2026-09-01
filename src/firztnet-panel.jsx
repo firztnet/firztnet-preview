@@ -203,7 +203,7 @@ function TarjetaDestacada({ t, onAbrir, onHover }) {
     <button
       onClick={() => onAbrir(t)}
       style={{
-        background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${stage.accent}`, borderRadius: 12,
+        background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${stage.accent}`, borderRadius: 12,
         padding: "12px 14px", textAlign: "left", cursor: "pointer", width: "100%",
         display: "flex", alignItems: "center", gap: 10,
         boxShadow: `0 2px 6px ${stage.accent}18`,
@@ -2649,11 +2649,11 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
     <div
       onMouseEnter={() => { if (resaltada) onHover?.(resaltada); }}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: COLORS.surface, border: `1px solid ${resaltada ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.statusBlue : COLORS.amber}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
+      style={{ background: COLORS.surface, borderTop: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderRight: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderBottom: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.violet : COLORS.statusAmber}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
-        {resaltada && <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.statusBlue, background: `${COLORS.statusBlue}18`, padding: "2px 6px", borderRadius: 999 }}>En vista previa</span>}
+        {resaltada && <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.violet, background: `${COLORS.violet}18`, padding: "2px 6px", borderRadius: 999 }}>En vista previa</span>}
       </div>
       <div style={{ fontSize: 12.5, color: COLORS.text, fontWeight: 600, marginTop: 4 }}>
         {mostrada.urgente && <Flame size={11} color={COLORS.rust} style={{ marginRight: 4, verticalAlign: -1 }} />}
@@ -2748,7 +2748,7 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia, onFi
       </div>
 
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 20 }}>
           <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Hoy</div>
           <Row label="Equipos recibidos" value={reporteDiario.equipos_recibidos ?? 0} />
           <Row label="Equipos entregados" value={reporteDiario.equipos_entregados ?? 0} />
@@ -2759,7 +2759,7 @@ function ReportesView({ reporteDiario, reporteMensual, contador, tendencia, onFi
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 20 }}>
+        <div style={{ flex: 1, minWidth: 260, background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 20 }}>
           <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 14 }}>Este mes ({reporteMensual.mes})</div>
           <Row label="Reparaciones entregadas" value={reporteMensual.reparaciones_entregadas ?? 0} />
           <Row label="No reparables" value={reporteMensual.reparaciones_no_reparables ?? 0} />
@@ -2921,7 +2921,7 @@ function RentabilidadView() {
       {!cargando && datos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Todavía no hay suficientes trabajos entregados para calcular esto.</div>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {datos.map((d, i) => (
-          <div key={d.categoria} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.green, COLORS.statusBlue, COLORS.violet, COLORS.statusAmber, COLORS.teal][i % 5]}`, borderRadius: 12, padding: 18 }}>
+          <div key={d.categoria} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.green, COLORS.statusBlue, COLORS.violet, COLORS.statusAmber, COLORS.teal][i % 5]}`, borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{NOMBRES_CATEGORIA_RENTABILIDAD[d.categoria] || d.categoria}</div>
@@ -2978,7 +2978,7 @@ function RendimientoView() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {datos.map((d, i) => (
-          <div key={d.tecnico} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.amber, COLORS.violet, COLORS.green, COLORS.statusBlue, COLORS.statusAmber][i % 5]}`, borderRadius: 12, padding: 18 }}>
+          <div key={d.tecnico} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${[COLORS.amber, COLORS.violet, COLORS.green, COLORS.statusBlue, COLORS.statusAmber][i % 5]}`, borderRadius: 12, padding: 18 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{d.tecnico}</div>
               <div style={{ display: "flex", gap: 18 }}>
@@ -3029,7 +3029,7 @@ function GarantiasActivasView({ onAbrir, reparaciones }) {
           <div
             key={g.id}
             onClick={() => { const rep = reparaciones.find((r) => r.id === g.id); if (rep) onAbrir(rep); }}
-            style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${colorPorDias(g.dias_restantes)}`, borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, cursor: "pointer" }}
+            style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${colorPorDias(g.dias_restantes)}`, borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, cursor: "pointer" }}
           >
             <div>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{g.cliente?.nombre} · #{g.numero_orden}</div>
@@ -3223,7 +3223,7 @@ function RmaView() {
         {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
         {!cargando && rmas.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin devoluciones registradas.</div>}
         {rmas.map((r) => (
-          <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORES_RMA[r.estado]}`, borderRadius: 10, padding: 14 }}>
+          <div key={r.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORES_RMA[r.estado]}`, borderRadius: 10, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>
@@ -3603,7 +3603,7 @@ function SolicitudesView({ onCrearReparacion }) {
         {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
         {!cargando && solicitudes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin solicitudes pendientes. Aparecerán aquí cuando un cliente pida un nuevo servicio desde su página de seguimiento.</div>}
         {solicitudes.map((s) => (
-          <div key={s.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
+          <div key={s.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</div>
@@ -3676,7 +3676,7 @@ function RecordatoriosView() {
         {recordatorios.map((r) => {
           const estado = diasRestantes(r.fecha_programada);
           return (
-            <div key={r.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${r.cumplido ? COLORS.green : estado.color}`, borderRadius: 10, padding: 14 }}>
+            <div key={r.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${r.cumplido ? COLORS.green : estado.color}`, borderRadius: 10, padding: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input type="checkbox" checked={r.cumplido} onChange={(e) => marcarCumplido(r.id, e.target.checked)} style={{ width: 17, height: 17, cursor: "pointer", flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -4986,7 +4986,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <div
                 onMouseEnter={() => setHoverBalance(true)}
                 onMouseLeave={() => setHoverBalance(false)}
-                style={{ background: COLORS.surface, border: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18`, transition: "border-color 0.2s ease" }}
+                style={{ background: COLORS.surface, borderTop: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderRight: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderBottom: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18`, transition: "border-color 0.2s ease" }}
               >
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Wrench size={24} color={COLORS.amber} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
@@ -5023,7 +5023,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <div
                 onMouseEnter={() => setHoverMes(true)}
                 onMouseLeave={() => setHoverMes(false)}
-                style={{ background: COLORS.surface, border: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
+                style={{ background: COLORS.surface, borderTop: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderRight: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderBottom: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
               >
                 <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.statusBlue}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <FileBarChart size={24} color={COLORS.statusBlue} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
