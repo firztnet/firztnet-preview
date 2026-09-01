@@ -210,7 +210,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
             </tr>
           </thead>
           <tbody>
-            {filas.map((t) => {
+            {filas.map((t, i) => {
               const lista = stagesFor(t.tipo_trabajo);
               const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
               const esFinal = ["entregado", "completado"].includes(t.estado_actual);
@@ -222,7 +222,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}22` }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: i % 2 === 0 ? COLORS.surface : COLORS.surfaceRaised }}
                 >
                   <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
@@ -314,7 +314,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
                 <td colSpan={6} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>Sin equipos aquí.</td>
               </tr>
             )}
-            {filas.map((t) => {
+            {filas.map((t, i) => {
               const stage = etapas.find((s) => s.key === t.estado_actual) || etapas[0];
               const esFinal = ["entregado", "completado"].includes(t.estado_actual);
               const esNoReparable = t.estado_actual === "no_reparable";
@@ -326,7 +326,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}22` }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: i % 2 === 0 ? COLORS.surface : COLORS.surfaceRaised }}
                 >
                   <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
