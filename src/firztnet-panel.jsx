@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -316,6 +316,55 @@ function RepairTag({ t, onClick, onHover }) {
         )}
       </div>
     </button>
+  );
+}
+
+// -------------------- Desplegable: En el taller / A domicilio --------------------
+function SelectorTipoTrabajo({ valor, onCambiar }) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function alClicarFuera(e) {
+      if (ref.current && !ref.current.contains(e.target)) setAbierto(false);
+    }
+    document.addEventListener("mousedown", alClicarFuera);
+    return () => document.removeEventListener("mousedown", alClicarFuera);
+  }, []);
+
+  const opciones = [
+    { key: "taller", label: "Taller Físico", icon: Wrench, color: COLORS.amber },
+    { key: "domicilio", label: "Servicio In-Situ / Domicilio", icon: Truck, color: COLORS.statusBlue },
+  ];
+  const actual = opciones.find((o) => o.key === valor) || opciones[0];
+
+  return (
+    <div ref={ref} style={{ position: "relative", marginBottom: 12 }}>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 9, border: `1.5px solid ${actual.color}`, background: actual.color, color: "#FFFFFF", fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}
+      >
+        <actual.icon size={15} />
+        {actual.label}
+        <ChevronDown size={14} style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+      </button>
+      {abierto && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, minWidth: 240, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 40, overflow: "hidden" }}>
+          {opciones.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => { onCambiar(o.key); setAbierto(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "10px 14px", background: o.key === valor ? o.color : "#FFFFFF", color: o.key === valor ? "#FFFFFF" : COLORS.text, border: "none", cursor: "pointer", fontSize: 13, fontWeight: o.key === valor ? 600 : 500, textAlign: "left" }}
+            >
+              <o.icon size={15} />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -4890,20 +4939,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                <button
-                  onClick={() => setVistaTrabajo("taller")}
-                  style={{ padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${vistaTrabajo === "taller" ? COLORS.amber : COLORS.line}`, background: vistaTrabajo === "taller" ? COLORS.amber : COLORS.surface, color: vistaTrabajo === "taller" ? "#FFFFFF" : COLORS.textDim, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                >
-                  En el taller
-                </button>
-                <button
-                  onClick={() => setVistaTrabajo("domicilio")}
-                  style={{ padding: "8px 16px", borderRadius: 9, border: `1.5px solid ${vistaTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.line}`, background: vistaTrabajo === "domicilio" ? COLORS.statusBlue : COLORS.surface, color: vistaTrabajo === "domicilio" ? "#FFFFFF" : COLORS.textDim, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <MapPin size={13} /> A domicilio
-                </button>
-              </div>
+              <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "1 1 200px", maxWidth: 320 }}>
