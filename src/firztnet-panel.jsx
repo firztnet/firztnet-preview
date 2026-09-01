@@ -152,18 +152,9 @@ async function apiPatch(path, body) {
   return res.json();
 }
 
-function fechaCorta(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
-}
 function fechaLarga(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
-}
-
-function StageDot({ color }) {
-  return <span style={{ width: 7, height: 7, borderRadius: 999, background: color, display: "inline-block", flexShrink: 0 }} />;
 }
 
 const CHECKLIST_SALIDA_TALLER = ["Cargador incluido", "Teclado probado", "Pantalla probada", "Equipo limpio", "Accesorios devueltos"];
@@ -174,13 +165,6 @@ const CATEGORIAS_DOMICILIO = [
   { key: "impresoras", label: "Impresoras/Periféricos", checklist: ["Impresora en red configurada", "Driver instalado", "Prueba de impresión OK"], herramientas: ["Cable USB/red", "Cartuchos o tóner de prueba", "Pendrive con drivers"] },
   { key: "mantenimiento_empresas", label: "Mantenimiento empresas", checklist: ["Equipos revisados", "Copias de seguridad comprobadas"], herramientas: ["Kit de destornilladores", "Aire comprimido", "Pendrive de arranque", "Disco externo para copias"] },
 ];
-
-function tiempoEnTaller(fechaRecepcion) {
-  const horas = (Date.now() - new Date(fechaRecepcion).getTime()) / (1000 * 60 * 60);
-  if (horas < 24) return { texto: "< 24h", color: "#22C55E", fondo: "#F0FDF4" };
-  if (horas < 96) return { texto: `${Math.floor(horas / 24)} día${Math.floor(horas / 24) === 1 ? "" : "s"}`, color: "#F59E0B", fondo: "#FFFBEB" };
-  return { texto: `${Math.floor(horas / 24)} días`, color: "#EF4444", fondo: "#FEF2F2" };
-}
 
 function iniciales(nombre) {
   if (!nombre) return "?";
@@ -195,8 +179,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
       !["entregado", "no_reparable", "completado"].includes(r.estado_actual) ||
       (["entregado", "completado"].includes(r.estado_actual) && r.fecha_entrega && new Date(r.fecha_entrega).toDateString() === hoy)
     )
-    .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
-    .slice(0, 8);
+    .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion));
 
   if (filas.length === 0) return null;
 
@@ -209,6 +192,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Órdenes activas</div>
       <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, con acción rápida sin abrir la ficha — sin repetir lo que ya ves en el tablero de abajo.</div>
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ maxHeight: 360, overflowY: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 60 }} />
@@ -221,7 +205,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
           <thead>
             <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
               {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
-                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3 }}>{c}</th>
+                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
               ))}
             </tr>
           </thead>
@@ -287,80 +271,119 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
               })}
             </tbody>
           </table>
+        </div>
       </div>
     </div>
   );
 }
 
-function RepairTag({ t, onClick, onHover }) {
-  const listaEstados = stagesFor(t.tipo_trabajo);
-  const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
-  const enTaller = !["entregado", "no_reparable", "completado"].includes(t.estado_actual) ? tiempoEnTaller(t.fecha_recepcion) : null;
+function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, cargando }) {
+  const etapas = stagesFor(tipoTrabajo);
+  const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
+
+  function diasDesde(fecha) {
+    return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  const filas = [...reparaciones].sort(
+    (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
+  );
+
   return (
-    <button
-      onClick={onClick}
-      style={{
-        background: COLORS.surfaceRaised,
-        border: `1px solid ${COLORS.line}`,
-        borderLeft: `4px solid ${stage.accent}`,
-        borderRadius: 10,
-        padding: "12px 14px 12px 12px",
-        textAlign: "left",
-        width: "100%",
-        cursor: "pointer",
-        display: "flex",
-        gap: 10,
-        alignItems: "flex-start",
-        boxShadow: `0 2px 5px ${stage.accent}15`,
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 10px ${stage.accent}30`; onHover?.(t); }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 2px 5px ${stage.accent}15`; onHover?.(null); }}
-    >
-      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#FFFFFF", border: `2px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700, flexShrink: 0 }}>
-        {iniciales(t.cliente?.nombre)}
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ maxHeight: 500, overflowY: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 60 }} />
+            <col style={{ width: "auto" }} />
+            <col style={{ width: 62 }} />
+            <col style={{ width: 40 }} />
+            <col style={{ width: 92 }} />
+            <col style={{ width: 78 }} />
+          </colgroup>
+          <thead>
+            <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
+              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
+                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!cargando && filas.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>Sin equipos aquí.</td>
+              </tr>
+            )}
+            {filas.map((t) => {
+              const stage = etapas.find((s) => s.key === t.estado_actual) || etapas[0];
+              const esFinal = ["entregado", "completado"].includes(t.estado_actual);
+              const esNoReparable = t.estado_actual === "no_reparable";
+              const dias = diasDesde(t.fecha_recepcion);
+              const [anio, numero] = (t.numero_orden || "").split("-");
+              return (
+                <tr
+                  key={t.id}
+                  onClick={() => onAbrir(t)}
+                  onMouseEnter={() => onHover?.(t)}
+                  onMouseLeave={() => onHover?.(null)}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
+                >
+                  <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
+                    {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
+                    <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
+                    <div>#{numero}</div>
+                  </td>
+                  <td style={{ padding: "8px 6px", overflow: "hidden" }}>
+                    <div style={{ color: COLORS.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
+                    <div style={{ color: COLORS.textDim, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.equipo}</div>
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "2px 6px", whiteSpace: "nowrap" }}>
+                      {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 6px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400 }}>{dias}d</td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "3px 7px", whiteSpace: "nowrap", display: "inline-block" }}>
+                      {stage.label}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    {esFinal ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                        style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
+                      >
+                        Factura
+                      </button>
+                    ) : esNoReparable ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                        style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
+                      >
+                        Ver
+                      </button>
+                    ) : t.cliente?.telefono ? (
+                      <a
+                        onClick={(e) => e.stopPropagation()}
+                        href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", justifyContent: "center" }}
+                      >
+                        Notificar
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: 11, color: COLORS.textDim }}>Sin teléfono</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            {t.urgente && <Flame size={12} color={COLORS.rust} />}
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: stage.accent, letterSpacing: 0.5, fontWeight: 700 }}>
-              #{t.numero_orden}
-            </span>
-          </span>
-          <span style={{ fontSize: 11, color: COLORS.textDim }}>{fechaCorta(t.fecha_recepcion)}</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6, marginTop: 4 }}>
-          <div style={{ fontFamily: "Inter", fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>
-            {t.cliente?.nombre}
-          </div>
-          {enTaller && (
-            <span
-              title="Tiempo en el taller"
-              style={{ fontSize: 10, fontWeight: 600, color: enTaller.color, background: enTaller.fondo, padding: "2px 6px", borderRadius: 999, flexShrink: 0, whiteSpace: "nowrap" }}
-            >
-              {enTaller.texto}
-            </span>
-          )}
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-          {t.tipo_trabajo === "domicilio" && <MapPin size={11} color={COLORS.statusBlue} />}
-          {t.equipo}
-        </div>
-        {t.tipo_trabajo === "domicilio" && t.direccion_servicio && (
-          <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 2 }}>{t.direccion_servicio}</div>
-        )}
-        {t.problema_reportado && (
-          <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4, fontStyle: "italic" }}>
-            "{t.problema_reportado}"
-          </div>
-        )}
-        {t.fecha_fin_garantia && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, color: COLORS.green, fontSize: 11 }}>
-            <ShieldCheck size={12} /> Garantía hasta {fechaLarga(t.fecha_fin_garantia)}
-          </div>
-        )}
-      </div>
-    </button>
+    </div>
   );
 }
 
@@ -5051,31 +5074,12 @@ function FirztnetPanel({ onCerrarSesion }) {
                 ))}
               </div>
 
-              <TablaOrdenesActivas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
+              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
                 Tablero completo
               </div>
-              <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
-                {stagesFor(vistaTrabajo).map((stage) => {
-                  const items = filtered.filter((t) => t.estado_actual === stage.key);
-                  return (
-                    <div key={stage.key} className="fn-kanban-col" style={{ minWidth: 240, flex: "0 0 240px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, padding: "0 2px" }}>
-                        <StageDot color={stage.accent} />
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.text }}>{stage.label}</span>
-                        <span style={{ fontSize: 11, color: COLORS.textDim, marginLeft: "auto", fontFamily: "'IBM Plex Mono', monospace" }}>{items.length}</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {!cargando && items.length === 0 && <div style={{ fontSize: 11.5, color: COLORS.textDim, padding: "10px 4px" }}>Sin equipos aquí</div>}
-                        {items.map((t) => (
-                          <RepairTag key={t.id} t={t} onClick={() => setSelected(t)} onHover={handleHoverPreview} />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} cargando={cargando} />
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
