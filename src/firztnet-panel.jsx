@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -2698,8 +2698,11 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
     <div
       onMouseEnter={() => { if (resaltada) onHover?.(resaltada); }}
       onMouseLeave={() => onHover?.(null)}
-      style={{ background: COLORS.surface, borderTop: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderRight: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderBottom: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.violet : COLORS.statusAmber}`, borderRadius: 12, padding: 13, transition: "border-color 0.2s ease" }}
+      style={{ background: COLORS.surface, borderTop: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderRight: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderBottom: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.violet : COLORS.statusAmber}`, borderRadius: 12, padding: 13, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
     >
+      <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${resaltada ? COLORS.violet : COLORS.statusAmber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Target size={24} color={resaltada ? COLORS.violet : COLORS.statusAmber} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Próxima acción</div>
         {resaltada && <span style={{ fontSize: 9.5, fontWeight: 600, color: COLORS.violet, background: `${COLORS.violet}18`, padding: "2px 6px", borderRadius: 999 }}>En vista previa</span>}
