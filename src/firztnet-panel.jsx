@@ -182,66 +182,101 @@ function tiempoEnTaller(fechaRecepcion) {
   return { texto: `${Math.floor(horas / 24)} días`, color: "#EF4444", fondo: "#FEF2F2" };
 }
 
-function tiempoRelativo(fecha) {
-  const horas = Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60));
-  if (horas < 1) return "ahora";
-  if (horas < 24) return `${horas}h`;
-  return `${Math.floor(horas / 24)}d`;
-}
-
 function iniciales(nombre) {
   if (!nombre) return "?";
   const partes = nombre.trim().split(" ");
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
-// -------------------- Reparaciones destacadas: En curso / Por entregar --------------------
-function TarjetaDestacada({ t, onAbrir, onHover }) {
-  const lista = stagesFor(t.tipo_trabajo);
-  const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
-  return (
-    <button
-      onClick={() => onAbrir(t)}
-      style={{
-        background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${stage.accent}`, borderRadius: 12,
-        padding: "12px 14px", textAlign: "left", cursor: "pointer", width: "100%",
-        display: "flex", alignItems: "center", gap: 10,
-        boxShadow: `0 2px 6px ${stage.accent}18`,
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 12px ${stage.accent}33`; onHover?.(t); }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 2px 6px ${stage.accent}18`; onHover?.(null); }}
-    >
-      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#FFFFFF", border: `2.5px solid ${stage.accent}`, color: stage.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-        {iniciales(t.cliente?.nombre)}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: stage.accent, fontWeight: 700 }}>#{t.numero_orden}</span>
-          {t.urgente && <Flame size={11} color={COLORS.rust} />}
-          <span style={{ fontSize: 10, fontWeight: 600, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "1px 7px", marginLeft: "auto" }}>{tiempoRelativo(t.fecha_recepcion)}</span>
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
-        <div style={{ fontSize: 11.5, color: COLORS.textDim, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.marca ? `${t.marca} ${t.modelo || ""}` : t.equipo}</div>
-      </div>
-      <Eye size={14} color={stage.accent} style={{ flexShrink: 0 }} />
-    </button>
-  );
-}
-
-function ReparacionesDestacadas({ reparaciones, onAbrir, onHover }) {
-  const prioritarias = reparaciones
-    .filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual))
+function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
+  const hoy = new Date().toDateString();
+  const filas = reparaciones
+    .filter((r) =>
+      !["entregado", "no_reparable", "completado"].includes(r.estado_actual) ||
+      (["entregado", "completado"].includes(r.estado_actual) && r.fecha_entrega && new Date(r.fecha_entrega).toDateString() === hoy)
+    )
     .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion))
-    .slice(0, 6);
+    .slice(0, 8);
 
-  if (prioritarias.length === 0) return null;
+  if (filas.length === 0) return null;
+
+  function diasDesde(fecha) {
+    return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+  }
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Prioritarias</div>
-      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, de un vistazo — sin repetir lo que ya ves en el tablero de abajo.</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 560 }}>
-        {prioritarias.map((t) => <TarjetaDestacada key={t.id} t={t} onAbrir={onAbrir} onHover={onHover} />)}
+      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Órdenes activas</div>
+      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, con acción rápida sin abrir la ficha — sin repetir lo que ya ves en el tablero de abajo.</div>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead>
+              <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
+                {["ID Orden", "Cliente", "Servicio / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
+                  <th key={c} style={{ padding: "9px 12px", fontSize: 10.5, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((t) => {
+                const lista = stagesFor(t.tipo_trabajo);
+                const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
+                const esFinal = ["entregado", "completado"].includes(t.estado_actual);
+                const dias = diasDesde(t.fecha_recepcion);
+                return (
+                  <tr
+                    key={t.id}
+                    onClick={() => onAbrir(t)}
+                    onMouseEnter={() => onHover?.(t)}
+                    onMouseLeave={() => onHover?.(null)}
+                    style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
+                  >
+                    <td style={{ padding: "10px 12px", fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>
+                      {t.urgente && <Flame size={11} color={COLORS.rust} style={{ marginRight: 3, verticalAlign: -1 }} />}
+                      #{t.numero_orden}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: COLORS.text, whiteSpace: "nowrap" }}>{t.cliente?.nombre}</td>
+                    <td style={{ padding: "10px 12px", color: COLORS.textDim, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.equipo}</td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "3px 8px" }}>
+                        {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400, whiteSpace: "nowrap" }}>{dias}d</td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "4px 10px" }}>
+                        {stage.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      {esFinal ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                          style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 12px", fontSize: 11.5, fontWeight: 700 }}
+                        >
+                          Factura
+                        </button>
+                      ) : t.cliente?.telefono ? (
+                        <a
+                          onClick={(e) => e.stopPropagation()}
+                          href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 12px", fontSize: 11.5, fontWeight: 700, textDecoration: "none", display: "inline-flex" }}
+                        >
+                          Notificar
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: 11, color: COLORS.textDim }}>Sin teléfono</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -5006,7 +5041,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 ))}
               </div>
 
-              <ReparacionesDestacadas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
+              <TablaOrdenesActivas reparaciones={filtered} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
                 Tablero completo
