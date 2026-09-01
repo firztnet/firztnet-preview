@@ -209,65 +209,76 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Órdenes activas</div>
       <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, con acción rápida sin abrir la ficha — sin repetir lo que ya ves en el tablero de abajo.</div>
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-            <thead>
-              <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
-                {["ID Orden", "Cliente", "Servicio / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
-                  <th key={c} style={{ padding: "9px 12px", fontSize: 10.5, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((t) => {
-                const lista = stagesFor(t.tipo_trabajo);
-                const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
-                const esFinal = ["entregado", "completado"].includes(t.estado_actual);
-                const dias = diasDesde(t.fecha_recepcion);
-                return (
-                  <tr
-                    key={t.id}
-                    onClick={() => onAbrir(t)}
-                    onMouseEnter={() => onHover?.(t)}
-                    onMouseLeave={() => onHover?.(null)}
-                    style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
-                  >
-                    <td style={{ padding: "10px 12px", fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap" }}>
-                      {t.urgente && <Flame size={11} color={COLORS.rust} style={{ marginRight: 3, verticalAlign: -1 }} />}
-                      #{t.numero_orden}
-                    </td>
-                    <td style={{ padding: "10px 12px", color: COLORS.text, whiteSpace: "nowrap" }}>{t.cliente?.nombre}</td>
-                    <td style={{ padding: "10px 12px", color: COLORS.textDim, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.equipo}</td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "3px 8px" }}>
-                        {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 12px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400, whiteSpace: "nowrap" }}>{dias}d</td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "4px 10px" }}>
-                        {stage.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
-                      {esFinal ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
-                          style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 12px", fontSize: 11.5, fontWeight: 700 }}
-                        >
-                          Factura
-                        </button>
-                      ) : t.cliente?.telefono ? (
-                        <a
-                          onClick={(e) => e.stopPropagation()}
-                          href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 12px", fontSize: 11.5, fontWeight: 700, textDecoration: "none", display: "inline-flex" }}
-                        >
-                          Notificar
-                        </a>
-                      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 60 }} />
+            <col style={{ width: "auto" }} />
+            <col style={{ width: 62 }} />
+            <col style={{ width: 40 }} />
+            <col style={{ width: 92 }} />
+            <col style={{ width: 78 }} />
+          </colgroup>
+          <thead>
+            <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
+              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
+                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3 }}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((t) => {
+              const lista = stagesFor(t.tipo_trabajo);
+              const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
+              const esFinal = ["entregado", "completado"].includes(t.estado_actual);
+              const dias = diasDesde(t.fecha_recepcion);
+              const [anio, numero] = (t.numero_orden || "").split("-");
+              return (
+                <tr
+                  key={t.id}
+                  onClick={() => onAbrir(t)}
+                  onMouseEnter={() => onHover?.(t)}
+                  onMouseLeave={() => onHover?.(null)}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
+                >
+                  <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
+                    {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
+                    <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
+                    <div>#{numero}</div>
+                  </td>
+                  <td style={{ padding: "8px 6px", overflow: "hidden" }}>
+                    <div style={{ color: COLORS.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
+                    <div style={{ color: COLORS.textDim, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.equipo}</div>
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "2px 6px", whiteSpace: "nowrap" }}>
+                      {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 6px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400 }}>{dias}d</td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "3px 7px", whiteSpace: "nowrap", display: "inline-block" }}>
+                      {stage.label}
+                    </span>
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    {esFinal ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                        style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
+                      >
+                        Factura
+                      </button>
+                    ) : t.cliente?.telefono ? (
+                      <a
+                        onClick={(e) => e.stopPropagation()}
+                        href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", justifyContent: "center" }}
+                      >
+                        Notificar
+                      </a>
+                    ) : (
                         <span style={{ fontSize: 11, color: COLORS.textDim }}>Sin teléfono</span>
                       )}
                     </td>
@@ -276,7 +287,6 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
               })}
             </tbody>
           </table>
-        </div>
       </div>
     </div>
   );
