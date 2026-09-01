@@ -4709,6 +4709,13 @@ function FirztnetPanel({ onCerrarSesion }) {
     }}>
       <link rel="stylesheet" href={FONTS_URL} />
       <style>{`
+        @keyframes fnPuntoActivo {
+          0%, 100% { box-shadow: 0 0 0 0 ${COLORS.green}55; }
+          50% { box-shadow: 0 0 0 5px ${COLORS.green}00; }
+        }
+        .fn-punto-activo {
+          animation: fnPuntoActivo 2s ease-in-out infinite;
+        }
         @keyframes fnLogoGlow {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.amber}55; }
           50% { box-shadow: 0 0 16px 3px ${COLORS.amber}66; }
@@ -4834,6 +4841,14 @@ function FirztnetPanel({ onCerrarSesion }) {
           >
             <MoreHorizontal size={16} />
             Más
+          </div>
+
+          <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, background: COLORS.sidebarActiveBg }}>
+            <div className="fn-punto-activo" style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.green, flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#FFFFFF", textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreUsuarioDelToken()} activo</div>
+              <div style={{ fontSize: 11, color: COLORS.sidebarTextDim }}>Sede Principal</div>
+            </div>
           </div>
         </aside>
 
