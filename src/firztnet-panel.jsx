@@ -222,7 +222,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}0D` }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}22` }}
                 >
                   <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
@@ -326,7 +326,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
                   onClick={() => onAbrir(t)}
                   onMouseEnter={() => onHover?.(t)}
                   onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}0D` }}
+                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer", background: `${stage.accent}22` }}
                 >
                   <td style={{ padding: "8px 6px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>
                     {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
