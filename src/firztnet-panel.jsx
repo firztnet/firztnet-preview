@@ -4870,11 +4870,10 @@ function FirztnetPanel({ onCerrarSesion }) {
           transition: transform 0.25s ease;
         }
         .fn-fila-tabla {
-          transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+          transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
         .fn-fila-tabla:hover {
           background-color: ${COLORS.amber}14 !important;
-          transform: translateX(3px);
           box-shadow: inset 4px 0 0 0 ${COLORS.amber};
         }
         .fn-navitem:hover {
