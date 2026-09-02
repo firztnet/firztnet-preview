@@ -248,7 +248,25 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
                   <td style={{ padding: "8px 6px" }}>
                     {esFinal ? (
                       <button
-                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const ventana = window.open("", "_blank");
+                          try {
+                            const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
+                            if (facturas.length > 0) {
+                              const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
+                              manejar401(res);
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              if (ventana) ventana.location.href = url;
+                            } else {
+                              ventana?.close();
+                              onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
+                            }
+                          } catch (err) {
+                            ventana?.close();
+                          }
+                        }}
                         style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
                       >
                         Factura
@@ -353,7 +371,25 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
                   <td style={{ padding: "8px 6px" }}>
                     {esFinal ? (
                       <button
-                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const ventana = window.open("", "_blank");
+                          try {
+                            const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
+                            if (facturas.length > 0) {
+                              const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
+                              manejar401(res);
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              if (ventana) ventana.location.href = url;
+                            } else {
+                              ventana?.close();
+                              onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
+                            }
+                          } catch (err) {
+                            ventana?.close();
+                          }
+                        }}
                         style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
                       >
                         Factura
@@ -1490,7 +1526,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>
                 {t.tipo_trabajo === "domicilio" ? "Hoja de trabajo" : "Checklist de salida"}
               </div>
-              {t.tipo_trabajo === "domicilio" ? (
+              {esFinal ? null : t.tipo_trabajo === "domicilio" ? (
                 t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
                   <button onClick={usarPlantillaChecklist} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11, cursor: "pointer", padding: 0 }}>
                     + Usar plantilla de {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label}
@@ -1506,15 +1542,18 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
                 {checklist.map((item) => (
                   <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input type="checkbox" checked={item.completado} onChange={() => toggleItemChecklist(item)} style={{ width: 15, height: 15, cursor: "pointer", flexShrink: 0 }} />
+                    <input type="checkbox" checked={item.completado} onChange={() => toggleItemChecklist(item)} disabled={esFinal} style={{ width: 15, height: 15, cursor: esFinal ? "default" : "pointer", flexShrink: 0 }} />
                     <span style={{ fontSize: 13, color: item.completado ? COLORS.textDim : COLORS.text, textDecoration: item.completado ? "line-through" : "none", flex: 1 }}>{item.texto}</span>
-                    <button onClick={() => borrarItemChecklist(item.id)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
-                      <X size={12} />
-                    </button>
+                    {!esFinal && (
+                      <button onClick={() => borrarItemChecklist(item.id)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 0, display: "flex", flexShrink: 0 }}>
+                        <X size={12} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+            {!esFinal && (
             <div style={{ display: "flex", gap: 6 }}>
               <input
                 value={nuevoItemChecklist}
@@ -1527,6 +1566,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                 Añadir
               </button>
             </div>
+            )}
           </div>
         )}
 
@@ -1659,18 +1699,20 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Fotos de recepción</div>
-            <label style={{ fontSize: 11.5, color: COLORS.amber, cursor: "pointer" }}>
-              {subiendoFotos ? "Subiendo..." : "+ Añadir foto"}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                capture="environment"
-                onChange={(e) => subirFotos(e.target.files)}
-                style={{ display: "none" }}
-                disabled={subiendoFotos}
-              />
-            </label>
+            {!esFinal && (
+              <label style={{ fontSize: 11.5, color: COLORS.amber, cursor: "pointer" }}>
+                {subiendoFotos ? "Subiendo..." : "+ Añadir foto"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  capture="environment"
+                  onChange={(e) => subirFotos(e.target.files)}
+                  style={{ display: "none" }}
+                  disabled={subiendoFotos}
+                />
+              </label>
+            )}
           </div>
           {errorFotos && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorFotos}</div>}
           {fotos.length === 0 ? (
@@ -1688,13 +1730,15 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                       style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: `1px solid ${COLORS.line}`, display: "block" }}
                     />
                   </a>
-                  <button
-                    onClick={() => borrarFoto(f.id)}
-                    style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: COLORS.rust, color: "#FFF", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                    title="Eliminar foto"
-                  >
-                    <X size={11} />
-                  </button>
+                  {!esFinal && (
+                    <button
+                      onClick={() => borrarFoto(f.id)}
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: COLORS.rust, color: "#FFF", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                      title="Eliminar foto"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1788,6 +1832,12 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
 
           {errorCobro && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorCobro}</div>}
 
+          {esFinal ? (
+            totalCobrado <= 0 && (
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, fontStyle: "italic" }}>Este trabajo ya está entregado sin ningún cobro registrado.</div>
+            )
+          ) : (
+          <>
           {t.tipo_trabajo === "domicilio" && (
             <button
               type="button"
@@ -1829,6 +1879,9 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
               </button>
             )}
           </div>
+          </>
+          )}
+          {!esFinal && (
           <button
             type="button"
             disabled={guardandoCobro || !montoCobro}
@@ -1848,6 +1901,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
           >
             Registrar como gasto de esta visita (material, gasolina, peajes...) en vez de cobro
           </button>
+          )}
         </div>
 
         {t.estado_actual === "no_reparable" && t.tipo_trabajo !== "domicilio" && (
