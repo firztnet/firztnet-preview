@@ -3780,10 +3780,18 @@ function SolicitudesView({ onCrearReparacion }) {
         {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
         {!cargando && solicitudes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin solicitudes pendientes. Aparecerán aquí cuando un cliente pida un nuevo servicio desde su página de seguimiento.</div>}
         {solicitudes.map((s) => (
-          <div key={s.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
+          <div key={s.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : s.origen === "nuevo_contacto" ? COLORS.violet : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</span>
+                  {s.origen === "nuevo_contacto" && (
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.violet, background: `${COLORS.violet}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      Nuevo contacto
+                    </span>
+                  )}
+                </div>
+                {s.cliente?.telefono && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 1 }}>{s.cliente.telefono}</div>}
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{s.mensaje || "Sin mensaje adicional"}</div>
                 <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(s.fecha)}</div>
               </div>
@@ -4680,8 +4688,90 @@ function SeguimientoPublico() {
   );
 }
 
+// -------------------- Página pública: solicitar presupuesto (sin ser cliente todavía) --------------------
+function SolicitarPresupuestoPublico() {
+  const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [error, setError] = useState("");
+
+  async function enviar(e) {
+    e.preventDefault();
+    setError("");
+    setEnviando(true);
+    try {
+      const res = await fetch(`${API_BASE}/seguimiento/solicitar-presupuesto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, telefono, email, mensaje }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo enviar la solicitud");
+      setEnviado(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  const inputStyle = { width: "100%", fontSize: 13.5, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E2E8F0", boxSizing: "border-box", marginTop: 5, outline: "none" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #EFF6FF 0%, #F8FAFC 45%, #F8FAFC 100%)", fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <link rel="stylesheet" href={FONTS_URL} />
+      <div style={{ background: "#FFFFFF", borderRadius: 20, padding: "30px 26px", width: 400, maxWidth: "100%", boxShadow: "0 20px 50px -12px rgba(37,99,235,0.18), 0 4px 16px rgba(15,23,42,0.06)", border: "1px solid #EEF2F7" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 24, justifyContent: "center" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.amber}, #1D4ED8)`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 10px rgba(37,99,235,0.35)" }}>
+            <Wrench size={17} color="#FFFFFF" />
+          </div>
+          <span style={{ fontFamily: "Oswald", fontSize: 19, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
+        </div>
+
+        {enviado ? (
+          <div style={{ textAlign: "center", padding: "10px 0" }}>
+            <CheckCircle2 size={36} color={COLORS.green} style={{ marginBottom: 10 }} />
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>¡Solicitud enviada!</div>
+            <div style={{ fontSize: 13, color: COLORS.textDim }}>Te contactaremos en breve para hablar de tu presupuesto.</div>
+          </div>
+        ) : (
+          <form onSubmit={enviar}>
+            <div style={{ fontSize: 13.5, color: COLORS.textDim, marginBottom: 16, textAlign: "center" }}>
+              Pide tu presupuesto sin compromiso — te contactamos nosotros.
+            </div>
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500 }}>Nombre *
+              <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre" style={inputStyle} required />
+            </label>
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500, display: "block", marginTop: 12 }}>Teléfono *
+              <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="600 000 000" style={inputStyle} required />
+            </label>
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500, display: "block", marginTop: 12 }}>Email <span style={{ fontWeight: 400 }}>(opcional)</span>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="tucorreo@email.com" style={inputStyle} />
+            </label>
+            <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500, display: "block", marginTop: 12 }}>¿Qué necesitas? <span style={{ fontWeight: 400 }}>(opcional)</span>
+              <textarea value={mensaje} onChange={(e) => setMensaje(e.target.value)} placeholder="Cuéntanos brevemente qué necesitas..." style={{ ...inputStyle, minHeight: 70, fontFamily: "inherit", resize: "vertical" }} />
+            </label>
+            {error && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 10 }}>{error}</div>}
+            <button
+              type="submit"
+              disabled={enviando}
+              style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 16, padding: "11px 12px", fontSize: 14, fontWeight: 600, boxSizing: "border-box" }}
+            >
+              {enviando ? "Enviando..." : "Solicitar presupuesto"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FirztnetApp() {
   const esPaginaSeguimiento = window.location.pathname.startsWith("/seguimiento");
+  const esPaginaPresupuesto = window.location.pathname.startsWith("/presupuesto");
   const [autenticado, setAutenticado] = useState(false);
   const [comprobando, setComprobando] = useState(true);
 
@@ -4696,6 +4786,7 @@ export default function FirztnetApp() {
   }, []);
 
   if (esPaginaSeguimiento) return <SeguimientoPublico />;
+  if (esPaginaPresupuesto) return <SolicitarPresupuestoPublico />;
   if (comprobando) return null;
   if (!autenticado) return <LoginScreen onEntrar={() => setAutenticado(true)} />;
 
