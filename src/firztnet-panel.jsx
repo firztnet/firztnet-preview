@@ -2820,6 +2820,7 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
 
   return (
     <div
+      className="fn-proxima-accion"
       onMouseEnter={() => { if (resaltada) onHover?.(resaltada); }}
       onMouseLeave={() => onHover?.(null)}
       style={{ background: COLORS.surface, borderTop: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderRight: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderBottom: `1px solid ${resaltada ? COLORS.violet : COLORS.line}`, borderLeft: `4px solid ${resaltada ? COLORS.violet : COLORS.statusAmber}`, borderRadius: 12, padding: 13, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
@@ -4898,6 +4899,9 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
 
         @media (max-width: 768px) {
+          .fn-proxima-accion {
+            display: none !important;
+          }
           .fn-navitem-en-mas {
             display: none !important;
           }
