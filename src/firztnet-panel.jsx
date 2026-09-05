@@ -3222,6 +3222,154 @@ function GarantiasActivasView({ onAbrir, reparaciones }) {
   );
 }
 
+// -------------------- Visitas web --------------------
+function VisitasWebView() {
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+
+  useEffect(() => {
+    apiGet("/estadisticas/resumen")
+      .then(setDatos)
+      .catch((e) => setErrorCarga(e.message))
+      .finally(() => setCargando(false));
+  }, []);
+
+  if (cargando) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+  if (errorCarga) return <div style={{ fontSize: 12.5, color: COLORS.rust }}>No se pudo cargar: {errorCarga}</div>;
+
+  const sitios = [
+    { key: "firztnet", label: "Firztnet", accent: COLORS.amber, icon: Wrench },
+    { key: "firztweb", label: "Firztweb", accent: COLORS.violet, icon: LayoutGrid },
+  ];
+
+  const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+  const tarjetaEstilo = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 14, flex: "1 1 260px", minWidth: 220 };
+  const tituloTarjeta = { fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 };
+
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 18 }}>
+        Contador propio, sin cookies ni datos personales — solo cuenta visitas, no identifica a nadie.
+      </div>
+      {sitios.map((sitio) => {
+        const d = datos?.[sitio.key];
+        if (!d) return null;
+
+        const totalDispositivos = d.dispositivos.reduce((s, x) => s + x.visitas, 0);
+
+        // Rellena las 24 horas (aunque no haya datos en algunas) para que la barra no salga descuadrada
+        const horasCompletas = Array.from({ length: 24 }, (_, h) => {
+          const clave = String(h).padStart(2, "0");
+          return { hora: clave, visitas: d.por_hora[clave] || 0 };
+        });
+        const maxHora = Math.max(1, ...horasCompletas.map((h) => h.visitas));
+
+        // Reordena los días de la semana empezando en lunes, rellenando los que falten con 0
+        const diasCompletos = DIAS_ORDEN.map((dia) => {
+          const encontrado = d.por_dia_semana.find((x) => x.dia === dia);
+          return { dia, visitas: encontrado ? encontrado.visitas : 0 };
+        });
+        const maxDia = Math.max(1, ...diasCompletos.map((x) => x.visitas));
+
+        return (
+          <div key={sitio.key} style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <sitio.icon size={16} color={sitio.accent} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{sitio.label}</span>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+              <StatCard label="Hoy" value={d.hoy} icon={Eye} accent={sitio.accent} />
+              <StatCard label="Esta semana" value={d.semana} icon={Eye} accent={sitio.accent} />
+              <StatCard label="Este mes" value={d.mes} icon={Eye} accent={sitio.accent} />
+              <StatCard label="Total histórico" value={d.total} icon={Eye} accent={sitio.accent} destacada />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              {d.top_referidos.length > 0 && (
+                <div style={tarjetaEstilo}>
+                  <div style={tituloTarjeta}>De dónde viene la gente (7 días)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {d.top_referidos.map((r, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                        <span style={{ color: COLORS.text }}>{r.referido}</span>
+                        <span style={{ color: COLORS.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{r.visitas}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {totalDispositivos > 0 && (
+                <div style={tarjetaEstilo}>
+                  <div style={tituloTarjeta}>Dispositivo (30 días)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {d.dispositivos.map((dv, i) => {
+                      const pct = Math.round((dv.visitas / totalDispositivos) * 100);
+                      return (
+                        <div key={i}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
+                            <span style={{ color: COLORS.text, textTransform: "capitalize" }}>{dv.dispositivo === "movil" ? "📱 Móvil" : dv.dispositivo === "escritorio" ? "💻 Escritorio" : dv.dispositivo}</span>
+                            <span style={{ color: COLORS.textDim }}>{pct}%</span>
+                          </div>
+                          <div style={{ background: COLORS.surfaceRaised, borderRadius: 999, height: 6, overflow: "hidden" }}>
+                            <div style={{ width: `${pct}%`, height: "100%", background: sitio.accent, borderRadius: 999 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {d.top_eventos.length > 0 && (
+                <div style={tarjetaEstilo}>
+                  <div style={tituloTarjeta}>Qué tocan más (30 días)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {d.top_eventos.map((ev, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                        <span style={{ color: COLORS.text }}>{ev.etiqueta.replace(/^seccion_/, "👁 ").replace(/^boton_/, "").replace(/_/g, " ")}</span>
+                        <span style={{ color: COLORS.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{ev.veces}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ ...tarjetaEstilo, flex: "2 1 380px" }}>
+                <div style={tituloTarjeta}>Por hora del día (30 días)</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60 }}>
+                  {horasCompletas.map((h) => (
+                    <div key={h.hora} title={`${h.hora}h: ${h.visitas} visitas`} style={{ flex: 1, height: `${Math.max(3, (h.visitas / maxHora) * 100)}%`, background: h.visitas > 0 ? sitio.accent : COLORS.line, borderRadius: 2 }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: COLORS.textDim, marginTop: 4 }}>
+                  <span>00h</span><span>12h</span><span>23h</span>
+                </div>
+              </div>
+
+              <div style={{ ...tarjetaEstilo, flex: "1 1 260px" }}>
+                <div style={tituloTarjeta}>Por día de la semana (30 días)</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 60 }}>
+                  {diasCompletos.map((x) => (
+                    <div key={x.dia} title={`${x.dia}: ${x.visitas} visitas`} style={{ flex: 1, height: `${Math.max(3, (x.visitas / maxDia) * 100)}%`, background: x.visitas > 0 ? sitio.accent : COLORS.line, borderRadius: 2 }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: COLORS.textDim, marginTop: 4 }}>
+                  <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function RmaView() {
   const [rmas, setRmas] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -5044,6 +5192,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
             { key: "garantias", icon: ShieldCheck, label: "Garantías activas", movil: "mas" },
+            { key: "visitas-web", icon: Eye, label: "Visitas web", movil: "mas" },
             { key: "rendimiento", icon: FileBarChart, label: "Rendimiento", movil: "mas" },
             { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad", movil: "mas" },
             { key: "caja", icon: Banknote, label: "Caja", movil: "principal" },
@@ -5090,6 +5239,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "inventario", icon: Package, label: "Inventario" },
                 { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
                 { key: "garantias", icon: ShieldCheck, label: "Garantías activas" },
+                { key: "visitas-web", icon: Eye, label: "Visitas web" },
                 { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
                 { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
@@ -5125,6 +5275,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
                 {vista === "garantias" && "Garantías activas de clientes"}
+                {vista === "visitas-web" && "Visitas de tus webs"}
                 {vista === "rendimiento" && "Rendimiento de técnicos"}
                 {vista === "rentabilidad" && "Rentabilidad por línea de servicio"}
                 {vista === "caja" && "Caja"}
@@ -5161,6 +5312,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "inventario" && <InventarioView />}
           {vista === "rma" && <RmaView />}
           {vista === "garantias" && <GarantiasActivasView onAbrir={(t) => setSelected(t)} reparaciones={reparaciones} />}
+          {vista === "visitas-web" && <VisitasWebView />}
           {vista === "rendimiento" && <RendimientoView />}
           {vista === "rentabilidad" && <RentabilidadView />}
           {vista === "caja" && <CajaView onMovimientoCreado={cargarTodo} />}
