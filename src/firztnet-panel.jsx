@@ -3933,6 +3933,9 @@ function SolicitudesView({ onCrearReparacion }) {
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: s.negocio === "firztweb" ? COLORS.violet : COLORS.amber, border: `1px solid ${s.negocio === "firztweb" ? COLORS.violet : COLORS.amber}`, borderRadius: 999, padding: "2px 7px" }}>
+                    {s.negocio === "firztweb" ? "Firztweb" : "Firztnet"}
+                  </span>
                   {s.origen === "nuevo_contacto" && (
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.violet, background: `${COLORS.violet}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
                       Nuevo contacto
@@ -4854,7 +4857,7 @@ function SolicitarPresupuestoPublico() {
       const res = await fetch(`${API_BASE}/seguimiento/solicitar-presupuesto`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, telefono, email, mensaje }),
+        body: JSON.stringify({ nombre, telefono, email, mensaje, negocio: "firztnet" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo enviar la solicitud");
