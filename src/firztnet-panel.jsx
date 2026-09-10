@@ -3503,6 +3503,7 @@ function VisitasWebView() {
   const sitios = [
     { key: "firztnet", label: "Firztnet", accent: COLORS.amber, icon: Wrench },
     { key: "firztweb", label: "Firztweb", accent: COLORS.violet, icon: LayoutGrid },
+    { key: "afiliados", label: "Afiliados", accent: COLORS.green, icon: Package },
   ];
 
   const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
