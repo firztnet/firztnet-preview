@@ -3235,6 +3235,9 @@ function VentasView() {
   const [negocio, setNegocio] = useState("firztweb");
   const [tipo, setTipo] = useState("web");
   const [clienteNombre, setClienteNombre] = useState("");
+  const [producto, setProducto] = useState("");
+  const [importeTotalVenta, setImporteTotalVenta] = useState("");
+  const [porcentajeComision, setPorcentajeComision] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [importe, setImporte] = useState("");
   const [cobrado, setCobrado] = useState(true);
@@ -3242,6 +3245,11 @@ function VentasView() {
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState(false);
   const [errorForm, setErrorForm] = useState("");
+  const [avisoGuardado, setAvisoGuardado] = useState("");
+  const esAfiliado = tipo === "afiliado";
+  const comisionCalculada = esAfiliado && importeTotalVenta && porcentajeComision
+    ? (parseFloat(importeTotalVenta) * parseFloat(porcentajeComision) / 100)
+    : null;
 
   const cargar = useCallback(async () => {
     try {
@@ -3262,16 +3270,29 @@ function VentasView() {
 
   async function registrarVenta() {
     setErrorForm("");
-    if (!clienteNombre.trim()) { setErrorForm("Falta el nombre del cliente"); return; }
-    if (importe === "" || parseFloat(importe) < 0 || isNaN(parseFloat(importe))) { setErrorForm("El importe no es válido"); return; }
+    setAvisoGuardado("");
+
+    let cuerpo = { negocio, tipo, descripcion, cobrado, enlace_nota: enlaceNota, fecha };
+
+    if (esAfiliado) {
+      if (!producto.trim()) { setErrorForm("Falta el producto"); return; }
+      if (importeTotalVenta === "" || isNaN(parseFloat(importeTotalVenta)) || parseFloat(importeTotalVenta) < 0) { setErrorForm("El importe total de la venta no es válido"); return; }
+      if (porcentajeComision === "" || isNaN(parseFloat(porcentajeComision)) || parseFloat(porcentajeComision) < 0 || parseFloat(porcentajeComision) > 100) { setErrorForm("El porcentaje de comisión debe estar entre 0 y 100"); return; }
+      cuerpo = { ...cuerpo, producto, importe_total_venta: parseFloat(importeTotalVenta), porcentaje_comision: parseFloat(porcentajeComision), cliente_nombre: clienteNombre };
+    } else {
+      if (!clienteNombre.trim()) { setErrorForm("Falta el nombre del cliente"); return; }
+      if (importe === "" || parseFloat(importe) < 0 || isNaN(parseFloat(importe))) { setErrorForm("El importe no es válido"); return; }
+      cuerpo = { ...cuerpo, cliente_nombre: clienteNombre, importe: parseFloat(importe) };
+    }
+
     setGuardando(true);
     try {
-      await apiPost("/ventas", {
-        negocio, tipo, cliente_nombre: clienteNombre, descripcion, importe: parseFloat(importe),
-        cobrado, enlace_nota: enlaceNota, fecha,
-      });
+      await apiPost("/ventas", cuerpo);
       setClienteNombre(""); setDescripcion(""); setImporte(""); setEnlaceNota(""); setCobrado(true);
+      setProducto(""); setImporteTotalVenta(""); setPorcentajeComision("");
       setMostrarForm(false);
+      setAvisoGuardado("✓ Venta guardada correctamente");
+      setTimeout(() => setAvisoGuardado(""), 4000);
       cargar();
     } catch (e) {
       setErrorForm(e.message);
@@ -3323,6 +3344,12 @@ function VentasView() {
         </button>
       </div>
 
+      {avisoGuardado && (
+        <div style={{ background: `${COLORS.green}18`, color: COLORS.green, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "9px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>
+          <CheckCircle2 size={15} /> {avisoGuardado}
+        </div>
+      )}
+
       {mostrarForm && (
         <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 16, marginBottom: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
@@ -3338,13 +3365,38 @@ function VentasView() {
             </label>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Cliente
-              <input value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre del cliente" style={{ ...inputStyle, marginTop: 4 }} />
-            </label>
-            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Importe (€)
-              <input value={importe} onChange={(e) => setImporte(e.target.value)} type="number" placeholder="0.00" style={{ ...inputStyle, marginTop: 4 }} />
-            </label>
+            {esAfiliado ? (
+              <>
+                <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Producto
+                  <input value={producto} onChange={(e) => setProducto(e.target.value)} placeholder="Ej. Portátil HP Pavilion" style={{ ...inputStyle, marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Importe total de la venta (€)
+                  <input value={importeTotalVenta} onChange={(e) => setImporteTotalVenta(e.target.value)} type="number" placeholder="0.00" style={{ ...inputStyle, marginTop: 4 }} />
+                </label>
+              </>
+            ) : (
+              <>
+                <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Cliente
+                  <input value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre del cliente" style={{ ...inputStyle, marginTop: 4 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Importe (€)
+                  <input value={importe} onChange={(e) => setImporte(e.target.value)} type="number" placeholder="0.00" style={{ ...inputStyle, marginTop: 4 }} />
+                </label>
+              </>
+            )}
           </div>
+          {esAfiliado && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <label style={{ fontSize: 11.5, color: COLORS.textDim }}>% de comisión
+                <input value={porcentajeComision} onChange={(e) => setPorcentajeComision(e.target.value)} type="number" step="0.1" placeholder="Ej. 2.5" style={{ ...inputStyle, marginTop: 4 }} />
+              </label>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>Comisión calculada
+                <div style={{ marginTop: 4, padding: "8px 10px", borderRadius: 7, background: COLORS.surfaceRaised, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: comisionCalculada !== null ? COLORS.green : COLORS.textDim }}>
+                  {comisionCalculada !== null ? `${comisionCalculada.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €` : "— completa importe y %"}
+                </div>
+              </div>
+            </div>
+          )}
           <label style={{ fontSize: 11.5, color: COLORS.textDim, display: "block", marginBottom: 10 }}>Descripción <span style={{ fontWeight: 400 }}>(opcional)</span>
             <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Qué le vendiste" style={{ ...inputStyle, marginTop: 4 }} />
           </label>
@@ -3400,10 +3452,15 @@ function VentasView() {
               <div key={v.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${negocioInfo.accent}`, borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{v.cliente_nombre}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{v.tipo === "afiliado" ? v.producto : v.cliente_nombre}</span>
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: negocioInfo.accent, border: `1px solid ${negocioInfo.accent}`, borderRadius: 999, padding: "2px 7px" }}>{negocioInfo.label}</span>
                     <span style={{ fontSize: 9.5, color: COLORS.textDim, background: COLORS.surfaceRaised, borderRadius: 999, padding: "2px 7px" }}>{tipoInfo?.label || v.tipo}</span>
                   </div>
+                  {v.tipo === "afiliado" && v.importe_total_venta != null && (
+                    <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 3 }}>
+                      Venta de {v.importe_total_venta.toLocaleString("es-ES", { minimumFractionDigits: 2 })} € × {v.porcentaje_comision}% comisión
+                    </div>
+                  )}
                   {v.descripcion && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>{v.descripcion}</div>}
                   {v.enlace_nota && <div style={{ fontSize: 11, color: COLORS.statusBlue, marginTop: 2, wordBreak: "break-all" }}>{v.enlace_nota}</div>}
                   <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(v.fecha)}</div>
