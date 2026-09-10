@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -3223,6 +3223,211 @@ function GarantiasActivasView({ onAbrir, reparaciones }) {
 }
 
 // -------------------- Visitas web --------------------
+// -------------------- Ventas (Firztweb / Afiliados) --------------------
+function VentasView() {
+  const [ventas, setVentas] = useState([]);
+  const [resumen, setResumen] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+  const [filtroNegocio, setFiltroNegocio] = useState("");
+  const [mostrarForm, setMostrarForm] = useState(false);
+
+  const [negocio, setNegocio] = useState("firztweb");
+  const [tipo, setTipo] = useState("web");
+  const [clienteNombre, setClienteNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [importe, setImporte] = useState("");
+  const [cobrado, setCobrado] = useState(true);
+  const [enlaceNota, setEnlaceNota] = useState("");
+  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const [guardando, setGuardando] = useState(false);
+  const [errorForm, setErrorForm] = useState("");
+
+  const cargar = useCallback(async () => {
+    try {
+      const [listaVentas, res] = await Promise.all([
+        apiGet(`/ventas${filtroNegocio ? `?negocio=${filtroNegocio}` : ""}`),
+        apiGet("/ventas/resumen"),
+      ]);
+      setVentas(listaVentas);
+      setResumen(res);
+    } catch (e) {
+      setErrorCarga(e.message);
+    } finally {
+      setCargando(false);
+    }
+  }, [filtroNegocio]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function registrarVenta() {
+    setErrorForm("");
+    if (!clienteNombre.trim()) { setErrorForm("Falta el nombre del cliente"); return; }
+    if (importe === "" || parseFloat(importe) < 0 || isNaN(parseFloat(importe))) { setErrorForm("El importe no es válido"); return; }
+    setGuardando(true);
+    try {
+      await apiPost("/ventas", {
+        negocio, tipo, cliente_nombre: clienteNombre, descripcion, importe: parseFloat(importe),
+        cobrado, enlace_nota: enlaceNota, fecha,
+      });
+      setClienteNombre(""); setDescripcion(""); setImporte(""); setEnlaceNota(""); setCobrado(true);
+      setMostrarForm(false);
+      cargar();
+    } catch (e) {
+      setErrorForm(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function alternarCobrado(venta) {
+    try {
+      await apiPatch(`/ventas/${venta.id}`, { cobrado: !venta.cobrado });
+      cargar();
+    } catch (e) { /* silencioso */ }
+  }
+
+  async function borrar(venta) {
+    if (!window.confirm(`¿Borrar la venta a "${venta.cliente_nombre}"? No se puede deshacer.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/ventas/${venta.id}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      cargar();
+    } catch (e) { /* silencioso */ }
+  }
+
+  if (cargando) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+  if (errorCarga) return <div style={{ fontSize: 12.5, color: COLORS.rust }}>No se pudo cargar: {errorCarga}</div>;
+
+  const NEGOCIOS = [
+    { key: "firztnet", label: "Firztnet", accent: COLORS.amber },
+    { key: "firztweb", label: "Firztweb", accent: COLORS.violet },
+    { key: "afiliados", label: "Afiliados", accent: COLORS.green },
+  ];
+  const TIPOS = [
+    { key: "web", label: "Web" },
+    { key: "app", label: "App" },
+    { key: "sistema", label: "Sistema a medida" },
+    { key: "afiliado", label: "Producto afiliado" },
+    { key: "otro", label: "Otro" },
+  ];
+
+  const inputStyle = { width: "100%", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ventas de tus otros negocios — webs, apps, sistemas a medida, y productos de afiliados.</div>
+        <button onClick={() => setMostrarForm((v) => !v)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 14px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 6 }}>
+          <Plus size={14} /> Registrar venta
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Negocio
+              <select value={negocio} onChange={(e) => setNegocio(e.target.value)} style={{ ...inputStyle, marginTop: 4 }}>
+                {NEGOCIOS.map((n) => <option key={n.key} value={n.key}>{n.label}</option>)}
+              </select>
+            </label>
+            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Tipo
+              <select value={tipo} onChange={(e) => setTipo(e.target.value)} style={{ ...inputStyle, marginTop: 4 }}>
+                {TIPOS.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Cliente
+              <input value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre del cliente" style={{ ...inputStyle, marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Importe (€)
+              <input value={importe} onChange={(e) => setImporte(e.target.value)} type="number" placeholder="0.00" style={{ ...inputStyle, marginTop: 4 }} />
+            </label>
+          </div>
+          <label style={{ fontSize: 11.5, color: COLORS.textDim, display: "block", marginBottom: 10 }}>Descripción <span style={{ fontWeight: 400 }}>(opcional)</span>
+            <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Qué le vendiste" style={{ ...inputStyle, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 11.5, color: COLORS.textDim, display: "block", marginBottom: 10 }}>Enlace o nota <span style={{ fontWeight: 400 }}>(opcional — ej. el enlace de afiliado)</span>
+            <input value={enlaceNota} onChange={(e) => setEnlaceNota(e.target.value)} placeholder="https://... o cualquier nota" style={{ ...inputStyle, marginTop: 4 }} />
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <label style={{ fontSize: 11.5, color: COLORS.textDim }}>Fecha
+              <input value={fecha} onChange={(e) => setFecha(e.target.value)} type="date" style={{ ...inputStyle, marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: 12.5, color: COLORS.text, display: "flex", alignItems: "center", gap: 7, marginTop: 18 }}>
+              <input type="checkbox" checked={cobrado} onChange={(e) => setCobrado(e.target.checked)} style={{ width: 15, height: 15 }} />
+              Ya está cobrado
+            </label>
+          </div>
+          {errorForm && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 10 }}>{errorForm}</div>}
+          <button disabled={guardando} onClick={registrarVenta} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "9px 16px", fontSize: 12.5 }}>
+            {guardando ? "Guardando..." : "Guardar venta"}
+          </button>
+        </div>
+      )}
+
+      {resumen && (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+          {NEGOCIOS.map((n) => (
+            <div key={n.key} style={{ flex: "1 1 200px", background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${n.accent}`, borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 11, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>{n.label}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 21, fontWeight: 700, color: COLORS.text }}>{resumen[n.key]?.total.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</div>
+              <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
+                {resumen[n.key]?.num_ventas} venta{resumen[n.key]?.num_ventas === 1 ? "" : "s"} · <span style={{ color: COLORS.green }}>{resumen[n.key]?.cobrado.toLocaleString("es-ES", { minimumFractionDigits: 2 })}€ cobrado</span>
+                {resumen[n.key]?.pendiente > 0 && <> · <span style={{ color: COLORS.statusAmber }}>{resumen[n.key]?.pendiente.toLocaleString("es-ES", { minimumFractionDigits: 2 })}€ pendiente</span></>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        <button onClick={() => setFiltroNegocio("")} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 999, border: `1px solid ${filtroNegocio === "" ? COLORS.amber : COLORS.line}`, background: filtroNegocio === "" ? COLORS.amber : "#FFFFFF", color: filtroNegocio === "" ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}>Todas</button>
+        {NEGOCIOS.map((n) => (
+          <button key={n.key} onClick={() => setFiltroNegocio(n.key)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 999, border: `1px solid ${filtroNegocio === n.key ? n.accent : COLORS.line}`, background: filtroNegocio === n.key ? n.accent : "#FFFFFF", color: filtroNegocio === n.key ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}>{n.label}</button>
+        ))}
+      </div>
+
+      {ventas.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: COLORS.textDim, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: 16 }}>Sin ventas registradas todavía.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {ventas.map((v) => {
+            const negocioInfo = NEGOCIOS.find((n) => n.key === v.negocio) || NEGOCIOS[1];
+            const tipoInfo = TIPOS.find((t) => t.key === v.tipo);
+            return (
+              <div key={v.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${negocioInfo.accent}`, borderRadius: 10, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{v.cliente_nombre}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: negocioInfo.accent, border: `1px solid ${negocioInfo.accent}`, borderRadius: 999, padding: "2px 7px" }}>{negocioInfo.label}</span>
+                    <span style={{ fontSize: 9.5, color: COLORS.textDim, background: COLORS.surfaceRaised, borderRadius: 999, padding: "2px 7px" }}>{tipoInfo?.label || v.tipo}</span>
+                  </div>
+                  {v.descripcion && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>{v.descripcion}</div>}
+                  {v.enlace_nota && <div style={{ fontSize: 11, color: COLORS.statusBlue, marginTop: 2, wordBreak: "break-all" }}>{v.enlace_nota}</div>}
+                  <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(v.fecha)}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>{v.importe.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</div>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                    <button onClick={() => alternarCobrado(v)} style={{ fontSize: 10.5, fontWeight: 700, padding: "4px 10px", borderRadius: 999, border: "none", cursor: "pointer", background: v.cobrado ? `${COLORS.green}18` : `${COLORS.statusAmber}18`, color: v.cobrado ? COLORS.green : COLORS.statusAmber }}>
+                      {v.cobrado ? "✓ Cobrado" : "Pendiente"}
+                    </button>
+                    <button onClick={() => borrar(v)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 4, display: "flex" }} title="Borrar">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VisitasWebView() {
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -5195,6 +5400,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
             { key: "garantias", icon: ShieldCheck, label: "Garantías activas", movil: "mas" },
+            { key: "ventas", icon: TrendingUp, label: "Ventas", movil: "mas" },
             { key: "visitas-web", icon: Eye, label: "Visitas web", movil: "mas" },
             { key: "rendimiento", icon: FileBarChart, label: "Rendimiento", movil: "mas" },
             { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad", movil: "mas" },
@@ -5242,6 +5448,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "inventario", icon: Package, label: "Inventario" },
                 { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
                 { key: "garantias", icon: ShieldCheck, label: "Garantías activas" },
+                { key: "ventas", icon: TrendingUp, label: "Ventas" },
                 { key: "visitas-web", icon: Eye, label: "Visitas web" },
                 { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
                 { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
@@ -5278,6 +5485,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
                 {vista === "garantias" && "Garantías activas de clientes"}
+                {vista === "ventas" && "Ventas de tus otros negocios"}
                 {vista === "visitas-web" && "Visitas de tus webs"}
                 {vista === "rendimiento" && "Rendimiento de técnicos"}
                 {vista === "rentabilidad" && "Rentabilidad por línea de servicio"}
@@ -5315,6 +5523,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "inventario" && <InventarioView />}
           {vista === "rma" && <RmaView />}
           {vista === "garantias" && <GarantiasActivasView onAbrir={(t) => setSelected(t)} reparaciones={reparaciones} />}
+          {vista === "ventas" && <VentasView />}
           {vista === "visitas-web" && <VisitasWebView />}
           {vista === "rendimiento" && <RendimientoView />}
           {vista === "rentabilidad" && <RentabilidadView />}
