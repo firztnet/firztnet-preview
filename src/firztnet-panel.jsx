@@ -3871,6 +3871,11 @@ function InventarioView() {
   const [form, setForm] = useState({ nombre: "", categoria: "", proveedor_id: "", stock_actual: 0, stock_minimo: 1, precio_compra: "", precio_venta: "" });
   const [guardando, setGuardando] = useState(false);
   const [reponiendo, setReponiendo] = useState({});
+  const [ventaAbierta, setVentaAbierta] = useState(null); // id del repuesto con el formulario de venta abierto
+  const [formVenta, setFormVenta] = useState({ cantidad: "1", precio: "", metodo_pago: "efectivo" });
+  const [vendiendo, setVendiendo] = useState(false);
+  const [errorVenta, setErrorVenta] = useState("");
+  const [avisoVenta, setAvisoVenta] = useState("");
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -3924,10 +3929,45 @@ function InventarioView() {
     }
   }
 
+  function abrirVenta(repuesto) {
+    setVentaAbierta(repuesto.id);
+    setFormVenta({ cantidad: "1", precio: String(repuesto.precio_venta || ""), metodo_pago: "efectivo" });
+    setErrorVenta("");
+  }
+
+  async function confirmarVenta(repuesto) {
+    setErrorVenta("");
+    const cantidad = parseInt(formVenta.cantidad, 10);
+    if (!cantidad || cantidad <= 0) { setErrorVenta("Cantidad no válida"); return; }
+    if (cantidad > repuesto.stock_actual) { setErrorVenta(`Solo quedan ${repuesto.stock_actual} en stock`); return; }
+    const precio = parseFloat(formVenta.precio);
+    if (isNaN(precio) || precio < 0) { setErrorVenta("Precio no válido"); return; }
+
+    setVendiendo(true);
+    try {
+      const res = await apiPost(`/repuestos/${repuesto.id}/vender`, {
+        cantidad, precio_unitario: precio, metodo_pago: formVenta.metodo_pago,
+      });
+      setRepuestos((prev) => prev.map((r) => (r.id === repuesto.id ? res.repuesto : r)));
+      setVentaAbierta(null);
+      setAvisoVenta(`✓ Vendidas ${cantidad} ud. de "${repuesto.nombre}" por ${res.movimiento.monto.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`);
+      setTimeout(() => setAvisoVenta(""), 5000);
+    } catch (e) {
+      setErrorVenta(e.message);
+    } finally {
+      setVendiendo(false);
+    }
+  }
+
   const inputStyle = { fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box" };
 
   return (
     <div>
+      {avisoVenta && (
+        <div style={{ background: `${COLORS.green}18`, color: COLORS.green, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "9px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>
+          <CheckCircle2 size={15} /> {avisoVenta}
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
         <button onClick={() => setMostrarForm((v) => !v)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
           <Plus size={14} /> Nuevo repuesto
@@ -3977,31 +4017,66 @@ function InventarioView() {
         {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando inventario...</div>}
         {!cargando && repuestos.length === 0 && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Sin repuestos registrados todavía.</div>}
         {repuestos.map((r, i) => (
-          <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}`, gap: 10, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{r.nombre}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{r.categoria || "Sin categoría"} · venta {Number(r.precio_venta).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</div>
+          <div key={r.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{r.nombre}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{r.categoria || "Sin categoría"} · venta {Number(r.precio_venta).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {r.stock_bajo && <TriangleAlert size={14} color={COLORS.rust} />}
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: r.stock_bajo ? COLORS.rust : COLORS.text }}>
+                  {r.stock_actual} uds
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  type="number"
+                  placeholder="+cant."
+                  style={{ width: 70, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.target.value) {
+                      reponerStock(r.id, e.target.value);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+                <span style={{ fontSize: 10.5, color: COLORS.textDim }}>{reponiendo[r.id] ? "..." : "Enter"}</span>
+                <button
+                  onClick={() => (ventaAbierta === r.id ? setVentaAbierta(null) : abrirVenta(r))}
+                  disabled={r.stock_actual <= 0}
+                  style={{ ...btnStyle(ventaAbierta === r.id ? COLORS.textDim : COLORS.green, "#FFFFFF"), padding: "6px 12px", fontSize: 11.5, flex: "none", opacity: r.stock_actual <= 0 ? 0.4 : 1 }}
+                  title={r.stock_actual <= 0 ? "Sin stock" : "Vender suelto, sin reparación"}
+                >
+                  {ventaAbierta === r.id ? "Cancelar" : "Vender"}
+                </button>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {r.stock_bajo && <TriangleAlert size={14} color={COLORS.rust} />}
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: r.stock_bajo ? COLORS.rust : COLORS.text }}>
-                {r.stock_actual} uds
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="number"
-                placeholder="+cant."
-                style={{ width: 70, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.target.value) {
-                    reponerStock(r.id, e.target.value);
-                    e.target.value = "";
-                  }
-                }}
-              />
-              <span style={{ fontSize: 10.5, color: COLORS.textDim }}>{reponiendo[r.id] ? "..." : "Enter"}</span>
-            </div>
+            {ventaAbierta === r.id && (
+              <div style={{ padding: "0 16px 14px", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", background: COLORS.surfaceRaised }}>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Cantidad</div>
+                  <input type="number" value={formVenta.cantidad} onChange={(e) => setFormVenta((f) => ({ ...f, cantidad: e.target.value }))} style={{ width: 70, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Precio unidad (€)</div>
+                  <input type="number" value={formVenta.precio} onChange={(e) => setFormVenta((f) => ({ ...f, precio: e.target.value }))} style={{ width: 90, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Método de pago</div>
+                  <select value={formVenta.metodo_pago} onChange={(e) => setFormVenta((f) => ({ ...f, metodo_pago: e.target.value }))} style={{ fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="bizum">Bizum</option>
+                  </select>
+                </div>
+                <button disabled={vendiendo} onClick={() => confirmarVenta(r)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "7px 14px", fontSize: 12 }}>
+                  {vendiendo ? "Vendiendo..." : "Confirmar venta"}
+                </button>
+                {errorVenta && <div style={{ fontSize: 11.5, color: COLORS.rust, width: "100%" }}>{errorVenta}</div>}
+              </div>
+            )}
           </div>
         ))}
       </div>
