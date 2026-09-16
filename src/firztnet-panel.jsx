@@ -3876,6 +3876,10 @@ function InventarioView() {
   const [vendiendo, setVendiendo] = useState(false);
   const [errorVenta, setErrorVenta] = useState("");
   const [avisoVenta, setAvisoVenta] = useState("");
+  const [editandoId, setEditandoId] = useState(null); // id del repuesto que se está editando ahora mismo
+  const [formEdicion, setFormEdicion] = useState({ nombre: "", categoria: "", stock_minimo: "", precio_compra: "", precio_venta: "" });
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState("");
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -3931,6 +3935,7 @@ function InventarioView() {
 
   function abrirVenta(repuesto) {
     setVentaAbierta(repuesto.id);
+    setEditandoId(null);
     setFormVenta({ cantidad: "1", precio: String(repuesto.precio_venta || ""), metodo_pago: "efectivo" });
     setErrorVenta("");
   }
@@ -3956,6 +3961,47 @@ function InventarioView() {
       setErrorVenta(e.message);
     } finally {
       setVendiendo(false);
+    }
+  }
+
+  function abrirEdicion(repuesto) {
+    setEditandoId(repuesto.id);
+    setVentaAbierta(null);
+    setFormEdicion({
+      nombre: repuesto.nombre,
+      categoria: repuesto.categoria || "",
+      stock_minimo: String(repuesto.stock_minimo ?? ""),
+      precio_compra: String(repuesto.precio_compra ?? ""),
+      precio_venta: String(repuesto.precio_venta ?? ""),
+    });
+    setErrorEdicion("");
+  }
+
+  async function guardarEdicion(repuestoId) {
+    setErrorEdicion("");
+    if (!formEdicion.nombre.trim()) { setErrorEdicion("El nombre no puede quedar vacío"); return; }
+    const precioCompra = parseFloat(formEdicion.precio_compra);
+    const precioVenta = parseFloat(formEdicion.precio_venta);
+    const stockMinimo = parseInt(formEdicion.stock_minimo, 10);
+    if (isNaN(precioCompra) || precioCompra < 0) { setErrorEdicion("Precio de compra no válido"); return; }
+    if (isNaN(precioVenta) || precioVenta < 0) { setErrorEdicion("Precio de venta no válido"); return; }
+    if (isNaN(stockMinimo) || stockMinimo < 0) { setErrorEdicion("Stock mínimo no válido"); return; }
+
+    setGuardandoEdicion(true);
+    try {
+      const actualizado = await apiPatch(`/repuestos/${repuestoId}`, {
+        nombre: formEdicion.nombre.trim(),
+        categoria: formEdicion.categoria,
+        precio_compra: precioCompra,
+        precio_venta: precioVenta,
+        stock_minimo: stockMinimo,
+      });
+      setRepuestos((prev) => prev.map((r) => (r.id === repuestoId ? actualizado : r)));
+      setEditandoId(null);
+    } catch (e) {
+      setErrorEdicion(e.message);
+    } finally {
+      setGuardandoEdicion(false);
     }
   }
 
@@ -4043,6 +4089,13 @@ function InventarioView() {
                 />
                 <span style={{ fontSize: 10.5, color: COLORS.textDim }}>{reponiendo[r.id] ? "..." : "Enter"}</span>
                 <button
+                  onClick={() => (editandoId === r.id ? setEditandoId(null) : abrirEdicion(r))}
+                  style={{ ...btnStyle(editandoId === r.id ? COLORS.textDim : COLORS.statusBlue, "#FFFFFF"), padding: "6px 12px", fontSize: 11.5, flex: "none" }}
+                  title="Corregir nombre, categoría, precios o stock mínimo"
+                >
+                  {editandoId === r.id ? "Cancelar" : "Editar"}
+                </button>
+                <button
                   onClick={() => (ventaAbierta === r.id ? setVentaAbierta(null) : abrirVenta(r))}
                   disabled={r.stock_actual <= 0}
                   style={{ ...btnStyle(ventaAbierta === r.id ? COLORS.textDim : COLORS.green, "#FFFFFF"), padding: "6px 12px", fontSize: 11.5, flex: "none", opacity: r.stock_actual <= 0 ? 0.4 : 1 }}
@@ -4052,6 +4105,34 @@ function InventarioView() {
                 </button>
               </div>
             </div>
+            {editandoId === r.id && (
+              <div style={{ padding: "0 16px 14px", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", background: COLORS.surfaceRaised }}>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Nombre</div>
+                  <input value={formEdicion.nombre} onChange={(e) => setFormEdicion((f) => ({ ...f, nombre: e.target.value }))} style={{ width: 160, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Categoría</div>
+                  <input value={formEdicion.categoria} onChange={(e) => setFormEdicion((f) => ({ ...f, categoria: e.target.value }))} style={{ width: 110, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Precio compra (€)</div>
+                  <input type="number" value={formEdicion.precio_compra} onChange={(e) => setFormEdicion((f) => ({ ...f, precio_compra: e.target.value }))} style={{ width: 90, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Precio venta (€)</div>
+                  <input type="number" value={formEdicion.precio_venta} onChange={(e) => setFormEdicion((f) => ({ ...f, precio_venta: e.target.value }))} style={{ width: 90, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 10.5, color: COLORS.textDim, marginBottom: 3 }}>Stock mínimo</div>
+                  <input type="number" value={formEdicion.stock_minimo} onChange={(e) => setFormEdicion((f) => ({ ...f, stock_minimo: e.target.value }))} style={{ width: 80, fontSize: 12, padding: "6px 8px", borderRadius: 6, border: `1px solid ${COLORS.line}` }} />
+                </div>
+                <button disabled={guardandoEdicion} onClick={() => guardarEdicion(r.id)} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "7px 14px", fontSize: 12 }}>
+                  {guardandoEdicion ? "Guardando..." : "Guardar cambios"}
+                </button>
+                {errorEdicion && <div style={{ fontSize: 11.5, color: COLORS.rust, width: "100%" }}>{errorEdicion}</div>}
+              </div>
+            )}
             {ventaAbierta === r.id && (
               <div style={{ padding: "0 16px 14px", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", background: COLORS.surfaceRaised }}>
                 <div>
