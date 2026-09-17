@@ -3880,13 +3880,16 @@ function InventarioView() {
   const [formEdicion, setFormEdicion] = useState({ nombre: "", categoria: "", stock_minimo: "", precio_compra: "", precio_venta: "" });
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorEdicion, setErrorEdicion] = useState("");
+  const [resumenCapital, setResumenCapital] = useState(null);
+  const [dandoBaja, setDandoBaja] = useState(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [rep, prov] = await Promise.all([apiGet("/repuestos"), apiGet("/proveedores")]);
+      const [rep, prov, resumen] = await Promise.all([apiGet("/repuestos"), apiGet("/proveedores"), apiGet("/repuestos/resumen-capital")]);
       setRepuestos(rep);
       setProveedores(prov);
+      setResumenCapital(resumen);
     } catch (e) {
       /* el aviso general ya se ve en Reparaciones */
     } finally {
@@ -3926,6 +3929,7 @@ function InventarioView() {
     try {
       const actualizado = await apiPatch(`/repuestos/${repuestoId}/stock`, { cantidad: parseInt(cantidad, 10) });
       setRepuestos((prev) => prev.map((r) => (r.id === repuestoId ? actualizado : r)));
+      apiGet("/repuestos/resumen-capital").then(setResumenCapital).catch(() => {});
     } catch (e) {
       /* silencioso */
     } finally {
@@ -3957,6 +3961,7 @@ function InventarioView() {
       setVentaAbierta(null);
       setAvisoVenta(`✓ Vendidas ${cantidad} ud. de "${repuesto.nombre}" por ${res.movimiento.monto.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`);
       setTimeout(() => setAvisoVenta(""), 5000);
+      apiGet("/repuestos/resumen-capital").then(setResumenCapital).catch(() => {});
     } catch (e) {
       setErrorVenta(e.message);
     } finally {
@@ -3998,10 +4003,25 @@ function InventarioView() {
       });
       setRepuestos((prev) => prev.map((r) => (r.id === repuestoId ? actualizado : r)));
       setEditandoId(null);
+      apiGet("/repuestos/resumen-capital").then(setResumenCapital).catch(() => {}); // los precios cambiaron, hay que recalcular
     } catch (e) {
       setErrorEdicion(e.message);
     } finally {
       setGuardandoEdicion(false);
+    }
+  }
+
+  async function darDeBaja(repuesto) {
+    if (!window.confirm(`¿Dar de baja "${repuesto.nombre}"? Dejará de aparecer en el inventario activo, pero no se borra — puedes reactivarlo cuando quieras.`)) return;
+    setDandoBaja(repuesto.id);
+    try {
+      await fetch(`${API_BASE}/repuestos/${repuesto.id}`, { method: "DELETE", headers: cabecerasAuth() }).then(manejar401);
+      setRepuestos((prev) => prev.filter((r) => r.id !== repuesto.id));
+      apiGet("/repuestos/resumen-capital").then(setResumenCapital).catch(() => {});
+    } catch (e) {
+      /* silencioso */
+    } finally {
+      setDandoBaja(null);
     }
   }
 
@@ -4012,6 +4032,12 @@ function InventarioView() {
       {avisoVenta && (
         <div style={{ background: `${COLORS.green}18`, color: COLORS.green, fontSize: 12.5, fontWeight: 600, borderRadius: 8, padding: "9px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>
           <CheckCircle2 size={15} /> {avisoVenta}
+        </div>
+      )}
+      {resumenCapital && (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+          <StatCard label="Capital invertido" value={`${resumenCapital.capital_invertido.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`} sub={`${resumenCapital.num_productos_activos} productos activos`} icon={Package} accent={COLORS.amber} destacada />
+          <StatCard label="Ganancia potencial" value={`${resumenCapital.ganancia_potencial.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`} sub="si se vendiera todo el stock actual" icon={TrendingUp} accent={COLORS.green} />
         </div>
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
@@ -4102,6 +4128,14 @@ function InventarioView() {
                   title={r.stock_actual <= 0 ? "Sin stock" : "Vender suelto, sin reparación"}
                 >
                   {ventaAbierta === r.id ? "Cancelar" : "Vender"}
+                </button>
+                <button
+                  onClick={() => darDeBaja(r)}
+                  disabled={dandoBaja === r.id}
+                  style={{ ...btnStyle("transparent", COLORS.rust, COLORS.rust), padding: "6px 12px", fontSize: 11.5, flex: "none" }}
+                  title="Dar de baja (no se borra, solo deja de aparecer en el inventario activo)"
+                >
+                  {dandoBaja === r.id ? "..." : "Dar de baja"}
                 </button>
               </div>
             </div>
