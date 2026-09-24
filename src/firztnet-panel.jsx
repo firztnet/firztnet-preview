@@ -5856,7 +5856,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "1 1 200px", maxWidth: 320 }}>
+                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "0 1 200px", maxWidth: 200 }}>
                   <Search size={14} color={COLORS.textDim} />
                   <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
                 </div>
@@ -5889,15 +5889,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                 >
                   <Flame size={11} /> Urgente
                 </button>
-                {vistaTrabajo === "taller" && chipsMarca.map((marca) => (
-                  <button
-                    key={marca}
-                    onClick={() => setFiltroMarca((v) => (v === marca ? "" : marca))}
-                    style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroMarca === marca ? COLORS.amber : COLORS.line}`, background: filtroMarca === marca ? COLORS.amber : COLORS.surface, color: filtroMarca === marca ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
-                  >
-                    {marca}
-                  </button>
-                ))}
               </div>
 
               <AlertaStockBajo onIrInventario={() => setVista("inventario")} />
@@ -5912,7 +5903,6 @@ function FirztnetPanel({ onCerrarSesion }) {
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
-              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div
                 onMouseEnter={() => setHoverBalance(true)}
@@ -5950,6 +5940,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                   </ResponsiveContainer>
                 </div>
               </div>
+
+              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div
                 onMouseEnter={() => setHoverMes(true)}
