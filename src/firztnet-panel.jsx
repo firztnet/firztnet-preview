@@ -5855,34 +5855,22 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "nowrap", alignItems: "center", marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
                 <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "0 1 200px", maxWidth: 200 }}>
                   <Search size={14} color={COLORS.textDim} />
                   <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
                 </div>
                 {vistaTrabajo === "taller" && (
-                <>
                 <select value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroMarca ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
                   <option value="">Marca</option>
                   {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <select value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroModelo ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
-                  <option value="">Modelo</option>
-                  {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-                </>
                 )}
                 <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroCliente ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
                   <option value="">Cliente</option>
                   {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
 
-                <button
-                  onClick={() => setFiltroHoy((v) => !v)}
-                  style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroHoy ? COLORS.amber : COLORS.line}`, background: filtroHoy ? COLORS.amber : COLORS.surface, color: filtroHoy ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
-                >
-                  Hoy
-                </button>
                 <button
                   onClick={() => setFiltroUrgente((v) => !v)}
                   style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroUrgente ? COLORS.rust : COLORS.line}`, background: filtroUrgente ? COLORS.rust : COLORS.surface, color: filtroUrgente ? "#FFFFFF" : COLORS.textDim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
