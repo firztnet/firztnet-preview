@@ -5677,6 +5677,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-main { max-width: 100% !important; padding: 16px 14px 78px 14px !important; }
           .fn-header-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
           .fn-header-row button { width: 100% !important; }
+          .fn-header-actions { flex-direction: column !important; align-items: stretch !important; width: 100% !important; }
           .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
           .fn-stat-grid > div { min-width: 0 !important; }
           .fn-content-flex { flex-direction: column !important; }
@@ -5800,7 +5801,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               )}
             </div>
             {vista === "reparaciones" && (
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
                 <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
                   <Plus size={15} /> Nueva reparación
