@@ -5778,9 +5778,12 @@ function FirztnetPanel({ onCerrarSesion }) {
               )}
             </div>
             {vista === "reparaciones" && (
-              <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
-                <Plus size={15} /> Nueva reparación
-              </button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
+                <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
+                  <Plus size={15} /> Nueva reparación
+                </button>
+              </div>
             )}
           </div>
 
@@ -5830,9 +5833,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
                 <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "1 1 200px", maxWidth: 320 }}>
                   <Search size={14} color={COLORS.textDim} />
                   <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
@@ -5853,9 +5854,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                   <option value="">Cliente</option>
                   {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
-              </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
                 <button
                   onClick={() => setFiltroHoy((v) => !v)}
                   style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroHoy ? COLORS.amber : COLORS.line}`, background: filtroHoy ? COLORS.amber : COLORS.surface, color: filtroHoy ? "#FFFFFF" : COLORS.textDim, cursor: "pointer" }}
