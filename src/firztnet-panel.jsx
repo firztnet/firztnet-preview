@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -5412,6 +5412,36 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [errorCarga, setErrorCarga] = useState("");
   const [vista, setVista] = useState("reparaciones");
 
+  // Dos métricas de eficiencia, calculadas al vuelo de las reparaciones ya cargadas —
+  // no dependen de ninguna ruta nueva del backend.
+  const metricasEficiencia = useMemo(() => {
+    const HOY = new Date();
+    const DIAS_RETRASO = 5; // más de 5 días sin moverse, sin estar entregada/no reparable, cuenta como retrasada
+
+    const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
+    const retrasadas = activas.filter((r) => {
+      if (r.urgente) return true;
+      if (!r.fecha_recepcion) return false;
+      const dias = (HOY - new Date(r.fecha_recepcion)) / (1000 * 60 * 60 * 24);
+      return dias > DIAS_RETRASO;
+    }).length;
+
+    const esteMes = HOY.getMonth();
+    const esteAno = HOY.getFullYear();
+    const completadasEsteMes = reparaciones.filter((r) => {
+      if (!r.fecha_recepcion || !r.fecha_entrega) return false;
+      const entrega = new Date(r.fecha_entrega);
+      return entrega.getMonth() === esteMes && entrega.getFullYear() === esteAno;
+    });
+    let tiempoMedioDias = null;
+    if (completadasEsteMes.length > 0) {
+      const sumaDias = completadasEsteMes.reduce((acc, r) => acc + (new Date(r.fecha_entrega) - new Date(r.fecha_recepcion)) / (1000 * 60 * 60 * 24), 0);
+      tiempoMedioDias = sumaDias / completadasEsteMes.length;
+    }
+
+    return { retrasadas, tiempoMedioDias };
+  }, [reparaciones]);
+
   const cargarTodo = useCallback(async () => {
     setErrorCarga("");
     try {
@@ -5782,11 +5812,17 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-          <div className="fn-stat-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
-            <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
-            <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
-            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
+          <div className="fn-stat-grid" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
+              <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
+              <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
+              <StatCard label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="sin atender, +5 días o urgentes" icon={Flame} accent={COLORS.rust} />
+              <StatCard label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
+            </div>
           </div>
           )}
           </div>
