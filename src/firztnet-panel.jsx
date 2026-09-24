@@ -447,7 +447,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
   const actual = opciones.find((o) => o.key === valor) || opciones[0];
 
   return (
-    <div ref={ref} style={{ position: "relative", marginBottom: 12 }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
