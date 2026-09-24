@@ -2729,16 +2729,38 @@ function InsigniaUsuario({ onCerrarSesion }) {
   );
 }
 
-function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias }) {
+function AlertaStockBajo({ onIrInventario }) {
+  const [stockBajo, setStockBajo] = useState([]);
+
+  useEffect(() => {
+    apiGet("/repuestos").then((lista) => setStockBajo(lista.filter((r) => r.stock_bajo))).catch(() => {});
+  }, []);
+
+  if (stockBajo.length === 0) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={onIrInventario}
+      style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 14 }}
+    >
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
+        <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
+      </div>
+    </button>
+  );
+}
+
+function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, ocultarStockBajo }) {
   const [stockBajo, setStockBajo] = useState([]);
   const [abandonados, setAbandonados] = useState([]);
   const [garantiasPorCaducar, setGarantiasPorCaducar] = useState([]);
 
   useEffect(() => {
-    apiGet("/repuestos").then((lista) => setStockBajo(lista.filter((r) => r.stock_bajo))).catch(() => {});
+    if (!ocultarStockBajo) apiGet("/repuestos").then((lista) => setStockBajo(lista.filter((r) => r.stock_bajo))).catch(() => {});
     apiGet("/reportes/abandonados?dias=30").then(setAbandonados).catch(() => {});
     apiGet("/reportes/garantias-activas").then((lista) => setGarantiasPorCaducar(lista.filter((g) => g.dias_restantes <= 15))).catch(() => {});
-  }, []);
+  }, [ocultarStockBajo]);
 
   const rechazados = reparaciones.filter((r) => r.presupuesto_estado === "rechazado");
 
@@ -5878,6 +5900,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 ))}
               </div>
 
+              <AlertaStockBajo onIrInventario={() => setVista("inventario")} />
+
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
@@ -5887,7 +5911,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
 
             <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
-              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} />
+              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
               <div
