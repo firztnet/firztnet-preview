@@ -5855,8 +5855,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "0 1 200px", maxWidth: 200 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "0 1 170px", maxWidth: 170 }}>
                   <Search size={14} color={COLORS.textDim} />
                   <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
                 </div>
@@ -5889,7 +5889,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} cargando={cargando} />
             </div>
 
-            <div className="fn-side-panel" style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
+            <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
 
               <div
