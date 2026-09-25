@@ -150,7 +150,13 @@ async function apiPatch(path, body) {
     body: JSON.stringify(body),
   });
   manejar401(res);
-  if (!res.ok) throw new Error((await res.json()).error || `PATCH ${path} → ${res.status}`);
+  if (!res.ok) {
+    const datos = await res.json().catch(() => ({}));
+    const err = new Error(datos.error || `PATCH ${path} → ${res.status}`);
+    err.status = res.status;
+    err.data = datos;
+    throw err;
+  }
   return res.json();
 }
 
@@ -1292,7 +1298,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     }
   }
 
-  async function avanzar(nuevoEstado) {
+  async function avanzar(nuevoEstado, opciones) {
     setError("");
     if (nuevoEstado === "no_reparable" && !motivo.trim()) {
       setError("Indica el motivo antes de marcarlo como no reparable.");
@@ -1310,12 +1316,19 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
     }
     setGuardando(true);
     try {
-      const body = nuevoEstado === "no_reparable" ? { estado: nuevoEstado, motivo } : { estado: nuevoEstado };
+      const body = nuevoEstado === "no_reparable" ? { estado: nuevoEstado, motivo } : { estado: nuevoEstado, ...opciones };
       const actualizado = await apiPatch(`/reparaciones/${t.id}/estado`, body);
       onEstadoActualizado(actualizado);
       setAvisosPendientes(actualizado.avisos || []);
     } catch (e) {
-      setError(e.message);
+      if (nuevoEstado === "entregado" && e.status === 409 && e.data?.error === "pago_parcial") {
+        const continuar = window.confirm(e.data.mensaje);
+        if (continuar) {
+          await avanzar("entregado", { confirmar_pago_parcial: true });
+        }
+        return;
+      }
+      setError(e.data?.mensaje || e.message);
     } finally {
       setGuardando(false);
     }
