@@ -5723,6 +5723,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-navitem-boton-mas {
           display: none;
         }
+        /* Columna derecha: si no hay ningún aviso dentro, desaparece y el contenido usa todo el ancho */
+        .fn-side-panel:empty { display: none !important; }
 
         /* Menú lateral plegable — solo escritorio. Oculto por defecto, se abre con el botón ☰ */
         @media (min-width: 769px) {
@@ -6046,9 +6048,6 @@ function FirztnetPanel({ onCerrarSesion }) {
 
             <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
-
-              <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
-
             </div>
           </div>
           )}
