@@ -491,11 +491,12 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
 const fmtEur = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
 const tamDinero = (texto) => Math.min(26, Math.floor(125 / (String(texto).length * 0.6)));
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor }) {
+function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor, clase }) {
   const [hover, setHover] = useState(false);
   if (destacada) {
     return (
       <div
+        className={clase}
         onClick={onClick}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -527,6 +528,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
   }
   return (
     <div
+      className={clase}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -5841,6 +5843,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-header-actions { flex-direction: column !important; align-items: stretch !important; width: 100% !important; }
           .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
           .fn-stat-grid > div { min-width: 0 !important; min-height: 100px !important; }
+          .fn-tarjeta-nueva { order: -1; }
           .fn-content-flex { flex-direction: column !important; }
           .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
           .fn-search { max-width: 100% !important; }
@@ -5985,9 +5988,6 @@ function FirztnetPanel({ onCerrarSesion }) {
             {vista === "reparaciones" && (
               <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
-                <button onClick={() => setMostrarNueva(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "10px 16px" }}>
-                  <Plus size={15} /> Nueva reparación
-                </button>
               </div>
             )}
           </div>
@@ -6058,6 +6058,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard
               alta
               label="Nueva reparación"
+              clase="fn-tarjeta-nueva"
               value="+"
               sub="registrar un equipo"
               icon={Plus}
