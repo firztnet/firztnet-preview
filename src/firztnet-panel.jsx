@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -4951,6 +4951,8 @@ function AjustesView() {
 function LoginScreen({ onEntrar }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [verPassword, setVerPassword] = useState(false);
+  const [foco, setFoco] = useState(null);
   const [error, setError] = useState("");
   const [entrando, setEntrando] = useState(false);
 
@@ -4975,39 +4977,88 @@ function LoginScreen({ onEntrar }) {
     }
   }
 
+  const estiloCampo = (nombre) => ({
+    display: "flex", alignItems: "center", gap: 12,
+    height: 54, padding: "0 16px", boxSizing: "border-box",
+    borderRadius: 16, background: "#FFFFFF",
+    border: `1.5px solid ${foco === nombre ? COLORS.amber : "#C9D0DE"}`,
+    boxShadow: foco === nombre ? `0 0 0 4px ${COLORS.amber}22` : "none",
+    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+  });
+  const estiloInput = {
+    flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent",
+    fontSize: 15, color: COLORS.text, fontFamily: "Inter, sans-serif",
+  };
+
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #EEF3FB 0%, #E3E9F6 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
       <link rel="stylesheet" href={FONTS_URL} />
-      <form onSubmit={entrar} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 32, width: 320, maxWidth: "90vw" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, justifyContent: "center" }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: COLORS.amber, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Wrench size={18} color="#FFFFFF" />
-          </div>
-          <span style={{ fontFamily: "Oswald", fontSize: 20, letterSpacing: 0.5, color: COLORS.text }}>FIRZTNET</span>
+      <form onSubmit={entrar} style={{ background: "#FFFFFF", borderRadius: 28, padding: "38px 32px 26px", width: 400, maxWidth: "100%", boxSizing: "border-box", boxShadow: "0 14px 40px -10px rgba(15,27,61,0.28), 0 2px 6px rgba(15,27,61,0.08)" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 30 }}>
+          <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 230, height: "auto", display: "block" }} />
+          <div style={{ fontSize: 14, color: COLORS.textDim, marginTop: 16 }}>Gestión de reparaciones</div>
         </div>
 
-        {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginBottom: 12, textAlign: "center" }}>{error}</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={estiloCampo("usuario")}>
+            <User size={20} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onFocus={() => setFoco("usuario")}
+              onBlur={() => setFoco(null)}
+              placeholder="Usuario"
+              aria-label="Usuario"
+              autoComplete="username"
+              style={estiloInput}
+              autoFocus
+            />
+          </div>
+          <div style={estiloCampo("password")}>
+            <Lock size={20} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+            <input
+              type={verPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setFoco("password")}
+              onBlur={() => setFoco(null)}
+              placeholder="Contraseña"
+              aria-label="Contraseña"
+              autoComplete="current-password"
+              style={estiloInput}
+            />
+            <button
+              type="button"
+              onClick={() => setVerPassword((v) => !v)}
+              aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              style={{ background: "none", border: "none", padding: 4, cursor: "pointer", display: "flex", color: COLORS.textDim, flexShrink: 0 }}
+            >
+              {verPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+        </div>
 
-        <label style={{ fontSize: 12, color: COLORS.textDim }}>Usuario
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
-            autoFocus
-          />
-        </label>
-        <label style={{ fontSize: 12, color: COLORS.textDim, display: "block", marginTop: 12 }}>Contraseña
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4 }}
-          />
-        </label>
+        {error && (
+          <div role="alert" style={{ marginTop: 14, fontSize: 13, color: COLORS.rust, background: `${COLORS.rust}12`, borderRadius: 12, padding: "10px 14px", textAlign: "center" }}>
+            {error}
+          </div>
+        )}
 
-        <button type="submit" disabled={entrando} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", marginTop: 20, padding: "10px 12px" }}>
-          {entrando ? "Entrando..." : "Entrar"}
+        <button
+          type="submit"
+          disabled={entrando}
+          style={{
+            width: "100%", height: 54, marginTop: 22, border: "none", borderRadius: 999,
+            background: `linear-gradient(135deg, ${COLORS.amber}, #1D4ED8)`, color: "#FFFFFF",
+            fontSize: 14, fontWeight: 700, letterSpacing: 0.8, fontFamily: "Inter, sans-serif",
+            cursor: entrando ? "default" : "pointer", opacity: entrando ? 0.75 : 1,
+            boxShadow: `0 8px 18px -6px ${COLORS.amber}99`,
+          }}
+        >
+          {entrando ? "ENTRANDO..." : "ENTRAR"}
         </button>
+
+        <div style={{ textAlign: "center", fontSize: 12, color: COLORS.textDim, marginTop: 22 }}>Firztnet</div>
       </form>
     </div>
   );
@@ -5514,6 +5565,14 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [hoverBalance, setHoverBalance] = useState(false);
   const [hoverMes, setHoverMes] = useState(false);
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
+  const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const cerrarConEscape = (e) => { if (e.key === "Escape") setMenuAbierto(false); };
+    window.addEventListener("keydown", cerrarConEscape);
+    return () => window.removeEventListener("keydown", cerrarConEscape);
+  }, [menuAbierto]);
   const hoverTimeoutRef = useRef(null);
 
   // Al entrar en una tarjeta, se actualiza al instante. Al salir, se espera
@@ -5659,7 +5718,43 @@ function FirztnetPanel({ onCerrarSesion }) {
           display: none;
         }
 
+        /* Menú lateral plegable — solo escritorio. Oculto por defecto, se abre con el botón ☰ */
+        @media (min-width: 769px) {
+          .fn-sidebar {
+            position: fixed !important;
+            top: 0; left: 0; bottom: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 60;
+            transform: translateX(-100%);
+            visibility: hidden;
+            transition: transform 0.25s ease, visibility 0s linear 0.25s;
+          }
+          .fn-sidebar.fn-sidebar-abierto {
+            transform: translateX(0);
+            visibility: visible;
+            transition: transform 0.25s ease, visibility 0s;
+            box-shadow: 8px 0 30px rgba(0,0,0,0.35);
+          }
+          .fn-main { margin: 0 auto; }
+        }
+        .fn-menu-hamburguesa {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 38px; height: 38px;
+          border-radius: 9px;
+          border: 1px solid ${COLORS.line};
+          background: ${COLORS.surface};
+          color: ${COLORS.text};
+          cursor: pointer;
+          transition: background-color 0.15s ease;
+        }
+        .fn-menu-hamburguesa:hover { background: ${COLORS.sidebarActiveBg}; color: #FFFFFF; }
+
         @media (max-width: 768px) {
+          .fn-menu-izquierda { display: none !important; }
+          .fn-menu-overlay { display: none !important; }
           .fn-proxima-accion {
             display: none !important;
           }
@@ -5702,7 +5797,10 @@ function FirztnetPanel({ onCerrarSesion }) {
       `}</style>
 
       <div className="fn-shell" style={{ display: "flex" }}>
-        <aside className="fn-sidebar" style={{ width: 210, background: COLORS.sidebarBg, borderRight: "none", minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        {menuAbierto && (
+          <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
+        )}
+        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 210, background: COLORS.sidebarBg, borderRight: "none", minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
             <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 178, height: "auto", display: "block" }} />
           </div>
@@ -5727,7 +5825,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div
               key={item.label}
               className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
-              onClick={() => { setVista(item.key); setMostrarMasMovil(false); }}
+              onClick={() => { setVista(item.key); setMostrarMasMovil(false); setMenuAbierto(false); }}
               style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
             >
               <item.icon size={16} />
@@ -5784,9 +5882,25 @@ function FirztnetPanel({ onCerrarSesion }) {
         )}
 
         <main className="fn-main" style={{ flex: 1, minWidth: 0, padding: "26px 32px", maxWidth: 1180 }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
-            <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <div className="fn-menu-izquierda" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                type="button"
+                className="fn-menu-hamburguesa"
+                onClick={() => setMenuAbierto((v) => !v)}
+                aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={menuAbierto}
+              >
+                <Menu size={20} />
+              </button>
+              <span style={{ fontFamily: "Oswald", fontSize: 21, letterSpacing: 0.6, fontWeight: 600 }}>
+                <span style={{ color: COLORS.amber }}>FIRZT</span><span style={{ color: COLORS.statusAmber }}>NET</span>
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+              <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
+              <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
+            </div>
           </div>
           <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
