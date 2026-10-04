@@ -63,6 +63,8 @@ const COLORS = {
   violet: "#8B5CF6",
   pink: "#EC4899",
   slate: "#334155",
+  brown: "#92400E",
+  fuchsia: "#C026D3",
 };
 
 const STAGES_TALLER = [
@@ -483,6 +485,11 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
     </div>
   );
 }
+
+// Formato de dinero y tamaño de letra de las cifras largas: así "+1.234,56 €" no se corta
+// dentro de una tarjeta estrecha (la letra monoespaciada mide ~0,6 veces su tamaño por carácter).
+const fmtEur = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
+const tamDinero = (texto) => Math.min(26, Math.floor(125 / (String(texto).length * 0.6)));
 
 function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor }) {
   const [hover, setHover] = useState(false);
@@ -5581,6 +5588,12 @@ function FirztnetPanel({ onCerrarSesion }) {
     window.addEventListener("keydown", cerrarConEscape);
     return () => window.removeEventListener("keydown", cerrarConEscape);
   }, [menuAbierto]);
+
+  const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
+  useEffect(() => {
+    if (vista !== "reparaciones") return;
+    apiGet("/repuestos").then((lista) => setStockBajoTarjeta(lista.filter((r) => r.stock_bajo).length)).catch(() => {});
+  }, [vista]);
   const hoverTimeoutRef = useRef(null);
 
   // Al entrar en una tarjeta, se actualiza al instante. Al salir, se espera
@@ -5647,6 +5660,9 @@ function FirztnetPanel({ onCerrarSesion }) {
       return true;
     });
   }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstado, filtroEstadoResumen, vistaTrabajo]);
+
+  const textoBalanceHoy = `${reporteDiario.balance_neto >= 0 ? "+" : ""}${fmtEur(reporteDiario.balance_neto)}`;
+  const textoBalanceMes = fmtEur(reporteMensual.balance_neto);
 
   // Todos los campos de filtro comparten ancho y alto; solo la búsqueda es más larga.
   const estiloFiltro = (activo) => ({
@@ -5744,6 +5760,10 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
         /* Columna derecha: si no hay ningún aviso dentro, desaparece y el contenido usa todo el ancho */
         .fn-side-panel:empty { display: none !important; }
+        .fn-stat-grid > div { min-width: 0 !important; }
+        @media (min-width: 769px) and (max-width: 900px) {
+          .fn-stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
 
         /* Menú lateral plegable — solo escritorio. Oculto por defecto, se abre con el botón ☰ */
         @media (min-width: 769px) {
@@ -6000,7 +6020,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
             <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
             <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
@@ -6010,21 +6030,39 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard
               alta
               label="Balance de hoy"
-              value={`${reporteDiario.balance_neto >= 0 ? "+" : ""}${Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
+              value={textoBalanceHoy}
               sub={`Recibidas hoy ${reporteDiario.equipos_recibidos ?? 0} · Clientes nuevos ${reporteDiario.nuevos_clientes ?? 0}`}
               icon={Banknote}
               accent={COLORS.pink}
-              tamValor={27}
+              tamValor={tamDinero(textoBalanceHoy)}
             />
             <StatCard
               alta
               label="Este mes"
-              value={`${Number(reporteMensual.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
-              sub={`Ingresos ${Number(reporteMensual.ingresos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € · Gastos ${Number(reporteMensual.gastos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
+              value={textoBalanceMes}
+              sub={`Ingresos ${fmtEur(reporteMensual.ingresos)} · Gastos ${fmtEur(reporteMensual.gastos)}`}
               icon={FileBarChart}
               accent={COLORS.slate}
-              tamValor={27}
+              tamValor={tamDinero(textoBalanceMes)}
               onClick={() => setVista("reportes")}
+            />
+            <StatCard
+              alta
+              label="Stock"
+              value={stockBajoTarjeta ?? "—"}
+              sub={stockBajoTarjeta === null ? "comprobando…" : stockBajoTarjeta === 0 ? "todo en orden" : stockBajoTarjeta === 1 ? "repuesto con stock bajo" : "repuestos con stock bajo"}
+              icon={Package}
+              accent={COLORS.brown}
+              onClick={() => setVista("inventario")}
+            />
+            <StatCard
+              alta
+              label="Nueva reparación"
+              value="+"
+              sub="registrar un equipo"
+              icon={Plus}
+              accent={COLORS.fuchsia}
+              onClick={() => setMostrarNueva(true)}
             />
           </div>
           )}
