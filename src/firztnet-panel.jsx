@@ -61,6 +61,8 @@ const COLORS = {
   sidebarTextDim: "#8291B5",
   sidebarActiveBg: "#1B2C5C",
   violet: "#8B5CF6",
+  pink: "#EC4899",
+  slate: "#334155",
 };
 
 const STAGES_TALLER = [
@@ -524,7 +526,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
       style={{
         background: accent, borderRadius: 14, padding: alta ? "18px 20px" : "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
         ...(alta ? { minHeight: 128, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
-        boxShadow: activa ? `0 0 0 3px rgba(255,255,255,0.7), 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
+        boxShadow: activa ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${accent}, 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
         transform: hover ? "translateY(-2px)" : "translateY(0)",
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
         cursor: onClick ? "pointer" : "default",
@@ -5976,7 +5978,7 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           {vista === "reparaciones" && (
           <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-            <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
+            <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
             <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
             <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
@@ -5988,7 +5990,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               value={`${reporteDiario.balance_neto >= 0 ? "+" : ""}${Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
               sub={`Recibidas hoy ${reporteDiario.equipos_recibidos ?? 0} · Clientes nuevos ${reporteDiario.nuevos_clientes ?? 0}`}
               icon={Banknote}
-              accent={reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}
+              accent={COLORS.pink}
               tamValor={27}
             />
             <StatCard
@@ -5997,7 +5999,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               value={`${Number(reporteMensual.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
               sub={`Ingresos ${Number(reporteMensual.ingresos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € · Gastos ${Number(reporteMensual.gastos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
               icon={FileBarChart}
-              accent={COLORS.statusBlue}
+              accent={COLORS.slate}
               tamValor={27}
               onClick={() => setVista("reportes")}
             />
