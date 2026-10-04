@@ -5567,8 +5567,10 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroModelo, setFiltroModelo] = useState("");
   const [filtroCliente, setFiltroCliente] = useState("");
   const [filtroHoy, setFiltroHoy] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState(""); // etapa concreta: recibido, diagnóstico, en reparación...
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
+  useEffect(() => { setFiltroEstado(""); setFiltroMarca(""); setFiltroModelo(""); }, [vistaTrabajo]);
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
@@ -5637,13 +5639,30 @@ function FirztnetPanel({ onCerrarSesion }) {
       if (filtroCliente && String(t.cliente?.id) !== filtroCliente) return false;
       if (filtroHoy && new Date(t.fecha_recepcion).toDateString() !== hoyStr) return false;
       if (filtroUrgente && !t.urgente) return false;
+      if (filtroEstado && t.estado_actual !== filtroEstado) return false;
       if (filtroEstadoResumen === "en_curso" && ["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
       if (filtroEstadoResumen === "entregadas" && !["entregado", "completado"].includes(t.estado_actual)) return false;
       if (filtroEstadoResumen === "no_reparables" && t.estado_actual !== "no_reparable") return false;
       if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
       return true;
     });
-  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstadoResumen, vistaTrabajo]);
+  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstado, filtroEstadoResumen, vistaTrabajo]);
+
+  // Todos los campos de filtro comparten ancho y alto; solo la búsqueda es más larga.
+  const estiloFiltro = (activo) => ({
+    width: 110, height: 36, boxSizing: "border-box", flexShrink: 0,
+    fontSize: 12.5, padding: "0 8px", borderRadius: 8,
+    border: `1px solid ${activo ? COLORS.amber : COLORS.line}`,
+    color: activo ? COLORS.text : COLORS.textDim, background: COLORS.surface,
+    cursor: "pointer",
+  });
+  const estiloFiltroBoton = (activo, color) => ({
+    ...estiloFiltro(false),
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontWeight: 600,
+    border: `1px solid ${activo ? color : COLORS.line}`,
+    background: activo ? color : COLORS.surface,
+    color: activo ? "#FFFFFF" : COLORS.textDim,
+  });
 
   function handleEstadoActualizado(actualizado) {
     setReparaciones((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)));
@@ -5805,6 +5824,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-content-flex { flex-direction: column !important; }
           .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
           .fn-search { max-width: 100% !important; }
+          .fn-filtro-buscar { width: 100% !important; }
+          .fn-filtro-campo { width: calc(50% - 4px) !important; }
           .fn-kanban-col { flex: 0 0 200px !important; min-width: 200px !important; }
           .fn-modal-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; }
         }
@@ -6012,27 +6033,36 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-                <div className="fn-search" style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", flex: "0 1 170px", maxWidth: 170 }}>
-                  <Search size={14} color={COLORS.textDim} />
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Todos: cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+                <div className="fn-search fn-filtro-buscar" style={{ display: "flex", alignItems: "center", gap: 8, width: 230, height: 36, boxSizing: "border-box", flexShrink: 0, background: COLORS.surface, border: `1px solid ${query.trim() ? COLORS.amber : COLORS.line}`, borderRadius: 8, padding: "0 12px" }}>
+                  <Search size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%", minWidth: 0 }} />
                 </div>
                 {vistaTrabajo === "taller" && (
-                <select value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroMarca ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
-                  <option value="">Marca</option>
-                  {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                  <>
+                    <select className="fn-filtro-campo" value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={estiloFiltro(!!filtroMarca)}>
+                      <option value="">Marca</option>
+                      {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select className="fn-filtro-campo" value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={estiloFiltro(!!filtroModelo)}>
+                      <option value="">Modelo</option>
+                      {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </>
                 )}
-                <select value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.line}`, color: filtroCliente ? COLORS.text : COLORS.textDim, background: COLORS.surface }}>
+                <select className="fn-filtro-campo" value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={estiloFiltro(!!filtroCliente)}>
                   <option value="">Cliente</option>
                   {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
-
-                <button
-                  onClick={() => setFiltroUrgente((v) => !v)}
-                  style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${filtroUrgente ? COLORS.rust : COLORS.line}`, background: filtroUrgente ? COLORS.rust : COLORS.surface, color: filtroUrgente ? "#FFFFFF" : COLORS.textDim, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                >
-                  <Flame size={11} /> Urgente
+                <select className="fn-filtro-campo" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={estiloFiltro(!!filtroEstado)}>
+                  <option value="">Estado</option>
+                  {stagesFor(vistaTrabajo).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                </select>
+                <button type="button" className="fn-filtro-campo" onClick={() => setFiltroHoy((v) => !v)} style={estiloFiltroBoton(filtroHoy, COLORS.amber)}>
+                  <Clock size={12} /> Hoy
+                </button>
+                <button type="button" className="fn-filtro-campo" onClick={() => setFiltroUrgente((v) => !v)} style={estiloFiltroBoton(filtroUrgente, COLORS.rust)}>
+                  <Flame size={12} /> Urgente
                 </button>
               </div>
 
