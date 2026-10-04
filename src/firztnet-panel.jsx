@@ -482,7 +482,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta }) {
+function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor }) {
   const [hover, setHover] = useState(false);
   if (destacada) {
     return (
@@ -501,7 +501,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
       >
         <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
         <div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: alta ? 36 : 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 36 : 30), color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
           {sub && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
               {trend === "up" && <ArrowUpRight size={12} />}
@@ -537,7 +537,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         </div>
       </div>
       <div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: alta ? 36 : 30, color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 36 : 30), color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
         {sub && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
             {trend === "up" && <ArrowUpRight size={12} />}
@@ -5568,8 +5568,6 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
-  const [hoverBalance, setHoverBalance] = useState(false);
-  const [hoverMes, setHoverMes] = useState(false);
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
 
@@ -5977,13 +5975,32 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
             <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
             <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
             <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="sin atender, +5 días o urgentes" icon={Flame} accent={COLORS.rust} />
             <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
+            <StatCard
+              alta
+              label="Balance de hoy"
+              value={`${reporteDiario.balance_neto >= 0 ? "+" : ""}${Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
+              sub={`Recibidas hoy ${reporteDiario.equipos_recibidos ?? 0} · Clientes nuevos ${reporteDiario.nuevos_clientes ?? 0}`}
+              icon={Banknote}
+              accent={reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}
+              tamValor={27}
+            />
+            <StatCard
+              alta
+              label="Este mes"
+              value={`${Number(reporteMensual.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
+              sub={`Ingresos ${Number(reporteMensual.ingresos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € · Gastos ${Number(reporteMensual.gastos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`}
+              icon={FileBarChart}
+              accent={COLORS.statusBlue}
+              tamValor={27}
+              onClick={() => setVista("reportes")}
+            />
           </div>
           )}
           </div>
@@ -6028,68 +6045,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
 
-              <div
-                onMouseEnter={() => setHoverBalance(true)}
-                onMouseLeave={() => setHoverBalance(false)}
-                style={{ background: COLORS.surface, borderTop: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderRight: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderBottom: `1px solid ${hoverBalance ? (reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust) : COLORS.line}`, borderLeft: `4px solid ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", boxShadow: `0 2px 8px ${reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust}18`, transition: "border-color 0.2s ease" }}
-              >
-                <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.amber}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Wrench size={24} color={COLORS.amber} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
-                </div>
-                <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>Balance de hoy</div>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, color: reporteDiario.balance_neto >= 0 ? COLORS.green : COLORS.rust, fontWeight: 600 }}>
-                  {reporteDiario.balance_neto >= 0 ? "+" : ""}{Number(reporteDiario.balance_neto || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
-                </div>
-                <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
-                  <div style={{ fontSize: 11, color: COLORS.textDim }}>Recibidas hoy: <strong style={{ color: COLORS.text }}>{reporteDiario.equipos_recibidos ?? 0}</strong></div>
-                  <div style={{ fontSize: 11, color: COLORS.textDim }}>Clientes nuevos: <strong style={{ color: COLORS.text }}>{reporteDiario.nuevos_clientes ?? 0}</strong></div>
-                </div>
-                <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 8 }}>Tendencia de ingresos, últimos 7 días</div>
-                <div style={{ height: 70, marginTop: 6, marginLeft: -8 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={tendencia.length ? tendencia : [{ dia_semana: "", ingresos: 0 }]}>
-                      <defs>
-                        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.35} />
-                          <stop offset="100%" stopColor={COLORS.amber} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="dia_semana" tick={{ fill: COLORS.textDim, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ background: COLORS.surfaceRaised, border: `1px solid ${COLORS.line}`, borderRadius: 8, fontSize: 11 }}
-                        formatter={(value) => [`${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`, "Ingresos"]}
-                      />
-                      <Area type="monotone" dataKey="ingresos" stroke={COLORS.amber} strokeWidth={2} fill="url(#fill)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
               <PanelProximaAccion reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} resaltada={hoverPreview} onHover={handleHoverPreview} />
 
-              <div
-                onMouseEnter={() => setHoverMes(true)}
-                onMouseLeave={() => setHoverMes(false)}
-                style={{ background: COLORS.surface, borderTop: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderRight: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderBottom: `1px solid ${hoverMes ? COLORS.statusBlue : COLORS.line}`, borderLeft: `4px solid ${COLORS.statusBlue}`, borderRadius: 12, padding: 18, position: "relative", overflow: "hidden", transition: "border-color 0.2s ease" }}
-              >
-                <div style={{ position: "absolute", top: -8, right: -8, width: 60, height: 60, borderRadius: "50%", background: `${COLORS.statusBlue}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <FileBarChart size={24} color={COLORS.statusBlue} style={{ marginBottom: 8, marginRight: 8, opacity: 0.85 }} />
-                </div>
-                <div style={{ fontSize: 12, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Este mes</div>
-                {[
-                  { l: "Ingresos", v: reporteMensual.ingresos, c: COLORS.green },
-                  { l: "Gastos", v: reporteMensual.gastos, c: COLORS.rust },
-                  { l: "Balance neto", v: reporteMensual.balance_neto, c: reporteMensual.balance_neto >= 0 ? COLORS.green : COLORS.rust },
-                ].map((r) => (
-                  <div key={r.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "7px 8px", marginBottom: 4, borderRadius: 7, background: `${r.c}0F`, borderLeft: `3px solid ${r.c}` }}>
-                    <span style={{ color: COLORS.textDim }}>{r.l}</span>
-                    <span style={{ color: r.c, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>{Number(r.v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
-                  </div>
-                ))}
-                <button onClick={() => setVista("reportes")} style={{ ...btnStyle("transparent", COLORS.teal, COLORS.line), marginTop: 12, padding: "8px 10px" }}>
-                  Ver informe completo <ChevronRight size={13} />
-                </button>
-              </div>
             </div>
           </div>
           )}
