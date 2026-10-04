@@ -482,7 +482,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa }) {
+function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta }) {
   const [hover, setHover] = useState(false);
   if (destacada) {
     return (
@@ -491,22 +491,25 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150,
+          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "18px 20px" : "16px 18px", flex: 1, minWidth: 150,
           position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default",
+          ...(alta ? { minHeight: 128, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
           boxShadow: activa ? `0 0 0 3px ${accent}40` : hover ? `0 6px 16px -4px ${accent}60` : "none",
           transform: hover ? "translateY(-2px)" : "translateY(0)",
           transition: "transform 0.15s ease, box-shadow 0.15s ease",
         }}
       >
         <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
-        {sub && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
-            {trend === "up" && <ArrowUpRight size={12} />}
-            {trend === "down" && <ArrowDownRight size={12} />}
-            {sub}
-          </div>
-        )}
+        <div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: alta ? 36 : 30, color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
+          {sub && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
+              {trend === "up" && <ArrowUpRight size={12} />}
+              {trend === "down" && <ArrowDownRight size={12} />}
+              {sub}
+            </div>
+          )}
+        </div>
         <div style={{ position: "absolute", right: 12, bottom: 10, width: 44, height: 44, borderRadius: 12, background: `${accent}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Icon size={22} color={accent} />
         </div>
@@ -519,7 +522,8 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: accent, borderRadius: 14, padding: "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
+        background: accent, borderRadius: 14, padding: alta ? "18px 20px" : "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
+        ...(alta ? { minHeight: 128, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
         boxShadow: activa ? `0 0 0 3px rgba(255,255,255,0.7), 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
         transform: hover ? "translateY(-2px)" : "translateY(0)",
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
@@ -532,14 +536,16 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
           <Icon size={14} color="#FFFFFF" />
         </div>
       </div>
-      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 30, color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
-      {sub && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
-          {trend === "up" && <ArrowUpRight size={12} />}
-          {trend === "down" && <ArrowDownRight size={12} />}
-          {sub}
-        </div>
-      )}
+      <div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: alta ? 36 : 30, color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
+        {sub && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
+            {trend === "up" && <ArrowUpRight size={12} />}
+            {trend === "down" && <ArrowDownRight size={12} />}
+            {sub}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -5725,6 +5731,9 @@ function FirztnetPanel({ onCerrarSesion }) {
             top: 0; left: 0; bottom: 0;
             height: 100vh;
             overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: ${COLORS.sidebarActiveBg} transparent;
             z-index: 60;
             transform: translateX(-100%);
             visibility: hidden;
@@ -5736,6 +5745,9 @@ function FirztnetPanel({ onCerrarSesion }) {
             transition: transform 0.25s ease, visibility 0s;
             box-shadow: 8px 0 30px rgba(0,0,0,0.35);
           }
+          /* Sin esto, las opciones (que tienen overflow:hidden) se encogen para caber
+             en vez de desbordar, y el menú nunca llega a tener scroll. */
+          .fn-sidebar > * { flex-shrink: 0; }
           .fn-main { margin: 0 auto; }
         }
         .fn-menu-hamburguesa {
@@ -5787,7 +5799,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-header-row button { width: 100% !important; }
           .fn-header-actions { flex-direction: column !important; align-items: stretch !important; width: 100% !important; }
           .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-          .fn-stat-grid > div { min-width: 0 !important; }
+          .fn-stat-grid > div { min-width: 0 !important; min-height: 100px !important; }
           .fn-content-flex { flex-direction: column !important; }
           .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
           .fn-search { max-width: 100% !important; }
@@ -5966,12 +5978,12 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           {vista === "reparaciones" && (
           <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-            <StatCard label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
-            <StatCard label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
-            <StatCard label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
-            <StatCard label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
-            <StatCard label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="sin atender, +5 días o urgentes" icon={Flame} accent={COLORS.rust} />
-            <StatCard label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
+            <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} destacada onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
+            <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
+            <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
+            <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
+            <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="sin atender, +5 días o urgentes" icon={Flame} accent={COLORS.rust} />
+            <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
           </div>
           )}
           </div>
