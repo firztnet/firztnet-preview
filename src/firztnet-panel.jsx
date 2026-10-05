@@ -184,6 +184,72 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
+// Logo de WhatsApp (los iconos de lucide no incluyen marcas)
+function IconoWhatsApp({ size = 16 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.335-1.611A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.37l-.36-.213-3.76.956.996-3.671-.234-.377A9.78 9.78 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z" />
+    </svg>
+  );
+}
+
+// Columna "WhatsApp" de las tablas: abre un chat con el cliente (con el mensaje ya escrito),
+// en cualquier estado de la reparación, siempre que tenga teléfono.
+function CeldaWhatsApp({ t, stage }) {
+  const telefono = (t.cliente?.telefono || "").replace(/\D/g, "");
+  if (!telefono) return <span style={{ fontSize: 10.5, color: COLORS.textDim }}>Sin teléfono</span>;
+  const nombre = (t.cliente?.nombre || "").split(" ")[0];
+  const mensaje = `Hola ${nombre}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`;
+  return (
+    <a
+      onClick={(e) => e.stopPropagation()}
+      href={`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`}
+      target="_blank"
+      rel="noreferrer"
+      title={`Escribir a ${t.cliente?.nombre || "el cliente"} por WhatsApp`}
+      aria-label={`Escribir a ${t.cliente?.nombre || "el cliente"} por WhatsApp`}
+      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "6px 0", borderRadius: 8, background: "#25D366", color: "#FFFFFF", textDecoration: "none" }}
+    >
+      <IconoWhatsApp size={16} />
+    </a>
+  );
+}
+
+// Columna "Factura" de las tablas: solo cuando la reparación está entregada o completada.
+function CeldaFactura({ t, esFinal, onAbrir }) {
+  if (!esFinal) return <span style={{ fontSize: 11, color: COLORS.textDim }}>—</span>;
+
+  async function abrirFactura(e) {
+    e.stopPropagation();
+    const ventana = window.open("", "_blank");
+    try {
+      const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
+      if (facturas.length > 0) {
+        const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
+        manejar401(res);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (ventana) ventana.location.href = url;
+      } else {
+        ventana?.close();
+        onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
+      }
+    } catch (err) {
+      ventana?.close();
+    }
+  }
+
+  return (
+    <button
+      onClick={abrirFactura}
+      style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
+    >
+      Factura
+    </button>
+  );
+}
+
 function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
   const hoy = new Date().toDateString();
   const filas = reparaciones
@@ -212,11 +278,12 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
             <col style={{ width: 62 }} />
             <col style={{ width: 40 }} />
             <col style={{ width: 92 }} />
-            <col style={{ width: 78 }} />
+            <col style={{ width: 74 }} />
+            <col style={{ width: 68 }} />
           </colgroup>
           <thead>
             <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
-              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
+              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
                 <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
               ))}
             </tr>
@@ -258,45 +325,11 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
                     </span>
                   </td>
                   <td style={{ padding: "8px 6px" }}>
-                    {esFinal ? (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ventana = window.open("", "_blank");
-                          try {
-                            const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
-                            if (facturas.length > 0) {
-                              const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
-                              manejar401(res);
-                              const blob = await res.blob();
-                              const url = URL.createObjectURL(blob);
-                              if (ventana) ventana.location.href = url;
-                            } else {
-                              ventana?.close();
-                              onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
-                            }
-                          } catch (err) {
-                            ventana?.close();
-                          }
-                        }}
-                        style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
-                      >
-                        Factura
-                      </button>
-                    ) : t.cliente?.telefono ? (
-                      <a
-                        onClick={(e) => e.stopPropagation()}
-                        href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", justifyContent: "center" }}
-                      >
-                        Notificar
-                      </a>
-                    ) : (
-                        <span style={{ fontSize: 11, color: COLORS.textDim }}>Sin teléfono</span>
-                      )}
-                    </td>
+                    <CeldaWhatsApp t={t} stage={stage} />
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
+                  </td>
                   </tr>
                 );
               })}
@@ -330,11 +363,12 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
             <col style={{ width: 62 }} />
             <col style={{ width: 40 }} />
             <col style={{ width: 92 }} />
-            <col style={{ width: 78 }} />
+            <col style={{ width: 74 }} />
+            <col style={{ width: 68 }} />
           </colgroup>
           <thead>
             <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
-              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "Acción"].map((c) => (
+              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
                 <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
               ))}
             </tr>
@@ -342,13 +376,12 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
           <tbody>
             {!cargando && filas.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>Sin equipos aquí.</td>
+                <td colSpan={7} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>Sin equipos aquí.</td>
               </tr>
             )}
             {filas.map((t, i) => {
               const stage = etapas.find((s) => s.key === t.estado_actual) || etapas[0];
               const esFinal = ["entregado", "completado"].includes(t.estado_actual);
-              const esNoReparable = t.estado_actual === "no_reparable";
               const dias = diasDesde(t.fecha_recepcion);
               const [anio, numero] = (t.numero_orden || "").split("-");
               return (
@@ -381,51 +414,10 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
                     </span>
                   </td>
                   <td style={{ padding: "8px 6px" }}>
-                    {esFinal ? (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ventana = window.open("", "_blank");
-                          try {
-                            const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
-                            if (facturas.length > 0) {
-                              const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
-                              manejar401(res);
-                              const blob = await res.blob();
-                              const url = URL.createObjectURL(blob);
-                              if (ventana) ventana.location.href = url;
-                            } else {
-                              ventana?.close();
-                              onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
-                            }
-                          } catch (err) {
-                            ventana?.close();
-                          }
-                        }}
-                        style={{ ...btnStyle(COLORS.green, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
-                      >
-                        Factura
-                      </button>
-                    ) : esNoReparable ? (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onAbrir(t); }}
-                        style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
-                      >
-                        Ver
-                      </button>
-                    ) : t.cliente?.telefono ? (
-                      <a
-                        onClick={(e) => e.stopPropagation()}
-                        href={`https://wa.me/${t.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${t.cliente.nombre.split(" ")[0]}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", justifyContent: "center" }}
-                      >
-                        Notificar
-                      </a>
-                    ) : (
-                      <span style={{ fontSize: 11, color: COLORS.textDim }}>Sin teléfono</span>
-                    )}
+                    <CeldaWhatsApp t={t} stage={stage} />
+                  </td>
+                  <td style={{ padding: "8px 6px" }}>
+                    <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
                   </td>
                 </tr>
               );
