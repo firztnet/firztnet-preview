@@ -6105,8 +6105,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                 </button>
               </div>
 
-              <AlertaStockBajo onIrInventario={() => setVista("inventario")} />
-
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
