@@ -2411,6 +2411,25 @@ function NuevaReparacionModal({ onClose, onCreada }) {
 }
 
 // -------------------- vista: Clientes --------------------
+// Negocios a los que puede pertenecer un cliente (un mismo cliente puede ser de los dos).
+const NEGOCIOS_CLIENTE = [
+  { key: "firztnet", nombre: "Firztnet", color: COLORS.amber },
+  { key: "firztweb", nombre: "Firztweb", color: COLORS.violet },
+];
+
+function InsigniasNegocio({ negocios }) {
+  const lista = negocios && negocios.length ? negocios : ["firztnet"];
+  return (
+    <>
+      {NEGOCIOS_CLIENTE.filter((n) => lista.includes(n.key)).map((n) => (
+        <span key={n.key} style={{ fontSize: 9.5, fontWeight: 700, color: n.color, border: `1px solid ${n.color}`, borderRadius: 999, padding: "2px 7px", whiteSpace: "nowrap" }}>
+          {n.nombre}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function ClientesView() {
   const [clientes, setClientes] = useState([]);
   const [query, setQuery] = useState("");
@@ -2418,7 +2437,8 @@ function ClientesView() {
   const [detalle, setDetalle] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [editando, setEditando] = useState(false);
-  const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "" });
+  const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "", nif: "", negocios: ["firztnet"] });
+  const [filtroNegocio, setFiltroNegocio] = useState(""); // "", "firztnet" o "firztweb"
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [borrandoRgpd, setBorrandoRgpd] = useState(false);
   const [resultadoRgpd, setResultadoRgpd] = useState(null);
@@ -2471,7 +2491,7 @@ function ClientesView() {
     try {
       const data = await apiGet(`/clientes/${cliente.id}`);
       setDetalle(data);
-      setFormEdicion({ telefono: data.telefono || "", email: data.email || "", nif: data.nif || "" });
+      setFormEdicion({ telefono: data.telefono || "", email: data.email || "", nif: data.nif || "", negocios: data.negocios || ["firztnet"] });
     } catch (e) {
       setDetalle({ error: e.message });
     }
@@ -2483,7 +2503,7 @@ function ClientesView() {
       const res = await fetch(`${API_BASE}/clientes/${detalle.id}`, {
         method: "PUT",
         headers: cabecerasAuth({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email, nif: formEdicion.nif }),
+        body: JSON.stringify({ telefono: formEdicion.telefono, email: formEdicion.email, nif: formEdicion.nif, negocios: formEdicion.negocios }),
       });
       manejar401(res);
       const actualizado = await res.json();
@@ -2497,6 +2517,18 @@ function ClientesView() {
     }
   }
 
+  const delNegocio = (cliente, key) => (cliente.negocios || ["firztnet"]).includes(key);
+  const clientesVisibles = filtroNegocio ? clientes.filter((cl) => delNegocio(cl, filtroNegocio)) : clientes;
+
+  // En la ficha, un cliente no puede quedarse sin ningún negocio: la última etiqueta no se puede quitar.
+  function alternarNegocio(key) {
+    setFormEdicion((f) => {
+      const actual = f.negocios || ["firztnet"];
+      const nuevo = actual.includes(key) ? actual.filter((k) => k !== key) : [...actual, key];
+      return nuevo.length ? { ...f, negocios: nuevo } : f;
+    });
+  }
+
   return (
     <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -2505,10 +2537,30 @@ function ClientesView() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente por nombre..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
         </div>
 
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+          {[{ key: "", nombre: "Todos", color: COLORS.slate, cuantos: clientes.length }, ...NEGOCIOS_CLIENTE.map((n) => ({ ...n, cuantos: clientes.filter((cl) => delNegocio(cl, n.key)).length }))].map((op) => {
+            const activo = filtroNegocio === op.key;
+            return (
+              <button
+                key={op.key || "todos"}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setFiltroNegocio(op.key)}
+                style={{ fontSize: 12, fontWeight: 600, padding: "6px 13px", borderRadius: 999, cursor: "pointer", border: `1px solid ${activo ? op.color : COLORS.line}`, background: activo ? op.color : COLORS.surface, color: activo ? "#FFFFFF" : COLORS.textDim }}
+              >
+                {op.nombre} ({op.cuantos})
+              </button>
+            );
+          })}
+        </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando clientes...</div>}
           {!cargando && clientes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>No hay clientes todavía.</div>}
-          {clientes.map((c) => (
+          {!cargando && clientes.length > 0 && clientesVisibles.length === 0 && (
+            <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ningún cliente de {NEGOCIOS_CLIENTE.find((n) => n.key === filtroNegocio)?.nombre} todavía.</div>
+          )}
+          {clientesVisibles.map((c) => (
             <button
               key={c.id}
               onClick={() => verDetalle(c)}
@@ -2523,6 +2575,7 @@ function ClientesView() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.amber }}>{c.codigo}</span>
                   <span style={{ fontWeight: 600, fontSize: 13.5, color: COLORS.text }}>{c.nombre}</span>
+                  <InsigniasNegocio negocios={c.negocios} />
                 </div>
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{c.telefono || "Sin teléfono"}{c.email ? ` · ${c.email}` : ""}</div>
               </div>
@@ -2540,6 +2593,9 @@ function ClientesView() {
             <>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.amber }}>{detalle.codigo}</div>
               <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>{detalle.nombre}</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+                <InsigniasNegocio negocios={detalle.negocios} />
+              </div>
 
               {!editando ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -2567,6 +2623,23 @@ function ClientesView() {
                     placeholder="NIF (para factura)"
                     style={{ fontSize: 12.5, padding: "7px 9px", borderRadius: 6, border: `1px solid ${COLORS.line}` }}
                   />
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 11.5, color: COLORS.textDim }}>Negocio:</span>
+                    {NEGOCIOS_CLIENTE.map((n) => {
+                      const activo = (formEdicion.negocios || []).includes(n.key);
+                      return (
+                        <button
+                          key={n.key}
+                          type="button"
+                          aria-pressed={activo}
+                          onClick={() => alternarNegocio(n.key)}
+                          style={{ fontSize: 11.5, fontWeight: 700, padding: "4px 11px", borderRadius: 999, cursor: "pointer", border: `1px solid ${activo ? n.color : COLORS.line}`, background: activo ? n.color : COLORS.surface, color: activo ? "#FFFFFF" : COLORS.textDim }}
+                        >
+                          {n.nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <button disabled={guardandoEdicion} onClick={guardarEdicion} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "6px 10px", fontSize: 11.5 }}>
                       {guardandoEdicion ? "Guardando..." : "Guardar"}
