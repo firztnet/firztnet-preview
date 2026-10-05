@@ -489,7 +489,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
 // Formato de dinero y tamaño de letra de las cifras largas: así "+1.234,56 €" no se corta
 // dentro de una tarjeta estrecha (la letra monoespaciada mide ~0,6 veces su tamaño por carácter).
 const fmtEur = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
-const tamDinero = (texto) => Math.min(26, Math.floor(125 / (String(texto).length * 0.6)));
+const tamDinero = (texto) => Math.min(24, Math.floor(125 / (String(texto).length * 0.6)));
 
 function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor, clase }) {
   const [hover, setHover] = useState(false);
@@ -501,9 +501,9 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "18px 20px" : "16px 18px", flex: 1, minWidth: 150,
+          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150,
           position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default",
-          ...(alta ? { minHeight: 128, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
+          ...(alta ? { minHeight: 104, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
           boxShadow: activa ? `0 0 0 3px ${accent}40` : hover ? `0 6px 16px -4px ${accent}60` : "none",
           transform: hover ? "translateY(-2px)" : "translateY(0)",
           transition: "transform 0.15s ease, box-shadow 0.15s ease",
@@ -511,9 +511,9 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
       >
         <span style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
         <div>
-          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 36 : 30), color: COLORS.text, marginTop: 6, fontWeight: 700 }}>{value}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 32 : 30), color: COLORS.text, marginTop: alta ? 4 : 6, lineHeight: alta ? 1.1 : undefined, fontWeight: 700 }}>{value}</div>
           {sub && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: alta ? 2 : 4, lineHeight: alta ? 1.25 : undefined, fontSize: 11.5, color: trend === "up" ? COLORS.green : trend === "down" ? COLORS.rust : COLORS.textDim }}>
               {trend === "up" && <ArrowUpRight size={12} />}
               {trend === "down" && <ArrowDownRight size={12} />}
               {sub}
@@ -533,8 +533,8 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        background: accent, borderRadius: 14, padding: alta ? "18px 20px" : "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
-        ...(alta ? { minHeight: 128, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
+        background: accent, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
+        ...(alta ? { minHeight: 104, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
         boxShadow: activa ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${accent}, 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
         transform: hover ? "translateY(-2px)" : "translateY(0)",
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
@@ -548,9 +548,9 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         </div>
       </div>
       <div>
-        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 36 : 30), color: "#FFFFFF", marginTop: 8, fontWeight: 700 }}>{value}</div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: tamValor ?? (alta ? 32 : 30), color: "#FFFFFF", marginTop: alta ? 4 : 8, lineHeight: alta ? 1.1 : undefined, fontWeight: 700 }}>{value}</div>
         {sub && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: alta ? 2 : 4, lineHeight: alta ? 1.25 : undefined, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
             {trend === "up" && <ArrowUpRight size={12} />}
             {trend === "down" && <ArrowDownRight size={12} />}
             {sub}
@@ -6025,7 +6025,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
             <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
-            <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="sin atender, +5 días o urgentes" icon={Flame} accent={COLORS.rust} />
+            <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
             <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
             <StatCard
               alta
