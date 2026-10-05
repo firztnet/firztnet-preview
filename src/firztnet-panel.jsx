@@ -2734,6 +2734,63 @@ const ACCION_POR_ESTADO = {
 
 // -------------------- Panel de alertas del negocio --------------------
 // -------------------- Campanita de notificaciones (cabecera, global) --------------------
+// Webs que cuentan visitas
+const SITIOS_WEB = [
+  { key: "firztnet", label: "Firztnet", accent: COLORS.amber, icon: Wrench },
+  { key: "firztweb", label: "Firztweb", accent: COLORS.violet, icon: LayoutGrid },
+  { key: "afiliados", label: "TechCompara", accent: COLORS.green, icon: Package },
+];
+
+// El servidor guarda las fechas en UTC; aquí se pasan a la hora local de quien mira el panel.
+function fechaUtc(iso) {
+  if (!iso) return null;
+  return new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + "Z");
+}
+
+function tiempoRelativo(iso, ahora = Date.now()) {
+  const d = fechaUtc(iso);
+  if (!d) return "";
+  const seg = Math.max(0, Math.floor((ahora - d.getTime()) / 1000));
+  if (seg < 60) return "hace un momento";
+  const min = Math.floor(seg / 60);
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const dias = Math.floor(h / 24);
+  if (dias < 7) return `hace ${dias} día${dias === 1 ? "" : "s"}`;
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+}
+
+function fechaHoraLocal(iso) {
+  const d = fechaUtc(iso);
+  return d ? d.toLocaleString("es-ES", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+}
+
+// "https://www.google.com/" -> "google.com"
+function dominioDe(referido) {
+  if (!referido || referido === "directo") return "directo";
+  try {
+    return new URL(referido).hostname.replace(/^www\./, "");
+  } catch (e) {
+    return referido;
+  }
+}
+
+// "boton_amazon_lenovo_ideapad" -> "amazon lenovo ideapad"
+const limpiarEtiqueta = (etiqueta) => String(etiqueta || "").replace(/^(boton_|seccion_)/, "").replace(/_/g, " ");
+
+// Texto del aviso de la campana (o null si no hay nada nuevo)
+function textoNovedades(nov) {
+  if (!nov) return null;
+  const visitas = nov.total_visitas || 0;
+  const clics = nov.total_clics || 0;
+  if (visitas === 0 && clics === 0) return null;
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+  if (visitas === 0) return `${plural(clics, "clic nuevo", "clics nuevos")} en tus webs`;
+  const porSitio = SITIOS_WEB.filter((s) => (nov.sitios?.[s.key]?.visitas || 0) > 0).map((s) => `${s.label} ${nov.sitios[s.key].visitas}`).join(" · ");
+  return `${plural(visitas, "visita nueva", "visitas nuevas")} en tus webs${porSitio ? ` (${porSitio})` : ""}${clics > 0 ? ` · ${plural(clics, "clic", "clics")}` : ""}`;
+}
+
 function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
   const [abierta, setAbierta] = useState(false);
   const [items, setItems] = useState([]);
@@ -2741,12 +2798,13 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
         apiGet("/reportes/garantias-activas").catch(() => []),
         apiGet("/solicitudes").catch(() => []),
+        apiGet("/estadisticas/novedades").catch(() => null),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -2758,6 +2816,8 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
       const solicitudesPendientes = solicitudes.filter((s) => !s.atendida);
       if (solicitudesPendientes.length > 0) nuevos.push({ tipo: "solicitud", texto: `${solicitudesPendientes.length} solicitud(es) de servicio sin atender`, accion: () => onIrVista("solicitudes") });
+      const textoVisitas = textoNovedades(novedadesWeb);
+      if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
       setItems(nuevos);
     } catch (e) {
       /* silencioso */
@@ -2768,6 +2828,11 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
     cargar();
     const intervalo = setInterval(cargar, 60000); // refresca cada minuto, sin que haga falta recargar la página
     return () => clearInterval(intervalo);
+  }, [cargar]);
+
+  useEffect(() => {
+    window.addEventListener("fn:notificaciones-actualizar", cargar);
+    return () => window.removeEventListener("fn:notificaciones-actualizar", cargar);
   }, [cargar]);
 
   useEffect(() => {
@@ -3614,26 +3679,185 @@ function VentasView() {
   );
 }
 
+// Une dos listas de actividad sin repetir elementos, de más nuevo a más antiguo
+function mezclarActividad(nuevos, previos) {
+  const mapa = new Map();
+  [...nuevos, ...previos].forEach((x) => mapa.set(`${x.clase}-${x.id}`, x));
+  return [...mapa.values()].sort((a, b) => fechaUtc(b.fecha) - fechaUtc(a.fecha) || b.id - a.id);
+}
+
+const TIPOS_ACTIVIDAD = {
+  visita: { texto: "Visita", color: COLORS.statusBlue },
+  clic: { texto: "Clic", color: COLORS.pink },
+  seccion_vista: { texto: "Sección", color: COLORS.teal },
+};
+
+// Detalle de cada visita, clic y sección que ven tus webs, con lo nuevo resaltado.
+function ActividadReciente({ desde }) {
+  const [filtroSitio, setFiltroSitio] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
+  const [items, setItems] = useState([]);
+  const [hayMas, setHayMas] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [error, setError] = useState("");
+  const [ahora, setAhora] = useState(Date.now());
+  const [version, setVersion] = useState(0); // al pulsar "Actualizar"
+
+  const consultar = useCallback(
+    (extra = {}) => {
+      const p = new URLSearchParams({ limite: "40", ...extra });
+      if (filtroSitio) p.set("sitio", filtroSitio);
+      if (filtroTipo) p.set("tipo", filtroTipo);
+      return apiGet(`/estadisticas/recientes?${p.toString()}`);
+    },
+    [filtroSitio, filtroTipo]
+  );
+
+  // Primera página y, después, refresco automático cada 30 s (sin perder lo que ya hayas desplegado más abajo)
+  useEffect(() => {
+    let cancelado = false;
+    setCargando(true);
+    setItems([]);
+    async function cargar(primera) {
+      try {
+        const r = await consultar();
+        if (cancelado) return;
+        setError("");
+        setItems((prev) => (primera ? r.items : mezclarActividad(r.items, prev)));
+        if (primera) setHayMas(r.hay_mas);
+      } catch (e) {
+        if (!cancelado) setError(e.message);
+      } finally {
+        if (!cancelado && primera) setCargando(false);
+      }
+    }
+    cargar(true);
+    const t = setInterval(() => { cargar(false); setAhora(Date.now()); }, 30000);
+    return () => { cancelado = true; clearInterval(t); };
+  }, [consultar, version]);
+
+  async function cargarMas() {
+    if (items.length === 0) return;
+    setCargandoMas(true);
+    try {
+      const r = await consultar({ antes: items[items.length - 1].fecha });
+      setItems((prev) => mezclarActividad(r.items, prev));
+      setHayMas(r.hay_mas);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCargandoMas(false);
+    }
+  }
+
+  const umbralNuevo = fechaUtc(desde);
+  const esNuevo = (x) => !!umbralNuevo && fechaUtc(x.fecha) > umbralNuevo;
+  const pastilla = (activo, color) => ({ fontSize: 11.5, fontWeight: 600, padding: "5px 12px", borderRadius: 999, cursor: "pointer", border: `1px solid ${activo ? color : COLORS.line}`, background: activo ? color : COLORS.surface, color: activo ? "#FFFFFF" : COLORS.textDim });
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, marginBottom: 32, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLORS.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Actividad reciente</div>
+          <button type="button" onClick={() => setVersion((v) => v + 1)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>
+            Actualizar (se refresca sola cada 30 s)
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {[{ key: "", label: "Todas las webs", accent: COLORS.slate }, ...SITIOS_WEB].map((s) => (
+            <button key={s.key || "todas"} type="button" aria-pressed={filtroSitio === s.key} onClick={() => setFiltroSitio(s.key)} style={pastilla(filtroSitio === s.key, s.accent)}>{s.label}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[{ key: "", label: "Todo", color: COLORS.slate }, { key: "visita", label: "Visitas", color: TIPOS_ACTIVIDAD.visita.color }, { key: "clic", label: "Clics", color: TIPOS_ACTIVIDAD.clic.color }, { key: "seccion_vista", label: "Secciones vistas", color: TIPOS_ACTIVIDAD.seccion_vista.color }].map((t) => (
+            <button key={t.key || "todo"} type="button" aria-pressed={filtroTipo === t.key} onClick={() => setFiltroTipo(t.key)} style={pastilla(filtroTipo === t.key, t.color)}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ maxHeight: 520, overflowY: "auto" }}>
+        {error && <div role="alert" title={error} style={{ padding: "10px 16px", fontSize: 12.5, color: COLORS.rust }}>No se pudo cargar la actividad. Pulsa «Actualizar» para reintentar.</div>}
+        {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando actividad...</div>}
+        {!cargando && !error && items.length === 0 && (
+          <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>
+            {filtroSitio || filtroTipo ? "No hay actividad con estos filtros." : "Todavía no hay actividad registrada."}
+          </div>
+        )}
+        {items.map((x) => {
+          const sitio = SITIOS_WEB.find((s) => s.key === x.sitio);
+          const tipo = TIPOS_ACTIVIDAD[x.clase] || TIPOS_ACTIVIDAD.visita;
+          const nuevo = esNuevo(x);
+          return (
+            <div key={`${x.clase}-${x.id}`} data-nuevo={nuevo ? "si" : "no"} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 16px 10px 13px", borderBottom: `1px solid ${COLORS.line}`, borderLeft: `3px solid ${nuevo ? sitio?.accent || COLORS.amber : "transparent"}`, background: nuevo ? `${sitio?.accent || COLORS.amber}0F` : "none" }}>
+              <div style={{ width: 86, flexShrink: 0 }}>
+                <div style={{ fontSize: 11.5, color: COLORS.text }}>{tiempoRelativo(x.fecha, ahora)}</div>
+                <div style={{ fontSize: 10, color: COLORS.textDim }}>{fechaHoraLocal(x.fecha)}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  {sitio && <span style={{ fontSize: 9.5, fontWeight: 700, color: sitio.accent, border: `1px solid ${sitio.accent}`, borderRadius: 999, padding: "2px 7px" }}>{sitio.label}</span>}
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: tipo.color, background: `${tipo.color}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>{tipo.texto}</span>
+                  {nuevo && <span style={{ fontSize: 9, fontWeight: 800, color: "#FFFFFF", background: COLORS.rust, borderRadius: 999, padding: "2px 6px", letterSpacing: 0.4 }}>NUEVO</span>}
+                </div>
+                <div style={{ fontSize: 12.5, color: COLORS.text, marginTop: 4, overflowWrap: "anywhere" }}>
+                  {x.clase === "visita" && (
+                    <>
+                      <strong>{x.ruta}</strong>
+                      <span style={{ color: COLORS.textDim }}> · desde {dominioDe(x.referido)} · {x.dispositivo === "movil" ? "📱 móvil" : x.dispositivo === "escritorio" ? "💻 escritorio" : x.dispositivo}</span>
+                    </>
+                  )}
+                  {x.clase === "clic" && <>Pulsó: <strong>{limpiarEtiqueta(x.etiqueta)}</strong></>}
+                  {x.clase === "seccion_vista" && <>Vio la sección: <strong>{limpiarEtiqueta(x.etiqueta)}</strong></>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {hayMas && !cargando && (
+          <div style={{ padding: 12, textAlign: "center" }}>
+            <button type="button" onClick={cargarMas} disabled={cargandoMas} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "7px 16px", fontSize: 12 }}>
+              {cargandoMas ? "Cargando..." : "Cargar más"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VisitasWebView() {
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState("");
+  const [novedades, setNovedades] = useState(null); // lo que había de nuevo al entrar (para resaltarlo)
 
   useEffect(() => {
-    apiGet("/estadisticas/resumen")
-      .then(setDatos)
-      .catch((e) => setErrorCarga(e.message))
-      .finally(() => setCargando(false));
+    let cancelado = false;
+    (async () => {
+      try {
+        const [resumen, nov] = await Promise.all([apiGet("/estadisticas/resumen"), apiGet("/estadisticas/novedades").catch(() => null)]);
+        if (cancelado) return;
+        setDatos(resumen);
+        setNovedades(nov);
+        // Lo que había hasta ahora pasa a contar como visto: la campana se apaga, pero aquí abajo
+        // se sigue viendo resaltado qué era nuevo.
+        apiPost("/estadisticas/marcar-vistas", {})
+          .then(() => window.dispatchEvent(new Event("fn:notificaciones-actualizar")))
+          .catch(() => {});
+      } catch (e) {
+        if (!cancelado) setErrorCarga(e.message);
+      } finally {
+        if (!cancelado) setCargando(false);
+      }
+    })();
+    return () => { cancelado = true; };
   }, []);
 
   if (cargando) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
   if (errorCarga) return <div style={{ fontSize: 12.5, color: COLORS.rust }}>No se pudo cargar: {errorCarga}</div>;
 
-  const sitios = [
-    { key: "firztnet", label: "Firztnet", accent: COLORS.amber, icon: Wrench },
-    { key: "firztweb", label: "Firztweb", accent: COLORS.violet, icon: LayoutGrid },
-    { key: "afiliados", label: "Afiliados", accent: COLORS.green, icon: Package },
-  ];
+  const sitios = SITIOS_WEB;
 
   const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
@@ -3645,6 +3869,24 @@ function VisitasWebView() {
       <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 18 }}>
         Contador propio, sin cookies ni datos personales — solo cuenta visitas, no identifica a nadie.
       </div>
+
+      {novedades && (novedades.total_visitas > 0 || novedades.total_clics > 0 || novedades.total_secciones > 0) && (
+        <div role="status" style={{ background: `${COLORS.statusBlue}12`, border: `1px solid ${COLORS.statusBlue}55`, borderRadius: 10, padding: "12px 14px", marginBottom: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text }}>Desde tu última revisión ({tiempoRelativo(novedades.desde)})</div>
+          <div style={{ fontSize: 12.5, color: COLORS.text, marginTop: 3 }}>
+            {novedades.total_visitas} visita{novedades.total_visitas === 1 ? "" : "s"} · {novedades.total_clics} clic{novedades.total_clics === 1 ? "" : "s"} · {novedades.total_secciones} secci{novedades.total_secciones === 1 ? "ón vista" : "ones vistas"}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+            {SITIOS_WEB.filter((s) => (novedades.sitios?.[s.key]?.visitas || 0) + (novedades.sitios?.[s.key]?.clics || 0) > 0).map((s) => (
+              <span key={s.key} style={{ fontSize: 11, fontWeight: 600, color: s.accent, border: `1px solid ${s.accent}`, borderRadius: 999, padding: "2px 9px" }}>
+                {s.label}: {novedades.sitios[s.key].visitas} visita{novedades.sitios[s.key].visitas === 1 ? "" : "s"}, {novedades.sitios[s.key].clics} clic{novedades.sitios[s.key].clics === 1 ? "" : "s"}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <ActividadReciente desde={novedades?.desde} />
       {sitios.map((sitio) => {
         const d = datos?.[sitio.key];
         if (!d) return null;
@@ -3670,6 +3912,7 @@ function VisitasWebView() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <sitio.icon size={16} color={sitio.accent} />
               <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{sitio.label}</span>
+              <span style={{ marginLeft: "auto", fontSize: 11.5, color: COLORS.textDim }}>{d.ultima_visita ? `Última visita ${tiempoRelativo(d.ultima_visita)}` : "Sin visitas todavía"}</span>
             </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <StatCard label="Hoy" value={d.hoy} icon={Eye} accent={sitio.accent} />
@@ -3679,6 +3922,20 @@ function VisitasWebView() {
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+              {d.top_paginas?.length > 0 && (
+                <div style={tarjetaEstilo}>
+                  <div style={tituloTarjeta}>Páginas más vistas (30 días)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {d.top_paginas.map((p, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5 }}>
+                        <span style={{ color: COLORS.text, overflowWrap: "anywhere" }}>{p.ruta}</span>
+                        <span style={{ color: COLORS.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{p.visitas}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {d.top_referidos.length > 0 && (
                 <div style={tarjetaEstilo}>
                   <div style={tituloTarjeta}>De dónde viene la gente (7 días)</div>
