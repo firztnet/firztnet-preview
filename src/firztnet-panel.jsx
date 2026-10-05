@@ -184,6 +184,16 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
+// Cabecera de las tablas de reparaciones: fondo azul marino (como el menú lateral), letras blancas
+// en negrita y una línea azul debajo. La línea va con sombra interior (y no con borde) porque la
+// cabecera es "pegajosa" al hacer scroll, y los bordes de las tablas no se pegan con ella.
+const estiloTh = {
+  padding: "11px 6px", fontSize: 10.5, fontWeight: 800, color: "#FFFFFF",
+  textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap",
+  position: "sticky", top: 0, zIndex: 1,
+  background: COLORS.sidebarBg, boxShadow: `inset 0 -3px 0 ${COLORS.amber}`,
+};
+
 // Logo de WhatsApp (los iconos de lucide no incluyen marcas)
 function IconoWhatsApp({ size = 16 }) {
   return (
@@ -276,15 +286,15 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
             <col style={{ width: 60 }} />
             <col style={{ width: "auto" }} />
             <col style={{ width: 62 }} />
-            <col style={{ width: 40 }} />
+            <col style={{ width: 46 }} />
             <col style={{ width: 92 }} />
+            <col style={{ width: 86 }} />
             <col style={{ width: 74 }} />
-            <col style={{ width: 68 }} />
           </colgroup>
           <thead>
-            <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
+            <tr style={{ background: COLORS.sidebarBg, textAlign: "left" }}>
               {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
-                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
+                <th key={c} style={estiloTh}>{c}</th>
               ))}
             </tr>
           </thead>
@@ -361,15 +371,15 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
             <col style={{ width: 60 }} />
             <col style={{ width: "auto" }} />
             <col style={{ width: 62 }} />
-            <col style={{ width: 40 }} />
+            <col style={{ width: 46 }} />
             <col style={{ width: 92 }} />
+            <col style={{ width: 86 }} />
             <col style={{ width: 74 }} />
-            <col style={{ width: 68 }} />
           </colgroup>
           <thead>
-            <tr style={{ background: COLORS.surfaceRaised, textAlign: "left" }}>
+            <tr style={{ background: COLORS.sidebarBg, textAlign: "left" }}>
               {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
-                <th key={c} style={{ padding: "8px 6px", fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, position: "sticky", top: 0, background: COLORS.surfaceRaised, zIndex: 1 }}>{c}</th>
+                <th key={c} style={estiloTh}>{c}</th>
               ))}
             </tr>
           </thead>
