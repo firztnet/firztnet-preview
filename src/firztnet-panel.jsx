@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
@@ -2189,7 +2189,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
       return;
     }
     const timer = setTimeout(() => {
-      apiGet(`/clientes?q=${encodeURIComponent(form.nombreCliente)}`).then(setSugerencias).catch(() => {});
+      apiGet(`/clientes?q=${encodeURIComponent(form.nombreCliente)}&incluir_contactos=true`).then(setSugerencias).catch(() => {});
     }, 250);
     return () => clearTimeout(timer);
   }, [form.nombreCliente, clienteSeleccionado]);
@@ -2284,7 +2284,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
                   style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 11px", background: "none", border: "none", cursor: "pointer", fontSize: 12.5, borderBottom: `1px solid ${COLORS.line}` }}
                 >
                   <div style={{ fontWeight: 600, color: COLORS.text }}>{c.nombre}</div>
-                  <div style={{ fontSize: 11, color: COLORS.textDim }}>{c.codigo}{c.telefono ? ` · ${c.telefono}` : ""}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textDim }}>{c.es_contacto ? "Contacto web" : c.codigo}{c.telefono ? ` · ${c.telefono}` : ""}</div>
                 </button>
               ))}
             </div>
@@ -4399,6 +4399,8 @@ function SolicitudesView({ onCrearReparacion }) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [verTodas, setVerTodas] = useState(false);
+  const [convirtiendo, setConvirtiendo] = useState(null); // id del cliente que se está convirtiendo
+  const [errorConversion, setErrorConversion] = useState("");
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -4426,8 +4428,26 @@ function SolicitudesView({ onCrearReparacion }) {
     }
   }
 
+  // Pasa un contacto (alguien que escribió desde una web) a cliente de verdad. Todas las
+  // solicitudes de esa misma persona se actualizan a la vez.
+  async function convertirEnCliente(s) {
+    setErrorConversion("");
+    setConvirtiendo(s.cliente_id);
+    try {
+      const cliente = await apiPost(`/clientes/${s.cliente_id}/convertir`, {});
+      setSolicitudes((prev) => prev.map((x) => (x.cliente_id === s.cliente_id ? { ...x, cliente } : x)));
+    } catch (e) {
+      setErrorConversion(`No se pudo convertir en cliente: ${e.message}`);
+    } finally {
+      setConvirtiendo(null);
+    }
+  }
+
   return (
     <div>
+      {errorConversion && (
+        <div role="alert" style={{ marginBottom: 12, fontSize: 12.5, color: COLORS.rust, background: `${COLORS.rust}12`, borderRadius: 8, padding: "9px 12px" }}>{errorConversion}</div>
+      )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
         <button onClick={() => setVerTodas((v) => !v)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
           {verTodas ? "Ver solo pendientes" : "Ver todas (incluye atendidas)"}
@@ -4438,16 +4458,21 @@ function SolicitudesView({ onCrearReparacion }) {
         {!cargando && solicitudes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin solicitudes pendientes. Aparecerán aquí cuando un cliente pida un nuevo servicio desde su página de seguimiento.</div>}
         {solicitudes.map((s) => (
           <div key={s.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${s.atendida ? COLORS.green : s.origen === "nuevo_contacto" ? COLORS.violet : COLORS.statusBlue}`, borderRadius: 10, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</span>
                   <span style={{ fontSize: 9.5, fontWeight: 700, color: s.negocio === "firztweb" ? COLORS.violet : COLORS.amber, border: `1px solid ${s.negocio === "firztweb" ? COLORS.violet : COLORS.amber}`, borderRadius: 999, padding: "2px 7px" }}>
                     {s.negocio === "firztweb" ? "Firztweb" : "Firztnet"}
                   </span>
-                  {s.origen === "nuevo_contacto" && (
+                  {s.origen === "nuevo_contacto" && s.cliente?.es_contacto && (
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.violet, background: `${COLORS.violet}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
                       Nuevo contacto
+                    </span>
+                  )}
+                  {s.origen === "nuevo_contacto" && !s.cliente?.es_contacto && (
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.green, background: `${COLORS.green}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      Cliente{s.cliente?.codigo ? ` ${s.cliente.codigo}` : ""}
                     </span>
                   )}
                 </div>
@@ -4455,11 +4480,22 @@ function SolicitudesView({ onCrearReparacion }) {
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{s.mensaje || "Sin mensaje adicional"}</div>
                 <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(s.fecha)}</div>
               </div>
-              {!s.atendida && (
-                <button onClick={() => marcarAtendida(s.id)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 11.5 }}>
-                  Marcar atendida
-                </button>
-              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                {s.cliente?.es_contacto && (
+                  <button
+                    onClick={() => convertirEnCliente(s)}
+                    disabled={convirtiendo === s.cliente_id}
+                    style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 11.5, opacity: convirtiendo === s.cliente_id ? 0.7 : 1 }}
+                  >
+                    <UserPlus size={13} /> {convirtiendo === s.cliente_id ? "Convirtiendo..." : "Convertir en cliente"}
+                  </button>
+                )}
+                {!s.atendida && (
+                  <button onClick={() => marcarAtendida(s.id)} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 11.5 }}>
+                    Marcar atendida
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
