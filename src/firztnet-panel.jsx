@@ -5668,7 +5668,7 @@ function FirztnetPanel({ onCerrarSesion }) {
 
   // Todos los campos de filtro comparten ancho y alto; solo la búsqueda es más larga.
   const estiloFiltro = (activo) => ({
-    width: 110, height: 36, boxSizing: "border-box", flexShrink: 0,
+    width: "100%", minWidth: 0, height: 36, boxSizing: "border-box",
     fontSize: 12.5, padding: "0 8px", borderRadius: 8,
     border: `1px solid ${activo ? COLORS.amber : COLORS.line}`,
     color: activo ? COLORS.text : COLORS.textDim, background: COLORS.surface,
@@ -5762,6 +5762,18 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
         /* Columna derecha: si no hay ningún aviso dentro, desaparece y el contenido usa todo el ancho */
         .fn-side-panel:empty { display: none !important; }
+        /* Fila de filtros: ocupa todo el ancho, igual que el bloque de tarjetas.
+           La búsqueda mide el doble que cada uno de los demás campos, que son todos iguales entre sí. */
+        .fn-filtros {
+          display: grid;
+          gap: 8px;
+          align-items: center;
+          grid-template-columns: minmax(230px, 2fr) repeat(var(--n, 6), minmax(0, 1fr));
+        }
+        @media (max-width: 1016px) {
+          .fn-filtros { grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); }
+          .fn-filtro-buscar { grid-column: 1 / -1; }
+        }
         .fn-stat-grid > div { min-width: 0 !important; }
         @media (min-width: 769px) and (max-width: 900px) {
           .fn-stat-grid { grid-template-columns: repeat(4, 1fr) !important; }
@@ -5847,8 +5859,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-content-flex { flex-direction: column !important; }
           .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
           .fn-search { max-width: 100% !important; }
-          .fn-filtro-buscar { width: 100% !important; }
-          .fn-filtro-campo { width: calc(50% - 4px) !important; }
+          .fn-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           .fn-kanban-col { flex: 0 0 200px !important; min-width: 200px !important; }
           .fn-modal-box { width: 92vw !important; max-width: 92vw !important; padding: 18px !important; }
         }
@@ -6070,41 +6081,41 @@ function FirztnetPanel({ onCerrarSesion }) {
           </div>
 
           {vista === "reparaciones" && (
-          <div className="fn-content-flex" style={{ display: "flex", gap: 20, marginTop: 22 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-                <div className="fn-search fn-filtro-buscar" style={{ display: "flex", alignItems: "center", gap: 8, width: 230, height: 36, boxSizing: "border-box", flexShrink: 0, background: COLORS.surface, border: `1px solid ${query.trim() ? COLORS.amber : COLORS.line}`, borderRadius: 8, padding: "0 12px" }}>
-                  <Search size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%", minWidth: 0 }} />
-                </div>
-                {vistaTrabajo === "taller" && (
-                  <>
-                    <select className="fn-filtro-campo" value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={estiloFiltro(!!filtroMarca)}>
-                      <option value="">Marca</option>
-                      {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <select className="fn-filtro-campo" value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={estiloFiltro(!!filtroModelo)}>
-                      <option value="">Modelo</option>
-                      {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </>
-                )}
-                <select className="fn-filtro-campo" value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={estiloFiltro(!!filtroCliente)}>
-                  <option value="">Cliente</option>
-                  {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-                <select className="fn-filtro-campo" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={estiloFiltro(!!filtroEstado)}>
-                  <option value="">Estado</option>
-                  {stagesFor(vistaTrabajo).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-                <button type="button" className="fn-filtro-campo" onClick={() => setFiltroHoy((v) => !v)} style={estiloFiltroBoton(filtroHoy, COLORS.amber)}>
-                  <Clock size={12} /> Hoy
-                </button>
-                <button type="button" className="fn-filtro-campo" onClick={() => setFiltroUrgente((v) => !v)} style={estiloFiltroBoton(filtroUrgente, COLORS.rust)}>
-                  <Flame size={12} /> Urgente
-                </button>
+          <>
+          <div className="fn-filtros" style={{ "--n": String(vistaTrabajo === "taller" ? 6 : 4), marginTop: 22, marginBottom: 14 }}>
+                <div className="fn-search fn-filtro-buscar" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0, height: 36, boxSizing: "border-box", background: COLORS.surface, border: `1px solid ${query.trim() ? COLORS.amber : COLORS.line}`, borderRadius: 8, padding: "0 12px" }}>
+                <Search size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%", minWidth: 0 }} />
               </div>
-
+              {vistaTrabajo === "taller" && (
+                <>
+                  <select className="fn-filtro-campo" value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={estiloFiltro(!!filtroMarca)}>
+                    <option value="">Marca</option>
+                    {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <select className="fn-filtro-campo" value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={estiloFiltro(!!filtroModelo)}>
+                    <option value="">Modelo</option>
+                    {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </>
+              )}
+              <select className="fn-filtro-campo" value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={estiloFiltro(!!filtroCliente)}>
+                <option value="">Cliente</option>
+                {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              <select className="fn-filtro-campo" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={estiloFiltro(!!filtroEstado)}>
+                <option value="">Estado</option>
+                {stagesFor(vistaTrabajo).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+              <button type="button" className="fn-filtro-campo" onClick={() => setFiltroHoy((v) => !v)} style={estiloFiltroBoton(filtroHoy, COLORS.amber)}>
+                <Clock size={12} /> Hoy
+              </button>
+              <button type="button" className="fn-filtro-campo" onClick={() => setFiltroUrgente((v) => !v)} style={estiloFiltroBoton(filtroUrgente, COLORS.rust)}>
+                <Flame size={12} /> Urgente
+              </button>
+          </div>
+          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
@@ -6117,6 +6128,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
             </div>
           </div>
+          </>
           )}
         </main>
       </div>
