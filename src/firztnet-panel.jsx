@@ -616,7 +616,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
         iconoContador={Layers}
         fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
-      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} maxAlto={520} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
+      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
     </div>
   );
 }
