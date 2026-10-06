@@ -2,8 +2,10 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
-  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus
+  Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
+  PhoneOff, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
 } from "recharts";
@@ -184,14 +186,13 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
-// Cabecera de las tablas de reparaciones: fondo azul marino (como el menú lateral), letras blancas
-// en negrita y una línea azul debajo. La línea va con sombra interior (y no con borde) porque la
-// cabecera es "pegajosa" al hacer scroll, y los bordes de las tablas no se pegan con ella.
+// Cabecera de las tablas de órdenes: fondo claro, letras oscuras en negrita y un icono por columna.
+// Es "pegajosa" al hacer scroll; la línea de abajo va con sombra interior porque los bordes no se pegan con ella.
 const estiloTh = {
-  padding: "11px 6px", fontSize: 10.5, fontWeight: 800, color: "#FFFFFF",
-  textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap",
+  padding: "12px 8px", fontSize: 12, fontWeight: 700, color: COLORS.text,
+  whiteSpace: "nowrap", textAlign: "left",
   position: "sticky", top: 0, zIndex: 1,
-  background: COLORS.sidebarBg, boxShadow: `inset 0 -3px 0 ${COLORS.amber}`,
+  background: "#F8FAFD", boxShadow: `inset 0 -1px 0 ${COLORS.line}`,
 };
 
 // Logo de WhatsApp (los iconos de lucide no incluyen marcas)
@@ -204,61 +205,372 @@ function IconoWhatsApp({ size = 16 }) {
   );
 }
 
-// Columna "WhatsApp" de las tablas: abre un chat con el cliente (con el mensaje ya escrito),
-// en cualquier estado de la reparación, siempre que tenga teléfono.
-function CeldaWhatsApp({ t, stage }) {
-  const telefono = (t.cliente?.telefono || "").replace(/\D/g, "");
-  if (!telefono) return <span style={{ fontSize: 10.5, color: COLORS.textDim }}>Sin teléfono</span>;
+// -------------------- Tablas de órdenes (Órdenes activas y Tablero completo) --------------------
+
+function telefonoDe(t) {
+  return (t.cliente?.telefono || "").replace(/\D/g, "");
+}
+
+function enlaceWhatsApp(t, stage) {
+  const telefono = telefonoDe(t);
+  if (!telefono) return null;
   const nombre = (t.cliente?.nombre || "").split(" ")[0];
   const mensaje = `Hola ${nombre}, te escribimos sobre tu orden #${t.numero_orden} (${stage.label}).`;
+  return `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+}
+
+// Abre el PDF de la factura de la reparación. Si todavía no tiene factura, abre la ficha para poder generarla.
+async function abrirFacturaDe(t, onAbrir) {
+  const ventana = window.open("", "_blank");
+  try {
+    const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
+    if (facturas.length > 0) {
+      const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
+      manejar401(res);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (ventana) ventana.location.href = url;
+    } else {
+      ventana?.close();
+      onAbrir(t);
+    }
+  } catch (err) {
+    ventana?.close();
+  }
+}
+
+// Abre el PDF de la etiqueta con QR (el mismo botón que hay dentro de la ficha).
+async function imprimirEtiquetaDe(t) {
+  const ventana = window.open("", "_blank");
+  try {
+    const res = await fetch(`${API_BASE}/reparaciones/${t.id}/etiqueta-qr/pdf`, { headers: cabecerasAuth() });
+    manejar401(res);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (ventana) ventana.location.href = url;
+  } catch (e) {
+    ventana?.close();
+  }
+}
+
+// Sube fotos a la reparación (el mismo envío que usa la ficha en su apartado de fotos).
+async function subirFotosDe(t, fileList) {
+  if (!fileList || fileList.length === 0) return;
+  try {
+    const formData = new FormData();
+    Array.from(fileList).forEach((f) => formData.append("foto", f));
+    const res = await fetch(`${API_BASE}/reparaciones/${t.id}/fotos`, { method: "POST", headers: cabecerasAuth(), body: formData });
+    manejar401(res);
+    const nuevas = await res.json();
+    if (!res.ok) throw new Error(nuevas.error || "No se pudieron subir las fotos");
+    if (nuevas.length < fileList.length) {
+      window.alert(`Se subieron ${nuevas.length} de ${fileList.length} foto(s). Las demás no tienen un formato válido o pesan más de 10 MB.`);
+    } else {
+      window.alert(nuevas.length === 1 ? `Foto adjuntada a la orden #${t.numero_orden}.` : `${nuevas.length} fotos adjuntadas a la orden #${t.numero_orden}.`);
+    }
+  } catch (e) {
+    window.alert(`No se pudieron adjuntar: ${e.message}`);
+  }
+}
+
+// Columna "WhatsApp": botón verde con el texto, o gris si el cliente no tiene teléfono.
+function CeldaWhatsApp({ t, stage }) {
+  const enlace = enlaceWhatsApp(t, stage);
+  const base = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", height: 32, borderRadius: 8, fontSize: 12, fontWeight: 700, boxSizing: "border-box", whiteSpace: "nowrap" };
+  if (!enlace) {
+    return (
+      <span style={{ ...base, background: COLORS.surfaceRaised, color: COLORS.textDim, fontWeight: 500, fontSize: 11 }}>
+        <PhoneOff size={13} /> Sin teléfono
+      </span>
+    );
+  }
   return (
     <a
       onClick={(e) => e.stopPropagation()}
-      href={`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`}
+      href={enlace}
       target="_blank"
       rel="noreferrer"
       title={`Escribir a ${t.cliente?.nombre || "el cliente"} por WhatsApp`}
-      aria-label={`Escribir a ${t.cliente?.nombre || "el cliente"} por WhatsApp`}
-      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "6px 0", borderRadius: 8, background: "#25D366", color: "#FFFFFF", textDecoration: "none" }}
+      style={{ ...base, background: "#16C35A", color: "#FFFFFF", textDecoration: "none" }}
     >
-      <IconoWhatsApp size={16} />
+      <IconoWhatsApp size={15} /> WhatsApp
     </a>
   );
 }
 
-// Columna "Factura" de las tablas: solo cuando la reparación está entregada o completada.
+// Columna de factura: solo aparece el botón cuando la reparación está entregada o completada.
 function CeldaFactura({ t, esFinal, onAbrir }) {
-  if (!esFinal) return <span style={{ fontSize: 11, color: COLORS.textDim }}>—</span>;
-
-  async function abrirFactura(e) {
-    e.stopPropagation();
-    const ventana = window.open("", "_blank");
-    try {
-      const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
-      if (facturas.length > 0) {
-        const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
-        manejar401(res);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        if (ventana) ventana.location.href = url;
-      } else {
-        ventana?.close();
-        onAbrir(t); // todavía no hay factura — abrimos la ficha para poder generarla
-      }
-    } catch (err) {
-      ventana?.close();
-    }
-  }
-
+  if (!esFinal) return null;
   return (
     <button
-      onClick={abrirFactura}
-      style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), padding: "5px 8px", fontSize: 11, fontWeight: 700, width: "100%" }}
+      onClick={(e) => { e.stopPropagation(); abrirFacturaDe(t, onAbrir); }}
+      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", height: 32, borderRadius: 8, border: "none", background: COLORS.amber, color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
     >
-      Factura
+      <FileText size={13} /> Factura
     </button>
   );
 }
+
+// Botón ⋮ de la columna "Acciones" con su menú desplegable.
+// El menú se dibuja fuera de la tabla (con un "portal") para que no lo corte el scroll de la tabla.
+function MenuAccionesOrden({ t, stage, esFinal, onAbrir }) {
+  const [abierto, setAbierto] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const botonRef = useRef(null);
+  const menuRef = useRef(null);
+  const inputFotosRef = useRef(null);
+
+  const ANCHO = 190;
+  const ALTO = 300;
+
+  function abrir(e) {
+    e.stopPropagation();
+    if (abierto) { setAbierto(false); return; }
+    const r = botonRef.current.getBoundingClientRect();
+    const haciaArriba = r.bottom + ALTO > window.innerHeight - 8;
+    setPos({
+      top: haciaArriba ? Math.max(8, r.top - ALTO - 4) : r.bottom + 4,
+      left: Math.max(8, Math.min(r.right - ANCHO, window.innerWidth - ANCHO - 8)),
+    });
+    setAbierto(true);
+  }
+
+  useEffect(() => {
+    if (!abierto) return;
+    function cerrarSiFuera(e) {
+      if (menuRef.current?.contains(e.target) || botonRef.current?.contains(e.target)) return;
+      setAbierto(false);
+    }
+    function cerrar() { setAbierto(false); }
+    function tecla(e) { if (e.key === "Escape") setAbierto(false); }
+    document.addEventListener("mousedown", cerrarSiFuera);
+    document.addEventListener("keydown", tecla);
+    window.addEventListener("scroll", cerrar, true);
+    window.addEventListener("resize", cerrar);
+    return () => {
+      document.removeEventListener("mousedown", cerrarSiFuera);
+      document.removeEventListener("keydown", tecla);
+      window.removeEventListener("scroll", cerrar, true);
+      window.removeEventListener("resize", cerrar);
+    };
+  }, [abierto]);
+
+  const enlace = enlaceWhatsApp(t, stage);
+
+  const opciones = [
+    { icono: Eye, texto: "Ver orden", accion: () => onAbrir(t) },
+    { icono: Pencil, texto: "Editar", accion: () => onAbrir(t) },
+    { icono: MessageSquare, texto: "WhatsApp", accion: () => window.open(enlace, "_blank", "noreferrer"), desactivada: !enlace, motivo: "El cliente no tiene teléfono" },
+    { icono: FileText, texto: "Factura", accion: () => abrirFacturaDe(t, onAbrir), desactivada: !esFinal, motivo: "Solo cuando está entregada o completada" },
+    { icono: Printer, texto: "Imprimir etiqueta", accion: () => imprimirEtiquetaDe(t) },
+    { icono: Paperclip, texto: "Adjuntar fotos", accion: () => inputFotosRef.current?.click() },
+    { separador: true },
+    { icono: Trash2, texto: "Eliminar", peligro: true, desactivada: true, motivo: "Todavía no disponible" },
+  ];
+
+  return (
+    <>
+      <button
+        ref={botonRef}
+        onClick={abrir}
+        title="Acciones"
+        aria-label={`Acciones de la orden #${t.numero_orden}`}
+        aria-expanded={abierto}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, margin: "0 auto", borderRadius: 999, border: `1px solid ${COLORS.line}`, background: abierto ? COLORS.surfaceRaised : COLORS.surface, color: COLORS.text, cursor: "pointer" }}
+      >
+        <MoreVertical size={16} />
+      </button>
+      <input
+        ref={inputFotosRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: "none" }}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => { const archivos = e.target.files; subirFotosDe(t, archivos).finally(() => { e.target.value = ""; }); }}
+      />
+      {abierto && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: ANCHO, zIndex: 200, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(15,23,42,0.18)", padding: 6 }}
+        >
+          {opciones.map((o, i) => {
+            if (o.separador) return <div key={`sep-${i}`} style={{ height: 1, background: COLORS.line, margin: "4px 2px" }} />;
+            const Icono = o.icono;
+            const color = o.desactivada ? COLORS.textDim : o.peligro ? COLORS.rust : COLORS.text;
+            return (
+              <button
+                key={o.texto}
+                role="menuitem"
+                disabled={o.desactivada}
+                title={o.desactivada ? o.motivo : undefined}
+                onClick={() => { setAbierto(false); o.accion?.(); }}
+                className="fn-menu-accion"
+                style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px 10px", border: "none", borderRadius: 7, background: "none", color, opacity: o.desactivada ? 0.5 : 1, fontSize: 12.5, textAlign: "left", cursor: o.desactivada ? "not-allowed" : "pointer" }}
+              >
+                <Icono size={14} /> {o.texto}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+function diasDesde(fecha) {
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Cabecera de cada bloque: icono verde, título, subtítulo y el contador de órdenes a la derecha.
+function CabeceraBloqueOrdenes({ icono: Icono, titulo, subtitulo, total, iconoContador: IconoContador, fondo }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", background: fondo, borderBottom: `1px solid ${COLORS.line}`, flexWrap: "wrap" }}>
+      <div style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #22C55E, #10B981)", color: "#FFFFFF", boxShadow: "0 4px 10px rgba(16,185,129,0.3)" }}>
+        <Icono size={21} />
+      </div>
+      <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.text }}>{titulo}</div>
+        <div style={{ fontSize: 12.5, color: COLORS.textDim, marginTop: 2 }}>{subtitulo}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 999, background: `${COLORS.amber}14`, color: COLORS.amber, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+        <IconoContador size={15} /> {total} {total === 1 ? "orden" : "órdenes"}
+      </div>
+    </div>
+  );
+}
+
+// La tabla en sí. La usan los dos bloques; cada uno le pasa sus filas ya filtradas y ordenadas.
+function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, maxAlto, mensajeVacio }) {
+  const columnas = [
+    { texto: "# Orden", icono: null },
+    { texto: "Fecha", icono: Calendar },
+    { texto: "Cliente / Equipo", icono: User },
+    { texto: "Tipo", icono: Tag },
+    { texto: "Días", icono: Clock },
+    { texto: "Estado", icono: CircleDot },
+    { texto: "WhatsApp", icono: MessageSquare },
+    { texto: "", icono: null },
+    { texto: "Acciones", icono: MoreVertical, centrado: true },
+  ];
+
+  return (
+    <div style={{ maxHeight: maxAlto, overflow: "auto" }}>
+      <table style={{ width: "100%", minWidth: 1020, borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: 92 }} />
+          <col style={{ width: 92 }} />
+          <col style={{ width: "auto" }} />
+          <col style={{ width: 86 }} />
+          <col style={{ width: 98 }} />
+          <col style={{ width: 172 }} />
+          <col style={{ width: 128 }} />
+          <col style={{ width: 104 }} />
+          <col style={{ width: 100 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            {columnas.map((c, i) => {
+              const Icono = c.icono;
+              return (
+                <th key={i} style={{ ...estiloTh, paddingLeft: i === 0 ? 16 : 8, textAlign: c.centrado ? "center" : "left" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {Icono && <Icono size={14} color={COLORS.slate} />}{c.texto}
+                  </span>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {filas.length === 0 && (
+            <tr>
+              <td colSpan={columnas.length} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>{mensajeVacio}</td>
+            </tr>
+          )}
+          {filas.map((t) => {
+            const lista = etapasDe(t);
+            const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
+            const esFinal = ["entregado", "completado"].includes(t.estado_actual);
+            const dias = diasDesde(t.fecha_recepcion);
+            const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
+            const fecha = t.fecha_recepcion ? new Date(t.fecha_recepcion) : null;
+            const anio = fecha ? fecha.getFullYear() : "";
+            const diaMes = fecha ? `${String(fecha.getDate()).padStart(2, "0")}/${String(fecha.getMonth() + 1).padStart(2, "0")}` : "—";
+            const domicilio = t.tipo_trabajo === "domicilio";
+            const retrasada = dias >= 5;
+            return (
+              <tr
+                key={t.id}
+                className="fn-fila-tabla"
+                onClick={() => onAbrir(t)}
+                onMouseEnter={() => onHover?.(t)}
+                onMouseLeave={() => onHover?.(null)}
+                style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
+              >
+                <td style={{ padding: "10px 8px 10px 12px", borderLeft: `4px solid ${stage.accent}` }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, background: "#EEF2F8", color: COLORS.text, fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
+                    {t.urgente && <Flame size={12} color={COLORS.rust} />}#{numero}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Calendar size={16} color={COLORS.slate} style={{ flexShrink: 0 }} />
+                    <div style={{ lineHeight: 1.25 }}>
+                      <div style={{ fontSize: 10.5, color: COLORS.textDim }}>{anio}</div>
+                      <div style={{ fontSize: 12, color: COLORS.text, fontWeight: 600 }}>{diaMes}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: "10px 8px", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E8EEF8", color: COLORS.sidebarBg }}>
+                      <User size={15} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: COLORS.text, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
+                      <div style={{ color: COLORS.textDim, fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.equipo}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, color: domicilio ? COLORS.amber : COLORS.slate, background: domicilio ? `${COLORS.amber}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 12px", whiteSpace: "nowrap" }}>
+                    {domicilio ? "In Situ" : "Taller"}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: retrasada ? COLORS.rust : COLORS.textDim, background: retrasada ? `${COLORS.rust}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 10px", whiteSpace: "nowrap" }}>
+                    <Clock size={12} /> {dias} {dias === 1 ? "día" : "días"}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: COLORS.text, background: `${stage.accent}1A`, borderRadius: 999, padding: "5px 11px", whiteSpace: "nowrap", maxWidth: "100%", boxSizing: "border-box" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: stage.accent, flexShrink: 0 }} />
+                    {stage.label}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <CeldaWhatsApp t={t} stage={stage} />
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
+                </td>
+                <td style={{ padding: "10px 8px" }}>
+                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const estiloBloqueOrdenes = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" };
 
 function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
   const hoy = new Date().toDateString();
@@ -271,82 +583,17 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
 
   if (filas.length === 0) return null;
 
-  function diasDesde(fecha) {
-    return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
-  }
-
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Órdenes activas</div>
-      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginBottom: 10 }}>Lo más urgente o antiguo entre todo lo activo, con acción rápida sin abrir la ficha — sin repetir lo que ya ves en el tablero de abajo.</div>
-      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ maxHeight: 360, overflowY: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
-          <colgroup>
-            <col style={{ width: 60 }} />
-            <col style={{ width: "auto" }} />
-            <col style={{ width: 62 }} />
-            <col style={{ width: 46 }} />
-            <col style={{ width: 92 }} />
-            <col style={{ width: 86 }} />
-            <col style={{ width: 74 }} />
-          </colgroup>
-          <thead>
-            <tr style={{ background: COLORS.sidebarBg, textAlign: "left" }}>
-              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
-                <th key={c} style={estiloTh}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((t, i) => {
-              const lista = stagesFor(t.tipo_trabajo);
-              const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
-              const esFinal = ["entregado", "completado"].includes(t.estado_actual);
-              const dias = diasDesde(t.fecha_recepcion);
-              const [anio, numero] = (t.numero_orden || "").split("-");
-              return (
-                <tr
-                  key={t.id}
-                  className="fn-fila-tabla"
-                  onClick={() => onAbrir(t)}
-                  onMouseEnter={() => onHover?.(t)}
-                  onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
-                >
-                  <td style={{ padding: "8px 6px 8px 8px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25, borderLeft: `3px solid ${stage.accent}` }}>
-                    {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
-                    <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
-                    <div>#{numero}</div>
-                  </td>
-                  <td style={{ padding: "8px 6px", overflow: "hidden" }}>
-                    <div style={{ color: COLORS.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
-                    <div style={{ color: COLORS.textDim, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.equipo}</div>
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "2px 6px", whiteSpace: "nowrap" }}>
-                      {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 6px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400 }}>{dias}d</td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "3px 7px", whiteSpace: "nowrap", display: "inline-block" }}>
-                      {stage.label}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <CeldaWhatsApp t={t} stage={stage} />
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
-                  </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div style={{ ...estiloBloqueOrdenes, marginBottom: 20 }}>
+      <CabeceraBloqueOrdenes
+        icono={Calendar}
+        titulo="Tablero de órdenes - Pendientes / En curso"
+        subtitulo="Aquí puedes ver las órdenes activas y su estado actual."
+        total={filas.length}
+        iconoContador={Clock}
+        fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
+      />
+      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} maxAlto={420} mensajeVacio="" />
     </div>
   );
 }
@@ -355,86 +602,21 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
   const etapas = stagesFor(tipoTrabajo);
   const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
 
-  function diasDesde(fecha) {
-    return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
-  }
-
   const filas = [...reparaciones].sort(
     (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
   );
 
   return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ maxHeight: 500, overflowY: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
-          <colgroup>
-            <col style={{ width: 60 }} />
-            <col style={{ width: "auto" }} />
-            <col style={{ width: 62 }} />
-            <col style={{ width: 46 }} />
-            <col style={{ width: 92 }} />
-            <col style={{ width: 86 }} />
-            <col style={{ width: 74 }} />
-          </colgroup>
-          <thead>
-            <tr style={{ background: COLORS.sidebarBg, textAlign: "left" }}>
-              {["Orden", "Cliente / Equipo", "Tipo", "Días", "Estado", "WhatsApp", "Factura"].map((c) => (
-                <th key={c} style={estiloTh}>{c}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {!cargando && filas.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ padding: "20px 12px", textAlign: "center", fontSize: 12, color: COLORS.textDim }}>Sin equipos aquí.</td>
-              </tr>
-            )}
-            {filas.map((t, i) => {
-              const stage = etapas.find((s) => s.key === t.estado_actual) || etapas[0];
-              const esFinal = ["entregado", "completado"].includes(t.estado_actual);
-              const dias = diasDesde(t.fecha_recepcion);
-              const [anio, numero] = (t.numero_orden || "").split("-");
-              return (
-                <tr
-                  key={t.id}
-                  className="fn-fila-tabla"
-                  onClick={() => onAbrir(t)}
-                  onMouseEnter={() => onHover?.(t)}
-                  onMouseLeave={() => onHover?.(null)}
-                  style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
-                >
-                  <td style={{ padding: "8px 6px 8px 8px", fontWeight: 700, color: COLORS.text, lineHeight: 1.25, borderLeft: `3px solid ${stage.accent}` }}>
-                    {t.urgente && <Flame size={10} color={COLORS.rust} style={{ marginRight: 2, verticalAlign: -1 }} />}
-                    <div style={{ fontSize: 9.5, color: COLORS.textDim, fontWeight: 500 }}>{anio}</div>
-                    <div>#{numero}</div>
-                  </td>
-                  <td style={{ padding: "8px 6px", overflow: "hidden" }}>
-                    <div style={{ color: COLORS.text, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.cliente?.nombre}</div>
-                    <div style={{ color: COLORS.textDim, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.equipo}</div>
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 600, color: t.tipo_trabajo === "domicilio" ? COLORS.statusBlue : COLORS.textDim, background: t.tipo_trabajo === "domicilio" ? `${COLORS.statusBlue}18` : COLORS.surfaceRaised, borderRadius: 999, padding: "2px 6px", whiteSpace: "nowrap" }}>
-                      {t.tipo_trabajo === "domicilio" ? "In-Situ" : "Taller"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 6px", color: dias >= 5 ? COLORS.rust : COLORS.textDim, fontWeight: dias >= 5 ? 700 : 400 }}>{dias}d</td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: stage.accent, background: `${stage.accent}18`, borderRadius: 999, padding: "3px 7px", whiteSpace: "nowrap", display: "inline-block" }}>
-                      {stage.label}
-                    </span>
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <CeldaWhatsApp t={t} stage={stage} />
-                  </td>
-                  <td style={{ padding: "8px 6px" }}>
-                    <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div style={estiloBloqueOrdenes}>
+      <CabeceraBloqueOrdenes
+        icono={Check}
+        titulo="Tablero completo"
+        subtitulo="Todas las órdenes del sistema, con su estado actual."
+        total={filas.length}
+        iconoContador={Layers}
+        fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
+      />
+      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} maxAlto={520} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
     </div>
   );
 }
@@ -6104,6 +6286,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-fila-tabla {
           transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
+        .fn-menu-accion:not(:disabled):hover { background: ${COLORS.surfaceRaised} !important; }
         .fn-fila-tabla:hover {
           background-color: ${COLORS.amber}14 !important;
           box-shadow: inset 4px 0 0 0 ${COLORS.amber};
@@ -6486,9 +6669,6 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
-              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, marginTop: 24, marginBottom: 10, paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
-                Tablero completo
-              </div>
               <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} cargando={cargando} />
             </div>
 
