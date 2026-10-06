@@ -6117,12 +6117,12 @@ function FirztnetPanel({ onCerrarSesion }) {
       return dias > DIAS_RETRASO;
     }).length;
 
-    const esteMes = HOY.getMonth();
-    const esteAno = HOY.getFullYear();
+    // Tiempo medio: reparaciones entregadas en los últimos 30 días (así no se queda vacío a principio de mes)
+    const hace30Dias = HOY.getTime() - 30 * 24 * 60 * 60 * 1000;
     const completadasEsteMes = reparaciones.filter((r) => {
       if (!r.fecha_recepcion || !r.fecha_entrega) return false;
-      const entrega = new Date(r.fecha_entrega);
-      return entrega.getMonth() === esteMes && entrega.getFullYear() === esteAno;
+      const entrega = new Date(r.fecha_entrega).getTime();
+      return entrega >= hace30Dias && entrega <= HOY.getTime();
     });
     let tiempoMedioDias = null;
     if (completadasEsteMes.length > 0) {
@@ -6631,7 +6631,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
             <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
             <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
-            <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="reparación, este mes" icon={Clock} accent={COLORS.violet} />
+            <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="por reparación, últimos 30 días" icon={Clock} accent={COLORS.violet} />
             <StatCard
               alta
               label="Balance de hoy"
