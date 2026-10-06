@@ -686,10 +686,10 @@ const PESTANAS_ORDENES = [
   { key: "entregadas", label: "Facturación" },
 ];
 
-function BarraCabeceraOrdenes({ filtro, onFiltro, vistaTrabajo, onCambiarVista }) {
+function BarraCabeceraOrdenes({ filtro, onFiltro }) {
   const hoy = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }).replace(".", "");
   return (
-    <div className="fn-barra-ordenes" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "linear-gradient(90deg, #0F1B3D, #1B2C5C)", borderRadius: 14, padding: "12px 16px", marginBottom: 22, boxShadow: "0 6px 18px rgba(15,27,61,0.25)" }}>
+    <div className="fn-barra-ordenes" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "linear-gradient(90deg, #0F1B3D, #1B2C5C)", borderRadius: 14, padding: "12px 16px", marginBottom: 16, boxShadow: "0 6px 18px rgba(15,27,61,0.25)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "1 1 260px", minWidth: 0 }}>
         <div style={{ width: 40, height: 40, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.amber, color: "#FFFFFF" }}>
           <Box size={20} />
@@ -715,7 +715,6 @@ function BarraCabeceraOrdenes({ filtro, onFiltro, vistaTrabajo, onCambiarVista }
           );
         })}
       </div>
-      <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={onCambiarVista} />
       <div className="fn-barra-fecha" style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 14, borderLeft: "1px solid rgba(255,255,255,0.18)", color: "#FFFFFF", fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap" }}>
         <Calendar size={17} /> {hoy}
       </div>
@@ -6579,10 +6578,6 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
           </div>
           <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
-          {vista === "reparaciones" && (
-            <BarraCabeceraOrdenes filtro={filtroEstadoResumen} onFiltro={setFiltroEstadoResumen} vistaTrabajo={vistaTrabajo} onCambiarVista={setVistaTrabajo} />
-          )}
-          {vista !== "reparaciones" && (
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
@@ -6603,9 +6598,16 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
+              {vista === "reparaciones" && (
+                <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
+              )}
             </div>
+            {vista === "reparaciones" && (
+              <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
+              </div>
+            )}
           </div>
-          )}
 
           {errorCarga && (
             <div style={{ background: "#FEF2F2", border: `1px solid ${COLORS.rust}`, color: "#991B1B", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
@@ -6720,6 +6722,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           </div>
           <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
+              <BarraCabeceraOrdenes filtro={filtroEstadoResumen} onFiltro={setFiltroEstadoResumen} />
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
 
               <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} cargando={cargando} />
