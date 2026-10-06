@@ -6324,6 +6324,9 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-fila-tabla {
           transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
+        /* Página sin barra de desplazamiento a la vista (se sigue bajando con la rueda o el dedo) */
+        html, body { scrollbar-width: none; -ms-overflow-style: none; }
+        html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
         .fn-sin-barra { scrollbar-width: none; -ms-overflow-style: none; }
         .fn-sin-barra::-webkit-scrollbar { display: none; }
         .fn-menu-accion:not(:disabled):hover { background: ${COLORS.surfaceRaised} !important; }
