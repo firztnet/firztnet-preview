@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers
+  PhoneOff, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, Box
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import {
@@ -674,6 +674,54 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
 // dentro de una tarjeta estrecha (la letra monoespaciada mide ~0,6 veces su tamaño por carácter).
 const fmtEur = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
 const tamDinero = (texto) => Math.min(24, Math.floor(125 / (String(texto).length * 0.6)));
+
+// -------------------- Cabecera azul de la pantalla de reparaciones --------------------
+// Pestañas: Todos / En curso / Completados (todo lo cerrado: entregado, completado o no reparable)
+// / Facturación (solo lo entregado o completado, que es lo que se factura).
+// Usan el mismo filtro que las tarjetas de resumen, así que pestañas y tarjetas van siempre a la par.
+const PESTANAS_ORDENES = [
+  { key: null, label: "Todos" },
+  { key: "en_curso", label: "En curso" },
+  { key: "cerradas", label: "Completados" },
+  { key: "entregadas", label: "Facturación" },
+];
+
+function BarraCabeceraOrdenes({ filtro, onFiltro, vistaTrabajo, onCambiarVista }) {
+  const hoy = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }).replace(".", "");
+  return (
+    <div className="fn-barra-ordenes" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", background: "linear-gradient(90deg, #0F1B3D, #1B2C5C)", borderRadius: 14, padding: "12px 16px", marginBottom: 22, boxShadow: "0 6px 18px rgba(15,27,61,0.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "1 1 260px", minWidth: 0 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.amber, color: "#FFFFFF" }}>
+          <Box size={20} />
+        </div>
+        <h1 style={{ margin: 0, fontSize: 21, fontWeight: 800, color: "#FFFFFF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          Órdenes / Clientes / Equipo
+        </h1>
+      </div>
+      <div className="fn-barra-pestanas" style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+        {PESTANAS_ORDENES.map((p) => {
+          const activa = filtro === p.key;
+          return (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => onFiltro(p.key)}
+              aria-pressed={activa}
+              className={activa ? undefined : "fn-pestana-ordenes"}
+              style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: activa ? COLORS.amber : "transparent", color: "#FFFFFF", fontSize: 13.5, fontWeight: activa ? 700 : 500, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={onCambiarVista} />
+      <div className="fn-barra-fecha" style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 14, borderLeft: "1px solid rgba(255,255,255,0.18)", color: "#FFFFFF", fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap" }}>
+        <Calendar size={17} /> {hoy}
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor, clase }) {
   const [hover, setHover] = useState(false);
@@ -6208,6 +6256,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       if (filtroEstadoResumen === "en_curso" && ["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
       if (filtroEstadoResumen === "entregadas" && !["entregado", "completado"].includes(t.estado_actual)) return false;
       if (filtroEstadoResumen === "no_reparables" && t.estado_actual !== "no_reparable") return false;
+      if (filtroEstadoResumen === "cerradas" && !["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
       if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
       return true;
     });
@@ -6285,6 +6334,13 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
         .fn-fila-tabla {
           transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .fn-pestana-ordenes:hover { background: rgba(255,255,255,0.12) !important; }
+        @media (max-width: 768px) {
+          .fn-barra-ordenes h1 { font-size: 17px !important; }
+          .fn-barra-pestanas { width: 100%; }
+          .fn-barra-pestanas button { flex: 1 1 auto; padding: 8px 10px !important; }
+          .fn-barra-fecha { border-left: none !important; padding-left: 0 !important; }
         }
         .fn-menu-accion:not(:disabled):hover { background: ${COLORS.surfaceRaised} !important; }
         .fn-fila-tabla:hover {
@@ -6523,6 +6579,10 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
           </div>
           <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
+          {vista === "reparaciones" && (
+            <BarraCabeceraOrdenes filtro={filtroEstadoResumen} onFiltro={setFiltroEstadoResumen} vistaTrabajo={vistaTrabajo} onCambiarVista={setVistaTrabajo} />
+          )}
+          {vista !== "reparaciones" && (
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
@@ -6543,16 +6603,9 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
-              {vista === "reparaciones" && (
-                <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
-              )}
             </div>
-            {vista === "reparaciones" && (
-              <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
-              </div>
-            )}
           </div>
+          )}
 
           {errorCarga && (
             <div style={{ background: "#FEF2F2", border: `1px solid ${COLORS.rust}`, color: "#991B1B", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
