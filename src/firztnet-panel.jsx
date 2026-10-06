@@ -186,13 +186,13 @@ function iniciales(nombre) {
   return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase();
 }
 
-// Cabecera de las tablas de órdenes: fondo claro, letras oscuras en negrita y un icono por columna.
+// Cabecera de las tablas de órdenes: fondo azul, letras blancas en negrita y un icono por columna.
 // Es "pegajosa" al hacer scroll; la línea de abajo va con sombra interior porque los bordes no se pegan con ella.
 const estiloTh = {
-  padding: "12px 8px", fontSize: 12, fontWeight: 700, color: COLORS.text,
+  padding: "12px 8px", fontSize: 12, fontWeight: 700, color: "#FFFFFF",
   whiteSpace: "nowrap", textAlign: "left",
   position: "sticky", top: 0, zIndex: 1,
-  background: "#F8FAFD", boxShadow: `inset 0 -1px 0 ${COLORS.line}`,
+  background: COLORS.amber, boxShadow: "inset 0 -1px 0 rgba(255,255,255,0.15)",
 };
 
 // Logo de WhatsApp (los iconos de lucide no incluyen marcas)
@@ -478,7 +478,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, maxAlto, mensajeVacio
               return (
                 <th key={i} style={{ ...estiloTh, paddingLeft: i === 0 ? 16 : 8, textAlign: c.centrado ? "center" : "left" }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {Icono && <Icono size={14} color={COLORS.slate} />}{c.texto}
+                    {Icono && <Icono size={14} color="#FFFFFF" />}{c.texto}
                   </span>
                 </th>
               );
