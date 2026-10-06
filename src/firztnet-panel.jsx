@@ -444,7 +444,40 @@ function CabeceraBloqueOrdenes({ icono: Icono, titulo, subtitulo, total, iconoCo
 }
 
 // La tabla en sí. La usan los dos bloques; cada uno le pasa sus filas ya filtradas y ordenadas.
-function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, maxAlto, mensajeVacio }) {
+// Solo se ven `filasVisibles` órdenes a la vez; las demás aparecen al girar la rueda del ratón
+// (o deslizando el dedo en el móvil). La barra de desplazamiento está oculta a propósito, y cuando
+// quedan más órdenes por debajo se ve un ligero degradado al pie de la tabla como pista.
+function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, mensajeVacio, filasVisibles = 6 }) {
+  const cajaRef = useRef(null);
+  const [alto, setAlto] = useState(undefined);
+  const [quedanMas, setQuedanMas] = useState(false);
+
+  const comprobarSiQuedanMas = useCallback(() => {
+    const caja = cajaRef.current;
+    if (!caja) return;
+    setQuedanMas(caja.scrollTop + caja.clientHeight < caja.scrollHeight - 2);
+  }, []);
+
+  // Mide la cabecera + las primeras filas para que la caja tenga justo ese alto.
+  React.useLayoutEffect(() => {
+    function medir() {
+      const caja = cajaRef.current;
+      if (!caja) return;
+      const filasDom = caja.querySelectorAll("tbody tr");
+      if (filasDom.length <= filasVisibles) {
+        setAlto(undefined);
+      } else {
+        const arriba = caja.querySelector("table").getBoundingClientRect().top;
+        const abajo = filasDom[filasVisibles - 1].getBoundingClientRect().bottom;
+        setAlto(Math.ceil(abajo - arriba));
+      }
+      requestAnimationFrame(comprobarSiQuedanMas);
+    }
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [filas, filasVisibles, comprobarSiQuedanMas]);
+
   const columnas = [
     { texto: "# Orden", icono: null },
     { texto: "Fecha", icono: Calendar },
@@ -458,7 +491,8 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, maxAlto, mensajeVacio
   ];
 
   return (
-    <div style={{ maxHeight: maxAlto, overflow: "auto" }}>
+    <div style={{ position: "relative" }}>
+    <div ref={cajaRef} className="fn-sin-barra" onScroll={comprobarSiQuedanMas} style={{ maxHeight: alto, overflow: "auto", overscrollBehaviorY: "auto" }}>
       <table style={{ width: "100%", minWidth: 1020, borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: 92 }} />
@@ -566,6 +600,10 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, maxAlto, mensajeVacio
           })}
         </tbody>
       </table>
+    </div>
+    {quedanMas && (
+      <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.95))" }} />
+    )}
     </div>
   );
 }
@@ -6286,6 +6324,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-fila-tabla {
           transition: background-color 0.15s ease, box-shadow 0.15s ease;
         }
+        .fn-sin-barra { scrollbar-width: none; -ms-overflow-style: none; }
+        .fn-sin-barra::-webkit-scrollbar { display: none; }
         .fn-menu-accion:not(:disabled):hover { background: ${COLORS.surfaceRaised} !important; }
         .fn-fila-tabla:hover {
           background-color: ${COLORS.amber}14 !important;
