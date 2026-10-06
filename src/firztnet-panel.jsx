@@ -593,7 +593,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
         iconoContador={Clock}
         fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
       />
-      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} maxAlto={420} mensajeVacio="" />
+      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} mensajeVacio="" />
     </div>
   );
 }
