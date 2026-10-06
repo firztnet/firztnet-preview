@@ -6133,6 +6133,7 @@ function FirztnetPanel({ onCerrarSesion }) {
     return { retrasadas, tiempoMedioDias };
   }, [reparaciones]);
 
+  const [numClientes, setNumClientes] = useState(null); // tarjeta "Clientes" (sin los eliminados por RGPD)
   const cargarTodo = useCallback(async () => {
     setErrorCarga("");
     try {
@@ -6148,6 +6149,11 @@ function FirztnetPanel({ onCerrarSesion }) {
       setReporteDiario(diario);
       setReporteMensual(mensual);
       setTendencia(tend);
+      // Tarjeta "Clientes": cuenta todos menos los eliminados por el derecho al olvido (RGPD).
+      // Va aparte para que, si fallara, no impida cargar el resto del panel.
+      apiGet("/clientes")
+        .then((lista) => setNumClientes(lista.filter((c) => !(c.nombre || "").startsWith("Cliente eliminado (RGPD")).length))
+        .catch(() => setNumClientes(null));
     } catch (e) {
       setErrorCarga("No se pudo conectar con el backend (" + API_BASE + "). ¿Está corriendo `python run.py`?");
     } finally {
@@ -6629,7 +6635,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
             <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
-            <StatCard alta label="No reparables" value={contador.no_reparables} icon={TriangleAlert} accent={COLORS.statusAmber} onClick={() => setFiltroEstadoResumen((v) => (v === "no_reparables" ? null : "no_reparables"))} activa={filtroEstadoResumen === "no_reparables"} />
+            <StatCard alta label="Clientes" value={numClientes ?? "—"} sub="sin contar los eliminados" icon={Users} accent={COLORS.statusAmber} onClick={() => setVista("clientes")} />
             <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
             <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="por reparación, últimos 30 días" icon={Clock} accent={COLORS.violet} />
             <StatCard
