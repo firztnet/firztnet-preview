@@ -123,6 +123,12 @@ function nombreUsuarioDelToken() {
     return "Admin";
   }
 }
+// Fecha de hoy (AAAA-MM-DD) en la hora de este ordenador, no en hora universal:
+// con toISOString(), entre las 00:00 y las 02:00 de Madrid salía todavía "ayer".
+function hoyLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function cabecerasAuth(extra = {}) {
   return authToken ? { ...extra, Authorization: `Bearer ${authToken}` } : extra;
 }
@@ -202,6 +208,45 @@ function IconoWhatsApp({ size = 16 }) {
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
       <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.852L0 24l6.335-1.611A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.003-1.37l-.36-.213-3.76.956.996-3.671-.234-.377A9.78 9.78 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182c5.43 0 9.818 4.388 9.818 9.818 0 5.43-4.388 9.818-9.818 9.818z" />
     </svg>
+  );
+}
+
+// -------------------- Miniatura de foto de una reparación --------------------
+// El servidor exige la sesión para ver cada foto, pero una <img> normal no la manda
+// (por eso antes salían rotas). Aquí se descarga la foto con la sesión y se enseña.
+// Al pulsarla se abre en grande en otra pestaña.
+function FotoConSesion({ fotoId }) {
+  const [url, setUrl] = useState(null);
+  const [fallo, setFallo] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    let urlCreada = null;
+    fetch(`${API_BASE}/fotos/${fotoId}/archivo`, { headers: cabecerasAuth() })
+      .then((res) => {
+        manejar401(res);
+        if (!res.ok) throw new Error("no disponible");
+        return res.blob();
+      })
+      .then((blob) => {
+        urlCreada = URL.createObjectURL(blob);
+        if (cancelado) URL.revokeObjectURL(urlCreada);
+        else setUrl(urlCreada);
+      })
+      .catch(() => { if (!cancelado) setFallo(true); });
+    return () => {
+      cancelado = true;
+      if (urlCreada) URL.revokeObjectURL(urlCreada);
+    };
+  }, [fotoId]);
+
+  const caja = { width: 70, height: 70, borderRadius: 8, border: `1px solid ${COLORS.line}`, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceRaised, color: COLORS.textDim, fontSize: 10, textAlign: "center" };
+  if (fallo) return <div style={caja}>Foto no disponible</div>;
+  if (!url) return <div style={caja}>Cargando…</div>;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title="Ver en grande">
+      <img src={url} alt="Foto de recepción" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: `1px solid ${COLORS.line}`, display: "block" }} />
+    </a>
   );
 }
 
@@ -311,9 +356,45 @@ function CeldaFactura({ t, esFinal, onAbrir }) {
   );
 }
 
+// Borra la orden (después de pedir que se escriba su número, para evitar sustos).
+// El servidor no deja borrar una orden con factura o con cobros, y explica por qué.
+async function eliminarOrdenDe(t, onEliminada) {
+  const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
+  const escrito = window.prompt(
+    `Vas a BORRAR PARA SIEMPRE la orden #${numero} (${t.cliente?.nombre || "sin cliente"} — ${t.equipo || ""}).\n\n` +
+    `Se borrarán también sus fotos, firmas, comprobantes, checklist y recordatorios, y los repuestos que tuviera volverán al stock.\n\n` +
+    `Para confirmar, escribe el número de la orden: ${numero}`
+  );
+  if (escrito === null) return; // pulsó Cancelar
+  if (escrito.trim().replace(/^#/, "") !== numero) {
+    window.alert("El número no coincide. No se ha borrado nada.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/reparaciones/${t.id}`, { method: "DELETE", headers: cabecerasAuth() });
+    manejar401(res);
+    const datos = await res.json().catch(() => ({}));
+    if (res.status === 405) {
+      window.alert("El servidor todavía no tiene la opción de eliminar. Sube primero el archivo nuevo del backend.");
+      return;
+    }
+    if (!res.ok) {
+      window.alert(datos.mensaje || datos.error || "No se pudo eliminar la orden.");
+      return;
+    }
+    window.alert(
+      `Orden #${numero} eliminada.` +
+      (datos.repuestos_devueltos ? ` Se devolvieron ${datos.repuestos_devueltos} repuesto(s) al stock.` : "")
+    );
+    onEliminada?.();
+  } catch (e) {
+    window.alert(`No se pudo eliminar: ${e.message}`);
+  }
+}
+
 // Botón ⋮ de la columna "Acciones" con su menú desplegable.
 // El menú se dibuja fuera de la tabla (con un "portal") para que no lo corte el scroll de la tabla.
-function MenuAccionesOrden({ t, stage, esFinal, onAbrir }) {
+function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onEliminada }) {
   const [abierto, setAbierto] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const botonRef = useRef(null);
@@ -365,7 +446,7 @@ function MenuAccionesOrden({ t, stage, esFinal, onAbrir }) {
     { icono: Printer, texto: "Imprimir etiqueta", accion: () => imprimirEtiquetaDe(t) },
     { icono: Paperclip, texto: "Adjuntar fotos", accion: () => inputFotosRef.current?.click() },
     { separador: true },
-    { icono: Trash2, texto: "Eliminar", peligro: true, desactivada: true, motivo: "Todavía no disponible" },
+    { icono: Trash2, texto: "Eliminar", peligro: true, accion: () => eliminarOrdenDe(t, onEliminada) },
   ];
 
   return (
@@ -447,7 +528,7 @@ function CabeceraBloqueOrdenes({ icono: Icono, titulo, subtitulo, total, iconoCo
 // Solo se ven `filasVisibles` órdenes a la vez; las demás aparecen al girar la rueda del ratón
 // (o deslizando el dedo en el móvil). La barra de desplazamiento está oculta a propósito, y cuando
 // quedan más órdenes por debajo se ve un ligero degradado al pie de la tabla como pista.
-function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, mensajeVacio, filasVisibles = 6 }) {
+function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onEliminada, mensajeVacio, filasVisibles = 6 }) {
   const cajaRef = useRef(null);
   const [alto, setAlto] = useState(undefined);
   const [quedanMas, setQuedanMas] = useState(false);
@@ -593,7 +674,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, mensajeVacio, filasVi
                   <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
                 </td>
                 <td style={{ padding: "10px 8px" }}>
-                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} />
+                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onEliminada={onEliminada} />
                 </td>
               </tr>
             );
@@ -610,7 +691,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, mensajeVacio, filasVi
 
 const estiloBloqueOrdenes = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" };
 
-function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
+function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onEliminada }) {
   const hoy = new Date().toDateString();
   const filas = reparaciones
     .filter((r) =>
@@ -631,12 +712,12 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover }) {
         iconoContador={Clock}
         fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
       />
-      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} mensajeVacio="" />
+      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} onEliminada={onEliminada} mensajeVacio="" />
     </div>
   );
 }
 
-function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, cargando }) {
+function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onEliminada, cargando }) {
   const etapas = stagesFor(tipoTrabajo);
   const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
 
@@ -654,7 +735,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, car
         iconoContador={Layers}
         fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
-      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
+      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} onEliminada={onEliminada} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
     </div>
   );
 }
@@ -1977,13 +2058,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {fotos.map((f) => (
                 <div key={f.id} style={{ position: "relative", width: 70, height: 70 }}>
-                  <a href={`${API_BASE}/fotos/${f.id}/archivo`} target="_blank" rel="noreferrer">
-                    <img
-                      src={`${API_BASE}/fotos/${f.id}/archivo`}
-                      alt="Foto de recepción"
-                      style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 8, border: `1px solid ${COLORS.line}`, display: "block" }}
-                    />
-                  </a>
+                  <FotoConSesion fotoId={f.id} />
                   {!esFinal && (
                     <button
                       onClick={() => borrarFoto(f.id)}
@@ -2055,9 +2130,10 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
             </div>
           </div>
 
-          {!cargandoCobros && movimientos.filter((m) => m.tipo === "ingreso").length > 0 && (
+          {!cargandoCobros && movimientos.filter((m) => m.tipo === "ingreso" && !m.anulado && !m.anula_a_id).length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-              {movimientos.filter((m) => m.tipo === "ingreso").map((m) => (
+              {/* Los cobros anulados (y su apunte de corrección) no se listan aquí; se ven en Caja. */}
+              {movimientos.filter((m) => m.tipo === "ingreso" && !m.anulado && !m.anula_a_id).map((m) => (
                 <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: COLORS.textDim, gap: 8 }}>
                   <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.concepto} · {m.metodo_pago}</span>
                   <span style={{ color: COLORS.green, flexShrink: 0 }}>+{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €</span>
@@ -3383,6 +3459,33 @@ function CajaView({ onMovimientoCreado }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [form, setForm] = useState({ tipo: "gasto", concepto: "", monto: "", metodo_pago: "efectivo" });
   const [guardando, setGuardando] = useState(false);
+  const [errorCaja, setErrorCaja] = useState("");
+
+  // Anular un movimiento mal apuntado: no se borra, se compensa con un apunte en negativo.
+  async function anular(m) {
+    const texto = `${m.tipo === "ingreso" ? "cobro" : "gasto"} de ${Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} € (${m.concepto || "sin concepto"})`;
+    const motivo = window.prompt(`Vas a ANULAR el ${texto}.\n\nNo se borra: se añade un apunte que lo compensa y queda constancia.\n\n¿Por qué lo anulas? (por ejemplo: "importe mal escrito")`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { window.alert("Hay que indicar el motivo. No se ha anulado nada."); return; }
+    setErrorCaja("");
+    try {
+      let res = await fetch(`${API_BASE}/finanzas/${m.id}/anular`, { method: "POST", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ motivo }) });
+      manejar401(res);
+      let datos = await res.json().catch(() => ({}));
+      if (res.status === 409 && datos.requiere_confirmacion) {
+        if (!window.confirm(datos.mensaje)) return;
+        res = await fetch(`${API_BASE}/finanzas/${m.id}/anular`, { method: "POST", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ motivo, confirmar: true }) });
+        manejar401(res);
+        datos = await res.json().catch(() => ({}));
+      }
+      if (res.status === 404 || res.status === 405) { setErrorCaja("El servidor todavía no tiene la opción de anular. Sube primero el backend nuevo."); return; }
+      if (!res.ok) { setErrorCaja(datos.mensaje || datos.error || "No se pudo anular."); return; }
+      cargar();
+      onMovimientoCreado?.();
+    } catch (e) {
+      setErrorCaja(`No se pudo anular: ${e.message}`);
+    }
+  }
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -3404,13 +3507,14 @@ function CajaView({ onMovimientoCreado }) {
     if (!form.monto) return;
     setGuardando(true);
     try {
+      setErrorCaja("");
       await apiPost("/finanzas", { ...form, monto: parseFloat(form.monto) });
       setForm({ tipo: "gasto", concepto: "", monto: "", metodo_pago: "efectivo" });
       setMostrarForm(false);
       cargar();
       onMovimientoCreado?.();
     } catch (e) {
-      // silencioso, se puede mejorar con un mensaje visible si hace falta
+      setErrorCaja(e.message);
     } finally {
       setGuardando(false);
     }
@@ -3458,20 +3562,38 @@ function CajaView({ onMovimientoCreado }) {
         </div>
       )}
 
+      {errorCaja && (
+        <div style={{ background: `${COLORS.rust}12`, color: COLORS.rust, border: `1px solid ${COLORS.rust}40`, borderRadius: 10, padding: "10px 14px", fontSize: 12.5, marginBottom: 12 }}>{errorCaja}</div>
+      )}
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, overflow: "hidden" }}>
         {cargando && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Cargando movimientos...</div>}
         {!cargando && movimientos.length === 0 && <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>Sin movimientos registrados todavía.</div>}
-        {movimientos.map((m, i) => (
-          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}` }}>
-            <div>
-              <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{m.concepto || (m.tipo === "ingreso" ? "Ingreso" : "Gasto")}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{fechaLarga(m.fecha)}{m.metodo_pago ? ` · ${m.metodo_pago}` : ""}</div>
+        {movimientos.map((m, i) => {
+          // Signo real en caja: un ingreso suma, un gasto resta; las anulaciones van al revés.
+          const efecto = (m.tipo === "ingreso" ? 1 : -1) * Math.sign(Number(m.monto) || 0);
+          const esCorreccion = !!m.anula_a_id;
+          return (
+            <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${COLORS.line}`, opacity: m.anulado ? 0.6 : 1 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500, textDecoration: m.anulado ? "line-through" : "none" }}>{m.concepto || (m.tipo === "ingreso" ? "Ingreso" : "Gasto")}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{fechaLarga(m.fecha)}{m.metodo_pago ? ` · ${m.metodo_pago}` : ""}</div>
+                {(m.anulado || esCorreccion) && m.motivo_anulacion && (
+                  <div style={{ fontSize: 11, color: COLORS.rust, marginTop: 2 }}>{m.anulado ? "Anulado" : "Corrección"}: {m.motivo_anulacion}</div>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13.5, color: efecto >= 0 ? COLORS.green : COLORS.rust, textDecoration: m.anulado ? "line-through" : "none" }}>
+                  {efecto >= 0 ? "+" : "−"}{Math.abs(Number(m.monto)).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
+                </div>
+                {!m.anulado && !esCorreccion && (
+                  <button type="button" onClick={() => anular(m)} title="Anular este movimiento (queda constancia)" style={{ border: `1px solid ${COLORS.line}`, background: COLORS.surface, color: COLORS.textDim, borderRadius: 7, padding: "4px 9px", fontSize: 11.5, cursor: "pointer" }}>
+                    Anular
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13.5, color: m.tipo === "ingreso" ? COLORS.green : COLORS.rust }}>
-              {m.tipo === "ingreso" ? "+" : "−"}{Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -3656,7 +3778,7 @@ function VentasView() {
   const [importe, setImporte] = useState("");
   const [cobrado, setCobrado] = useState(true);
   const [enlaceNota, setEnlaceNota] = useState("");
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(() => hoyLocalISO());
   const [guardando, setGuardando] = useState(false);
   const [errorForm, setErrorForm] = useState("");
   const [avisoGuardado, setAvisoGuardado] = useState("");
@@ -5460,7 +5582,7 @@ function AjustesView() {
                 const url = URL.createObjectURL(blob);
                 const enlace = document.createElement("a");
                 enlace.href = url;
-                enlace.download = `firztnet_backup_${new Date().toISOString().slice(0, 10)}.zip`;
+                enlace.download = `firztnet_backup_${hoyLocalISO()}.zip`;
                 document.body.appendChild(enlace);
                 enlace.click();
                 enlace.remove();
@@ -6716,9 +6838,9 @@ function FirztnetPanel({ onCerrarSesion }) {
           </div>
           <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} />
+              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onEliminada={cargarTodo} />
 
-              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} cargando={cargando} />
+              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onEliminada={cargarTodo} cargando={cargando} />
             </div>
 
             <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
