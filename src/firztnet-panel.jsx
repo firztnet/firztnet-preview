@@ -264,23 +264,35 @@ function enlaceWhatsApp(t, stage) {
   return `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
 }
 
-// Abre el PDF de la factura de la reparación. Si todavía no tiene factura, abre la ficha para poder generarla.
-async function abrirFacturaDe(t, onAbrir) {
+// Abre en otra pestaña un PDF que pide la sesión (factura, etiqueta...).
+// La pestaña se abre al momento del clic (si no, el navegador la bloquea) y luego se carga.
+async function abrirPdfEnPestana(url, ventana) {
+  const res = await fetch(url, { headers: cabecerasAuth() });
+  manejar401(res);
+  if (!res.ok) throw new Error("No se pudo abrir el PDF");
+  const blob = await res.blob();
+  const enlace = URL.createObjectURL(blob);
+  if (ventana) ventana.location.href = enlace;
+  else window.alert("El navegador ha bloqueado la ventana nueva. Permite las ventanas emergentes para este panel y vuelve a pulsar.");
+}
+
+// Botón "Factura": si la orden ya tiene factura, abre directamente su PDF (la más reciente:
+// si hubo rectificativa, la rectificativa). Si no tiene, devuelve "sin_factura" para que se
+// muestre el diálogo de emitirla, en vez de mandarte a la ficha general.
+async function abrirFacturaDe(t) {
   const ventana = window.open("", "_blank");
   try {
     const facturas = await apiGet(`/facturas/reparacion/${t.id}`);
-    if (facturas.length > 0) {
-      const res = await fetch(`${API_BASE}/facturas/${facturas[0].id}/pdf`, { headers: cabecerasAuth() });
-      manejar401(res);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (ventana) ventana.location.href = url;
-    } else {
+    if (facturas.length === 0) {
       ventana?.close();
-      onAbrir(t);
+      return "sin_factura";
     }
+    await abrirPdfEnPestana(`${API_BASE}/facturas/${facturas[0].id}/pdf`, ventana);
+    return "abierta";
   } catch (err) {
     ventana?.close();
+    window.alert(`No se pudo abrir la factura: ${err.message}`);
+    return "error";
   }
 }
 
@@ -288,13 +300,10 @@ async function abrirFacturaDe(t, onAbrir) {
 async function imprimirEtiquetaDe(t) {
   const ventana = window.open("", "_blank");
   try {
-    const res = await fetch(`${API_BASE}/reparaciones/${t.id}/etiqueta-qr/pdf`, { headers: cabecerasAuth() });
-    manejar401(res);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    if (ventana) ventana.location.href = url;
+    await abrirPdfEnPestana(`${API_BASE}/reparaciones/${t.id}/etiqueta-qr/pdf`, ventana);
   } catch (e) {
     ventana?.close();
+    window.alert(`No se pudo abrir la etiqueta: ${e.message}`);
   }
 }
 
@@ -316,6 +325,243 @@ async function subirFotosDe(t, fileList) {
   } catch (e) {
     window.alert(`No se pudieron adjuntar: ${e.message}`);
   }
+}
+
+// Ventana flotante para los diálogos del menú ⋮. Se dibuja fuera de la tabla y frena
+// los clics para que no abran la ficha de la fila que hay debajo.
+function VentanaDialogo({ titulo, subtitulo, onCerrar, children, ancho = 480 }) {
+  useEffect(() => {
+    function tecla(e) { if (e.key === "Escape") onCerrar(); }
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [onCerrar]);
+  return createPortal(
+    <div
+      onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onCerrar(); }}
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, fontFamily: "Inter, sans-serif" }}
+    >
+      <div role="dialog" aria-modal="true" aria-label={titulo} style={{ width: "100%", maxWidth: ancho, maxHeight: "90vh", overflowY: "auto", background: COLORS.surface, borderRadius: 14, boxShadow: "0 24px 60px rgba(15,23,42,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "16px 18px", borderBottom: `1px solid ${COLORS.line}` }}>
+          <div>
+            <div style={{ fontSize: 15.5, fontWeight: 800, color: COLORS.text }}>{titulo}</div>
+            {subtitulo && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{subtitulo}</div>}
+          </div>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" style={{ border: "none", background: "none", color: COLORS.textDim, cursor: "pointer", padding: 4 }}><X size={18} /></button>
+        </div>
+        <div style={{ padding: 18 }}>{children}</div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// Diálogo cuando la orden todavía no tiene factura: enseña lo cobrado y deja emitirla
+// y abrirla en un paso. Si no hay cobros, lo explica (sin mandarte a otra pantalla).
+function DialogoEmitirFactura({ t, onCerrar, onCambio }) {
+  const [cobrado, setCobrado] = useState(null);
+  const [error, setError] = useState("");
+  const [emitiendo, setEmitiendo] = useState(false);
+  const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
+
+  useEffect(() => {
+    apiGet(`/reparaciones/${t.id}`)
+      .then((d) => setCobrado((d.movimientos || []).filter((m) => m.tipo === "ingreso").reduce((s, m) => s + Number(m.monto), 0)))
+      .catch((e) => setError(e.message));
+  }, [t.id]);
+
+  async function emitir() {
+    const ventana = window.open("", "_blank"); // se abre ya, con el clic, para que no la bloquee el navegador
+    setEmitiendo(true);
+    setError("");
+    try {
+      const factura = await apiPost("/facturas", { reparacion_id: t.id });
+      await abrirPdfEnPestana(`${API_BASE}/facturas/${factura.id}/pdf`, ventana);
+      onCambio?.();
+      onCerrar();
+    } catch (e) {
+      ventana?.close();
+      setError(e.message);
+    } finally {
+      setEmitiendo(false);
+    }
+  }
+
+  const euros = (n) => n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (
+    <VentanaDialogo titulo={`Factura de la orden #${numero}`} subtitulo={`${t.cliente?.nombre || "Sin cliente"} · ${t.equipo || ""}`} onCerrar={onCerrar}>
+      {cobrado === null && !error && <div style={{ fontSize: 13, color: COLORS.textDim }}>Comprobando los cobros…</div>}
+      {cobrado !== null && cobrado <= 0 && (
+        <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
+          Esta orden todavía <strong>no tiene ningún cobro registrado</strong>, así que no se puede facturar. La factura se emite por lo cobrado: registra primero el cobro en la ficha de la orden (apartado <em>Cobro</em>).
+        </div>
+      )}
+      {cobrado !== null && cobrado > 0 && (
+        <div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.5 }}>
+          Esta orden todavía <strong>no tiene factura</strong>. Se emitirá por el total cobrado:
+          <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text, margin: "10px 0 4px" }}>{euros(cobrado)} €</div>
+          <div style={{ fontSize: 11.5, color: COLORS.textDim }}>IVA incluido. Una factura emitida no se puede borrar; si luego hay un error, se corrige con una factura rectificativa.</div>
+        </div>
+      )}
+      {error && <div style={{ marginTop: 12, fontSize: 12.5, color: COLORS.rust, background: `${COLORS.rust}12`, borderRadius: 8, padding: "9px 11px" }}>{error}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+        <button type="button" onClick={onCerrar} style={{ ...btnStyle(COLORS.surface, COLORS.text, COLORS.line), flex: "none", padding: "9px 14px" }}>Cancelar</button>
+        {cobrado !== null && cobrado > 0 && (
+          <button type="button" disabled={emitiendo} onClick={emitir} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+            <FileText size={14} /> {emitiendo ? "Emitiendo…" : "Emitir y abrir factura"}
+          </button>
+        )}
+      </div>
+    </VentanaDialogo>
+  );
+}
+
+// Diálogo "Editar": solo los datos de la orden, ya rellenos, para corregirlos y guardar.
+// Lo demás (estado, cobros, presupuesto, fotos...) tiene su propio sitio en la ficha.
+function DialogoEditarOrden({ t, onCerrar, onCambio }) {
+  const domicilio = t.tipo_trabajo === "domicilio";
+  const inicial = {
+    equipo: t.equipo || "",
+    marca: t.marca || "",
+    modelo: t.modelo || "",
+    categoria: t.categoria || "",
+    direccion_servicio: t.direccion_servicio || "",
+    problema_reportado: t.problema_reportado || "",
+    accesorios_entregados: t.accesorios_entregados || "",
+    estado_entrada: t.estado_entrada || "",
+    tecnico: t.tecnico || "",
+    urgente: !!t.urgente,
+    fecha_estimada: t.fecha_estimada ? t.fecha_estimada.slice(0, 10) : "",
+    wifi_ssid: t.wifi_ssid || "",
+    wifi_password: t.wifi_password || "",
+  };
+  const [form, setForm] = useState(inicial);
+  const [tecnicos, setTecnicos] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
+
+  useEffect(() => {
+    apiGet("/configuracion").then((c) => setTecnicos(c.tecnicos || [])).catch(() => {});
+  }, []);
+
+  const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+
+  async function guardar() {
+    if (!form.equipo.trim()) { setError(domicilio ? "La descripción del servicio no puede quedar vacía." : "El equipo no puede quedar vacío."); return; }
+    // Solo se envía lo que has cambiado
+    const cambios = {};
+    for (const campo of Object.keys(inicial)) {
+      if (form[campo] === inicial[campo]) continue;
+      if (campo === "fecha_estimada") cambios.fecha_estimada = form.fecha_estimada ? new Date(form.fecha_estimada).toISOString() : null;
+      else if (campo === "urgente") cambios.urgente = form.urgente;
+      else cambios[campo] = typeof form[campo] === "string" ? form[campo].trim() : form[campo];
+    }
+    if (Object.keys(cambios).length === 0) { onCerrar(); return; }
+    setGuardando(true);
+    setError("");
+    try {
+      await apiPatch(`/reparaciones/${t.id}`, cambios);
+      onCambio?.();
+      onCerrar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const etiqueta = { fontSize: 11.5, fontWeight: 600, color: COLORS.textDim, marginBottom: 4, display: "block" };
+  const campo = { width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", fontFamily: "inherit", background: COLORS.surface, color: COLORS.text };
+  const fila = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 12 };
+
+  return (
+    <VentanaDialogo titulo={`Editar orden #${numero}`} subtitulo={`${t.cliente?.nombre || "Sin cliente"} · ${domicilio ? "A domicilio" : "Taller"}`} onCerrar={onCerrar} ancho={620}>
+      <div style={{ marginBottom: 12 }}>
+        <label style={etiqueta}>{domicilio ? "Descripción del servicio" : "Equipo"}</label>
+        <input style={campo} value={form.equipo} onChange={set("equipo")} maxLength={120} autoFocus />
+      </div>
+      {domicilio ? (
+        <div style={fila}>
+          <div>
+            <label style={etiqueta}>Tipo de servicio</label>
+            <select style={campo} value={form.categoria} onChange={set("categoria")}>
+              <option value="">— Sin indicar —</option>
+              {CATEGORIAS_DOMICILIO.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              {form.categoria && !CATEGORIAS_DOMICILIO.some((c) => c.key === form.categoria) && <option value={form.categoria}>{form.categoria}</option>}
+            </select>
+          </div>
+          <div>
+            <label style={etiqueta}>Dirección del servicio</label>
+            <input style={campo} value={form.direccion_servicio} onChange={set("direccion_servicio")} maxLength={200} />
+          </div>
+        </div>
+      ) : (
+        <div style={fila}>
+          <div>
+            <label style={etiqueta}>Marca</label>
+            <input style={campo} value={form.marca} onChange={set("marca")} maxLength={60} />
+          </div>
+          <div>
+            <label style={etiqueta}>Modelo</label>
+            <input style={campo} value={form.modelo} onChange={set("modelo")} maxLength={60} />
+          </div>
+        </div>
+      )}
+      <div style={{ marginBottom: 12 }}>
+        <label style={etiqueta}>Problema que indica el cliente</label>
+        <textarea style={{ ...campo, minHeight: 64, resize: "vertical" }} value={form.problema_reportado} onChange={set("problema_reportado")} maxLength={5000} />
+      </div>
+      {!domicilio && (
+        <div style={fila}>
+          <div>
+            <label style={etiqueta}>Accesorios entregados</label>
+            <input style={campo} value={form.accesorios_entregados} onChange={set("accesorios_entregados")} maxLength={255} placeholder="Ej. cargador, funda" />
+          </div>
+          <div>
+            <label style={etiqueta}>Estado al recibirlo</label>
+            <input style={campo} value={form.estado_entrada} onChange={set("estado_entrada")} maxLength={5000} placeholder="Ej. rayón en la tapa" />
+          </div>
+        </div>
+      )}
+      {domicilio && (
+        <div style={fila}>
+          <div>
+            <label style={etiqueta}>Nombre de la WiFi</label>
+            <input style={campo} value={form.wifi_ssid} onChange={set("wifi_ssid")} maxLength={80} />
+          </div>
+          <div>
+            <label style={etiqueta}>Contraseña de la WiFi</label>
+            <input style={campo} value={form.wifi_password} onChange={set("wifi_password")} maxLength={120} />
+          </div>
+        </div>
+      )}
+      <div style={fila}>
+        <div>
+          <label style={etiqueta}>Técnico</label>
+          <select style={campo} value={form.tecnico} onChange={set("tecnico")}>
+            <option value="">— Sin asignar —</option>
+            {tecnicos.map((n) => <option key={n} value={n}>{n}</option>)}
+            {form.tecnico && !tecnicos.includes(form.tecnico) && <option value={form.tecnico}>{form.tecnico}</option>}
+          </select>
+        </div>
+        <div>
+          <label style={etiqueta}>Fecha estimada de entrega</label>
+          <input type="date" style={campo} value={form.fecha_estimada} onChange={set("fecha_estimada")} />
+        </div>
+      </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: COLORS.text, cursor: "pointer" }}>
+        <input type="checkbox" checked={form.urgente} onChange={set("urgente")} /> <Flame size={14} color={COLORS.rust} /> Urgente
+      </label>
+      {error && <div style={{ marginTop: 12, fontSize: 12.5, color: COLORS.rust, background: `${COLORS.rust}12`, borderRadius: 8, padding: "9px 11px" }}>{error}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+        <button type="button" onClick={onCerrar} style={{ ...btnStyle(COLORS.surface, COLORS.text, COLORS.line), flex: "none", padding: "9px 14px" }}>Cancelar</button>
+        <button type="button" disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+          <Pencil size={14} /> {guardando ? "Guardando…" : "Guardar cambios"}
+        </button>
+      </div>
+    </VentanaDialogo>
+  );
 }
 
 // Columna "WhatsApp": botón verde con el texto, o gris si el cliente no tiene teléfono.
@@ -344,21 +590,25 @@ function CeldaWhatsApp({ t, stage }) {
 }
 
 // Columna de factura: solo aparece el botón cuando la reparación está entregada o completada.
-function CeldaFactura({ t, esFinal, onAbrir }) {
+function CeldaFactura({ t, esFinal, onCambio }) {
+  const [dialogo, setDialogo] = useState(false);
   if (!esFinal) return null;
   return (
-    <button
-      onClick={(e) => { e.stopPropagation(); abrirFacturaDe(t, onAbrir); }}
-      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", height: 32, borderRadius: 8, border: "none", background: COLORS.amber, color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-    >
-      <FileText size={13} /> Factura
-    </button>
+    <>
+      <button
+        onClick={async (e) => { e.stopPropagation(); if ((await abrirFacturaDe(t)) === "sin_factura") setDialogo(true); }}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", height: 32, borderRadius: 8, border: "none", background: COLORS.amber, color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+      >
+        <FileText size={13} /> Factura
+      </button>
+      {dialogo && <DialogoEmitirFactura t={t} onCerrar={() => setDialogo(false)} onCambio={onCambio} />}
+    </>
   );
 }
 
 // Borra la orden (después de pedir que se escriba su número, para evitar sustos).
 // El servidor no deja borrar una orden con factura o con cobros, y explica por qué.
-async function eliminarOrdenDe(t, onEliminada) {
+async function eliminarOrdenDe(t, onCambio) {
   const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
   const escrito = window.prompt(
     `Vas a BORRAR PARA SIEMPRE la orden #${numero} (${t.cliente?.nombre || "sin cliente"} — ${t.equipo || ""}).\n\n` +
@@ -386,7 +636,7 @@ async function eliminarOrdenDe(t, onEliminada) {
       `Orden #${numero} eliminada.` +
       (datos.repuestos_devueltos ? ` Se devolvieron ${datos.repuestos_devueltos} repuesto(s) al stock.` : "")
     );
-    onEliminada?.();
+    onCambio?.();
   } catch (e) {
     window.alert(`No se pudo eliminar: ${e.message}`);
   }
@@ -394,12 +644,13 @@ async function eliminarOrdenDe(t, onEliminada) {
 
 // Botón ⋮ de la columna "Acciones" con su menú desplegable.
 // El menú se dibuja fuera de la tabla (con un "portal") para que no lo corte el scroll de la tabla.
-function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onEliminada }) {
+function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onCambio }) {
   const [abierto, setAbierto] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const botonRef = useRef(null);
   const menuRef = useRef(null);
   const inputFotosRef = useRef(null);
+  const [dialogo, setDialogo] = useState(null); // null | "editar" | "factura"
 
   const ANCHO = 190;
   const ALTO = 300;
@@ -440,13 +691,13 @@ function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onEliminada }) {
 
   const opciones = [
     { icono: Eye, texto: "Ver orden", accion: () => onAbrir(t) },
-    { icono: Pencil, texto: "Editar", accion: () => onAbrir(t) },
+    { icono: Pencil, texto: "Editar", accion: () => setDialogo("editar") },
     { icono: MessageSquare, texto: "WhatsApp", accion: () => window.open(enlace, "_blank", "noreferrer"), desactivada: !enlace, motivo: "El cliente no tiene teléfono" },
-    { icono: FileText, texto: "Factura", accion: () => abrirFacturaDe(t, onAbrir), desactivada: !esFinal, motivo: "Solo cuando está entregada o completada" },
+    { icono: FileText, texto: "Factura", accion: async () => { if ((await abrirFacturaDe(t)) === "sin_factura") setDialogo("factura"); }, desactivada: !esFinal, motivo: "Solo cuando está entregada o completada" },
     { icono: Printer, texto: "Imprimir etiqueta", accion: () => imprimirEtiquetaDe(t) },
     { icono: Paperclip, texto: "Adjuntar fotos", accion: () => inputFotosRef.current?.click() },
     { separador: true },
-    { icono: Trash2, texto: "Eliminar", peligro: true, accion: () => eliminarOrdenDe(t, onEliminada) },
+    { icono: Trash2, texto: "Eliminar", peligro: true, accion: () => eliminarOrdenDe(t, onCambio) },
   ];
 
   return (
@@ -475,7 +726,7 @@ function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onEliminada }) {
           ref={menuRef}
           role="menu"
           onClick={(e) => e.stopPropagation()}
-          style={{ position: "fixed", top: pos.top, left: pos.left, width: ANCHO, zIndex: 200, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(15,23,42,0.18)", padding: 6 }}
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: ANCHO, zIndex: 200, fontFamily: "Inter, sans-serif", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 32px rgba(15,23,42,0.18)", padding: 6 }}
         >
           {opciones.map((o, i) => {
             if (o.separador) return <div key={`sep-${i}`} style={{ height: 1, background: COLORS.line, margin: "4px 2px" }} />;
@@ -498,6 +749,8 @@ function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onEliminada }) {
         </div>,
         document.body
       )}
+      {dialogo === "editar" && <DialogoEditarOrden t={t} onCerrar={() => setDialogo(null)} onCambio={onCambio} />}
+      {dialogo === "factura" && <DialogoEmitirFactura t={t} onCerrar={() => setDialogo(null)} onCambio={onCambio} />}
     </>
   );
 }
@@ -528,7 +781,7 @@ function CabeceraBloqueOrdenes({ icono: Icono, titulo, subtitulo, total, iconoCo
 // Solo se ven `filasVisibles` órdenes a la vez; las demás aparecen al girar la rueda del ratón
 // (o deslizando el dedo en el móvil). La barra de desplazamiento está oculta a propósito, y cuando
 // quedan más órdenes por debajo se ve un ligero degradado al pie de la tabla como pista.
-function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onEliminada, mensajeVacio, filasVisibles = 6 }) {
+function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVacio, filasVisibles = 6 }) {
   const cajaRef = useRef(null);
   const [alto, setAlto] = useState(undefined);
   const [quedanMas, setQuedanMas] = useState(false);
@@ -671,10 +924,10 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onEliminada, mensajeV
                   <CeldaWhatsApp t={t} stage={stage} />
                 </td>
                 <td style={{ padding: "10px 8px" }}>
-                  <CeldaFactura t={t} esFinal={esFinal} onAbrir={onAbrir} />
+                  <CeldaFactura t={t} esFinal={esFinal} onCambio={onCambio} />
                 </td>
                 <td style={{ padding: "10px 8px" }}>
-                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onEliminada={onEliminada} />
+                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onCambio={onCambio} />
                 </td>
               </tr>
             );
@@ -691,7 +944,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onEliminada, mensajeV
 
 const estiloBloqueOrdenes = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" };
 
-function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onEliminada }) {
+function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   const hoy = new Date().toDateString();
   const filas = reparaciones
     .filter((r) =>
@@ -712,12 +965,12 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onEliminada }) {
         iconoContador={Clock}
         fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
       />
-      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} onEliminada={onEliminada} mensajeVacio="" />
+      <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio="" />
     </div>
   );
 }
 
-function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onEliminada, cargando }) {
+function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onCambio, cargando }) {
   const etapas = stagesFor(tipoTrabajo);
   const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
 
@@ -735,7 +988,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onE
         iconoContador={Layers}
         fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
-      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} onEliminada={onEliminada} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
+      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
     </div>
   );
 }
@@ -6838,9 +7091,9 @@ function FirztnetPanel({ onCerrarSesion }) {
           </div>
           <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onEliminada={cargarTodo} />
+              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
 
-              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onEliminada={cargarTodo} cargando={cargando} />
+              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} cargando={cargando} />
             </div>
 
             <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
