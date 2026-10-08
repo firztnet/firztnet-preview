@@ -1090,16 +1090,23 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
   }
   return (
     <div
-      className={clase}
+      className={`fn-tarjeta-color${hover ? " fn-tarjeta-hover" : ""}${clase ? " " + clase : ""}`}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
         background: accent, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150, position: "relative", overflow: "hidden",
         ...(alta ? { minHeight: 104, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
-        boxShadow: activa ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${accent}, 0 8px 20px -6px ${accent}80` : hover ? `0 12px 26px -6px ${accent}90` : `0 8px 20px -6px ${accent}80`,
-        transform: hover ? "translateY(-2px)" : "translateY(0)",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        // Efecto al pasar el ratón: la tarjeta se levanta, crece un poco, su sombra de color
+        // se hace grande y se ilumina; además un brillo la cruza (ver .fn-tarjeta-color en los estilos).
+        backgroundImage: "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 55%, rgba(0,0,0,0.10) 100%)",
+        boxShadow: activa
+          ? `0 0 0 3px #FFFFFF, 0 0 0 5px ${accent}, 0 ${hover ? "22px 40px" : "8px 20px"} -8px ${accent}${hover ? "CC" : "80"}`
+          : hover ? `0 22px 40px -8px ${accent}CC, 0 0 0 1px rgba(255,255,255,0.35) inset` : `0 8px 20px -6px ${accent}80`,
+        transform: hover ? "translateY(-7px) scale(1.035)" : "translateY(0) scale(1)",
+        filter: hover ? "brightness(1.08) saturate(1.1)" : "none",
+        transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease, filter 0.35s ease",
+        zIndex: hover ? 2 : 1,
         cursor: onClick ? "pointer" : "default",
       }}
     >
@@ -6717,6 +6724,19 @@ function FirztnetPanel({ onCerrarSesion }) {
         html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
         .fn-sin-barra { scrollbar-width: none; -ms-overflow-style: none; }
         .fn-sin-barra::-webkit-scrollbar { display: none; }
+        /* Tarjetas de color: brillo que las cruza y el icono que salta al pasar el ratón */
+        .fn-tarjeta-color::after {
+          content: ""; position: absolute; top: 0; bottom: 0; left: -75%; width: 50%;
+          background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+          transform: skewX(-20deg); pointer-events: none; opacity: 0;
+        }
+        .fn-tarjeta-hover::after { animation: fn-brillo-tarjeta 0.8s ease forwards; }
+        @keyframes fn-brillo-tarjeta { 0% { left: -75%; opacity: 1; } 100% { left: 130%; opacity: 1; } }
+        .fn-tarjeta-color .fn-icono-tarjeta { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.3s ease; }
+        .fn-tarjeta-hover .fn-icono-tarjeta { transform: scale(1.22) rotate(-10deg); background-color: rgba(255,255,255,0.38) !important; }
+        @media (prefers-reduced-motion: reduce) {
+          .fn-tarjeta-color, .fn-tarjeta-color * { transition: none !important; animation: none !important; }
+        }
         .fn-menu-accion:not(:disabled):hover { background: ${COLORS.surfaceRaised} !important; }
         .fn-fila-tabla:hover {
           background-color: ${COLORS.amber}14 !important;
