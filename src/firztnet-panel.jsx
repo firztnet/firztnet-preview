@@ -1105,8 +1105,9 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.9)", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>{label}</span>
-        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Icon size={14} color="#FFFFFF" />
+        {/* Icono de la tarjeta: más grande para que se vea bien */}
+        <div className="fn-icono-tarjeta" style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,0.24)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 8, marginTop: -4 }}>
+          <Icon size={23} color="#FFFFFF" strokeWidth={2.2} />
         </div>
       </div>
       <div>
@@ -6838,6 +6839,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-header-actions { flex-direction: column !important; align-items: stretch !important; width: 100% !important; }
           .fn-stat-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
           .fn-stat-grid > div { min-width: 0 !important; min-height: 100px !important; }
+          .fn-icono-tarjeta { width: 34px !important; height: 34px !important; margin-left: 4px !important; }
+          .fn-icono-tarjeta svg { width: 19px; height: 19px; }
           .fn-tarjeta-nueva { order: -1; }
           .fn-content-flex { flex-direction: column !important; }
           .fn-side-panel { width: 100% !important; position: static !important; max-height: none !important; overflow-y: visible !important; }
