@@ -1053,6 +1053,43 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
 const fmtEur = (n) => `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
 const tamDinero = (texto) => Math.min(24, Math.floor(125 / (String(texto).length * 0.6)));
 
+// -------------------- Logo animado del menú lateral --------------------
+// Mismo efecto que las tarjetas: al pasar el ratón el logo se levanta, crece con un rebote,
+// le sale un resplandor azul y un brillo lo cruza (recortado con la forma de las letras).
+// Al abrir el menú, además, el logo aparece enfocándose.
+function LogoAnimado() {
+  const [encima, setEncima] = useState(false);
+  const mascara = {
+    WebkitMaskImage: `url(${LOGO_DATA_URI})`, maskImage: `url(${LOGO_DATA_URI})`,
+    WebkitMaskSize: "100% 100%", maskSize: "100% 100%",
+    WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+  };
+  return (
+    <div
+      onMouseEnter={() => setEncima(true)}
+      onMouseLeave={() => setEncima(false)}
+      style={{ width: "100%", maxWidth: 240, padding: "6px 0" }}
+    >
+      <div className="fn-logo-entrada">
+        <div
+          className={`fn-logo-tarjeta${encima ? " fn-logo-hover" : ""}`}
+          style={{
+            position: "relative",
+            transform: encima ? "translateY(-7px) scale(1.06)" : "translateY(0) scale(1)",
+            filter: encima
+              ? "drop-shadow(0 16px 18px rgba(37,99,235,0.45)) drop-shadow(0 0 12px rgba(245,158,11,0.35)) brightness(1.08) saturate(1.15)"
+              : "drop-shadow(0 4px 8px rgba(37,99,235,0.15))",
+            transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease",
+          }}
+        >
+          <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", height: "auto", display: "block" }} />
+          <div aria-hidden="true" className="fn-logo-destello" style={{ position: "absolute", inset: 0, pointerEvents: "none", ...mascara }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onClick, activa, alta, tamValor, clase }) {
   const [hover, setHover] = useState(false);
   if (destacada) {
@@ -6724,6 +6761,24 @@ function FirztnetPanel({ onCerrarSesion }) {
         html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
         .fn-sin-barra { scrollbar-width: none; -ms-overflow-style: none; }
         .fn-sin-barra::-webkit-scrollbar { display: none; }
+        /* Logo del menú: entrada con rebote y destello que recorre las letras */
+        .fn-logo-entrada { animation: fn-logo-aparece 1.1s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+        @keyframes fn-logo-aparece {
+          0%   { opacity: 0; transform: translateY(-14px) scale(0.82); filter: blur(10px); letter-spacing: 0; }
+          60%  { opacity: 1; transform: translateY(2px) scale(1.04); filter: blur(0); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        .fn-logo-destello {
+          background: linear-gradient(105deg, transparent 0%, transparent 38%, rgba(255,255,255,0.95) 48%, rgba(147,197,253,0.9) 52%, transparent 62%, transparent 100%);
+          background-size: 250% 100%;
+          background-position: 130% 0;
+          mix-blend-mode: screen;
+        }
+        .fn-logo-hover .fn-logo-destello { animation: fn-logo-brillo 0.8s ease forwards; }
+        @keyframes fn-logo-brillo { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+        @media (prefers-reduced-motion: reduce) {
+          .fn-logo-entrada, .fn-logo-destello { animation: none !important; }
+        }
         /* Tarjetas de color: brillo que las cruza y el icono que salta al pasar el ratón */
         .fn-tarjeta-color::after {
           content: ""; position: absolute; top: 0; bottom: 0; left: -75%; width: 50%;
@@ -6877,7 +6932,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         )}
         <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 275, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
-            <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 240, height: "auto", display: "block" }} />
+            <LogoAnimado key={menuAbierto ? "abierto" : "cerrado"} />
           </div>
           {[
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
