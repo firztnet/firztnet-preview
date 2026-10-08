@@ -62,6 +62,12 @@ const COLORS = {
   sidebarText: "#E2E8F0",
   sidebarTextDim: "#8291B5",
   sidebarActiveBg: "#1B2C5C",
+  // Menú lateral: fondo blanco y letras azules
+  menuBg: "#FFFFFF",
+  menuTexto: "#1D4ED8",
+  menuActivoBg: "#DBEAFE",
+  menuHoverBg: "#EFF6FF",
+  menuBorde: "#E2E8F0",
   violet: "#8B5CF6",
   pink: "#EC4899",
   slate: "#334155",
@@ -6716,10 +6722,11 @@ function FirztnetPanel({ onCerrarSesion }) {
           box-shadow: inset 4px 0 0 0 ${COLORS.amber};
         }
         .fn-navitem:hover {
-          background-color: ${COLORS.sidebarActiveBg} !important;
+          background-color: ${COLORS.menuHoverBg} !important;
           padding-left: 14px !important;
-          color: #FFFFFF !important;
+          color: ${COLORS.menuTexto} !important;
         }
+        .fn-navitem-active:hover { background-color: ${COLORS.menuActivoBg} !important; }
         .fn-navitem:hover::before {
           transform: scaleY(1);
         }
@@ -6763,7 +6770,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: ${COLORS.sidebarActiveBg} transparent;
+            scrollbar-color: ${COLORS.menuBorde} transparent;
             z-index: 60;
             transform: translateX(-100%);
             visibility: hidden;
@@ -6773,7 +6780,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             transform: translateX(0);
             visibility: visible;
             transition: transform 0.25s ease, visibility 0s;
-            box-shadow: 8px 0 30px rgba(0,0,0,0.35);
+            box-shadow: 8px 0 30px rgba(15,23,42,0.18);
           }
           /* Sin esto, las opciones (que tienen overflow:hidden) se encogen para caber
              en vez de desbordar, y el menú nunca llega a tener scroll. */
@@ -6814,10 +6821,11 @@ function FirztnetPanel({ onCerrarSesion }) {
             align-items: center !important;
             padding: 8px 6px !important;
             border-right: none !important;
-            border-top: 1px solid ${COLORS.sidebarActiveBg};
+            border-top: 1px solid ${COLORS.menuBorde} !important;
+            box-shadow: 0 -4px 14px rgba(15,23,42,0.06);
             position: fixed !important;
             bottom: 0; left: 0; right: 0;
-            background: ${COLORS.sidebarBg} !important;
+            background: ${COLORS.menuBg} !important;
             z-index: 40;
           }
           .fn-sidebar .fn-logo { display: none !important; }
@@ -6844,9 +6852,9 @@ function FirztnetPanel({ onCerrarSesion }) {
         {menuAbierto && (
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
-        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 250, background: COLORS.sidebarBg, borderRight: "none", minHeight: "100vh", padding: "22px 16px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 300, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
-            <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 214, height: "auto", display: "block" }} />
+            <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 260, height: "auto", display: "block" }} />
           </div>
           {[
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
@@ -6870,7 +6878,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               key={item.label}
               className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
               onClick={() => { setVista(item.key); setMostrarMasMovil(false); setMenuAbierto(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.menuActivoBg : "transparent", color: COLORS.menuTexto, fontSize: 14, fontWeight: vista === item.key ? 700 : 500 }}
             >
               <item.icon size={16} />
               {item.label}
@@ -6879,25 +6887,25 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div
             onClick={() => setMostrarMasMovil((v) => !v)}
             className={`fn-navitem fn-navitem-boton-mas${mostrarMasMovil ? " fn-navitem-active" : ""}`}
-            style={{ alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", color: COLORS.sidebarTextDim, fontSize: 13.5, fontWeight: 500 }}
+            style={{ alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", color: COLORS.menuTexto, fontSize: 13.5, fontWeight: 500 }}
           >
             <MoreHorizontal size={16} />
             Más
           </div>
 
-          <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, background: COLORS.sidebarActiveBg }}>
+          <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, background: COLORS.menuHoverBg, border: `1px solid ${COLORS.menuActivoBg}` }}>
             <div className="fn-punto-activo" style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.green, flexShrink: 0 }} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#FFFFFF", textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreUsuarioDelToken()} activo</div>
-              <div style={{ fontSize: 11, color: COLORS.sidebarTextDim }}>Sede Principal</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.menuTexto, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreUsuarioDelToken()} activo</div>
+              <div style={{ fontSize: 11, color: COLORS.textDim }}>Sede Principal</div>
             </div>
           </div>
         </aside>
 
         {mostrarMasMovil && (
           <div className="fn-hoja-mas" onClick={() => setMostrarMasMovil(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 55 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.sidebarBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
-              <div style={{ width: 36, height: 4, background: COLORS.sidebarActiveBg, borderRadius: 999, margin: "0 auto 16px" }} />
+            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.menuBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
+              <div style={{ width: 36, height: 4, background: COLORS.menuBorde, borderRadius: 999, margin: "0 auto 16px" }} />
               {[
                 { key: "reportes", icon: FileBarChart, label: "Reportes" },
                 { key: "inventario", icon: Package, label: "Inventario" },
@@ -6915,7 +6923,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <div
                   key={item.label}
                   onClick={() => { setVista(item.key); setMostrarMasMovil(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: vista === item.key ? "#FFFFFF" : COLORS.sidebarTextDim, background: vista === item.key ? COLORS.sidebarActiveBg : "transparent", fontSize: 14.5 }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.menuTexto, background: vista === item.key ? COLORS.menuActivoBg : "transparent", fontWeight: vista === item.key ? 700 : 500, fontSize: 14.5 }}
                 >
                   <item.icon size={18} />
                   {item.label}
