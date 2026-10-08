@@ -6875,9 +6875,9 @@ function FirztnetPanel({ onCerrarSesion }) {
         {menuAbierto && (
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
-        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 300, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 275, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
-            <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 260, height: "auto", display: "block" }} />
+            <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", maxWidth: 240, height: "auto", display: "block" }} />
           </div>
           {[
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
