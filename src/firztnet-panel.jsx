@@ -3774,7 +3774,7 @@ function PanelProximaAccion({ reparaciones, onAbrir, resaltada, onHover }) {
 
 function ReportesView({ reporteDiario, reporteMensual, contador, tendencia, onFiltrarPorEstado }) {
   const num = (v) => Number(v || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 });
-  const [mesExportar, setMesExportar] = useState(() => new Date().toISOString().slice(0, 7));
+  const [mesExportar, setMesExportar] = useState(() => hoyLocalISO().slice(0, 7));
   const [exportando, setExportando] = useState(false);
 
   async function descargarCsv() {
@@ -5810,6 +5810,468 @@ function PlantillasView() {
   );
 }
 
+// -------------------- Manual de uso (se ve en Ajustes) --------------------
+// Cada apartado tiene bloques: "p" (párrafo), "pasos" (lista numerada), "lista" (puntos) y "nota" (aviso destacado).
+// Para cambiar el manual basta con editar estos textos.
+const MANUAL_SECCIONES = [
+  {
+    id: "inicio", icono: "🚀", titulo: "Primeros pasos",
+    bloques: [
+      { t: "p", x: "Este panel sirve para llevar todo el negocio desde un solo sitio: las reparaciones del taller, los servicios a domicilio, los clientes, los cobros, las facturas, el inventario y los avisos." },
+      { t: "pasos", titulo: "Antes de empezar a trabajar", x: [
+        "Entra en Ajustes y rellena los Datos del negocio: nombre, dirección, teléfono, email, tu NIF y el % de IVA. Sin NIF y dirección no se pueden emitir facturas.",
+        "Añade los técnicos (aunque solo seas tú) en el apartado Técnicos de Ajustes.",
+        "Configura los avisos por Telegram (te llegan los avisos urgentes, las solicitudes de la web y la copia de seguridad diaria).",
+        "Si cobras por Bizum, escribe tu número de Bizum.",
+        "Pulsa Guardar cambios.",
+      ] },
+      { t: "lista", titulo: "Cómo moverte", x: [
+        "Botón ☰ (arriba a la izquierda): abre el menú lateral con todas las secciones.",
+        "Nombre FIRZTNET (al lado del ☰): te devuelve a la pantalla principal desde cualquier sitio.",
+        "Campanita 🔔 (arriba a la derecha): avisos pendientes. Al pulsar un aviso te lleva a lo que corresponde.",
+        "Tu nombre y Salir (arriba a la derecha): cierra la sesión.",
+        "En el móvil, el menú está en la barra de abajo; las secciones que no caben están en Más.",
+      ] },
+      { t: "nota", x: "La sesión dura 14 días. Pasado ese tiempo, el panel te pide otra vez usuario y contraseña." },
+    ],
+  },
+  {
+    id: "principal", icono: "🏠", titulo: "La pantalla principal",
+    bloques: [
+      { t: "p", x: "Es la pantalla de Reparaciones. Arriba eliges si ves el Taller Físico o el Servicio In-Situ / Domicilio con el botón azul de la derecha." },
+      { t: "lista", titulo: "Las 10 tarjetas", x: [
+        "Reparaciones totales, En curso y Entregadas: al pulsarlas filtran las tablas de abajo. Vuelve a pulsar para quitar el filtro.",
+        "Clientes: número de clientes activos (sin contar los eliminados). Al pulsarla vas a Clientes.",
+        "Retrasadas / urgentes: órdenes marcadas como urgentes o con más de 5 días sin terminar.",
+        "Tiempo medio: días de media entre recibir y entregar, de lo entregado en los últimos 30 días.",
+        "Balance de hoy: lo cobrado menos lo gastado hoy, equipos recibidos y clientes nuevos.",
+        "Este mes: ingresos y gastos del mes. Al pulsarla vas a Reportes.",
+        "Stock: repuestos con stock bajo. Al pulsarla vas a Inventario.",
+        "Nueva reparación: abre el formulario para dar de alta un equipo o un servicio.",
+      ] },
+      { t: "lista", titulo: "Filtros", x: [
+        "Buscador: por nombre del cliente, número de orden o equipo.",
+        "Marca y Modelo (solo en taller), Cliente y Estado.",
+        "Hoy: solo lo recibido hoy. Urgente: solo lo urgente.",
+      ] },
+      { t: "p", x: "A la derecha pueden salir avisos: equipos listos sin recoger hace más de 30 días, presupuestos rechazados y garantías a punto de caducar. Si no hay avisos, ese hueco desaparece." },
+    ],
+  },
+  {
+    id: "tablas", icono: "📋", titulo: "Las tablas de órdenes",
+    bloques: [
+      { t: "lista", titulo: "Hay dos tablas", x: [
+        "Tablero de órdenes - Pendientes / En curso: todo lo que no está terminado (y lo entregado hoy), primero lo urgente y después lo más antiguo. Incluye taller y domicilio.",
+        "Tablero completo: todas las órdenes del tipo que tengas elegido (taller o domicilio), según los filtros de arriba.",
+      ] },
+      { t: "p", x: "Cada tabla enseña 6 órdenes. Para ver las siguientes, pon el ratón encima de la tabla y gira la rueda (en el móvil, desliza con el dedo). Un ligero degradado abajo indica que hay más." },
+      { t: "lista", titulo: "Columnas", x: [
+        "# Orden: número de la orden. La llamita 🔥 indica urgente. La raya de color a la izquierda es el color del estado.",
+        "Fecha: día en que se recibió.",
+        "Días: días desde que se recibió. En rojo a partir de 5 días.",
+        "Estado: en qué punto está.",
+        "WhatsApp: abre el chat con el cliente y un mensaje ya escrito. Sale en gris si no tiene teléfono.",
+        "Factura: solo aparece cuando la orden está entregada o completada.",
+      ] },
+      { t: "p", x: "Al pulsar cualquier fila se abre la ficha de la orden." },
+      { t: "lista", titulo: "Menú ⋮ de Acciones", x: [
+        "Ver orden: abre la ficha completa.",
+        "Editar: abre una ventana solo con los datos de la orden (equipo, marca, modelo, problema, accesorios, técnico, fecha estimada, urgente...) para corregirlos.",
+        "WhatsApp: abre el chat con el cliente.",
+        "Factura: si ya tiene, abre el PDF directamente. Si no, te enseña lo cobrado y te deja emitirla.",
+        "Imprimir etiqueta: PDF de la etiqueta con código QR para pegar en el equipo.",
+        "Adjuntar fotos: sube fotos a la orden sin abrir la ficha.",
+        "Eliminar: borra la orden (ver el apartado Eliminar una orden).",
+      ] },
+      { t: "nota", x: "Las órdenes de clientes eliminados (RGPD) no se ven en el Tablero completo. Al pie de la tabla hay un enlace Ver para mostrarlas si hace falta." },
+    ],
+  },
+  {
+    id: "nueva", icono: "➕", titulo: "Dar de alta una reparación",
+    bloques: [
+      { t: "pasos", x: [
+        "Pulsa la tarjeta Nueva reparación.",
+        "Elige Taller o Domicilio.",
+        "Escribe el nombre del cliente. Si ya existe, aparecerá en la lista: elígelo y se rellenan sus datos (y te avisa si tiene equipos en garantía o trabajos sin cobrar). Si es nuevo, pon su teléfono y, si quieres, su email (para enviarle el comprobante).",
+        "En taller: equipo, marca, modelo y el problema que cuenta el cliente. A domicilio: descripción del servicio, categoría (redes, cámaras, impresoras, mantenimiento) y dirección.",
+        "Opcional: marca Urgente, pon la fecha estimada de entrega y el técnico responsable.",
+        "Guarda. La orden recibe su número automático (por ejemplo 2026-0012).",
+      ] },
+      { t: "p", x: "El botón Ver casos parecidos en tu historial te enseña reparaciones anteriores parecidas, para orientarte con el diagnóstico y el precio." },
+      { t: "nota", x: "Si marcas una orden como Urgente, te llega un aviso por Telegram." },
+    ],
+  },
+  {
+    id: "ficha", icono: "🗂️", titulo: "La ficha de una orden",
+    bloques: [
+      { t: "p", x: "Se abre al pulsar una fila de las tablas. Reúne todo lo de esa orden. Lo que ves depende de si es de taller o a domicilio y del estado en que está." },
+      { t: "lista", titulo: "Datos y documentos", x: [
+        "Imprimir etiqueta con QR: para pegar en el equipo y encontrarlo rápido.",
+        "Técnico responsable y Fecha estimada de entrega: se cambian ahí mismo.",
+        "WiFi (solo a domicilio): nombre de la red y contraseña del cliente.",
+        "Fotos de recepción: fotos de rayones o golpes al recibir el equipo, para evitar discusiones después.",
+        "Repuestos usados: elige un repuesto del inventario y se descuenta del stock. Puedes apuntar el número de serie (o escanearlo con la cámara del móvil) y la factura de compra, para las garantías.",
+        "Comprobante: genera el PDF para el cliente (de recepción, de entrega o de no reparable, según el estado). Se puede ver, mandar por WhatsApp o por email.",
+      ] },
+      { t: "lista", titulo: "Mensajes rápidos por WhatsApp", x: [
+        "🚗 En camino (a domicilio): avisa de que vas y en cuántos minutos llegas.",
+        "📦 Falta pieza: avisa de que has pedido un repuesto y cuándo llega.",
+        "💳 Solicitar por Bizum: pide el pago con tu número de Bizum (solo si lo has puesto en Ajustes).",
+      ] },
+      { t: "lista", titulo: "Trabajo a domicilio", x: [
+        "Mano de obra: pulsa Iniciar servicio al empezar y Finalizar servicio al terminar. El panel cuenta el tiempo y calcula el coste con tu tarifa por hora.",
+        "Hoja de trabajo: lista de puntos a revisar. Hay plantillas por tipo de servicio. Si cierras con puntos sin marcar, te avisa.",
+        "Parte de trabajo (al completar): PDF con el servicio realizado, para mandárselo al cliente.",
+        "Recordatorio de mantenimiento (al completar): programa un aviso para dentro de 6 o 12 meses.",
+      ] },
+      { t: "p", x: "En taller hay un Checklist de salida (cargador incluido, teclado probado, pantalla probada...) para no olvidar nada al entregar." },
+    ],
+  },
+  {
+    id: "estados", icono: "🔄", titulo: "Estados y cómo avanzar",
+    bloques: [
+      { t: "lista", titulo: "Taller", x: [
+        "Recibido → Diagnóstico → En reparación → Listo para entrega → Entregado.",
+        "No reparable: cuando no tiene arreglo (hay que escribir el motivo).",
+      ] },
+      { t: "lista", titulo: "A domicilio", x: [
+        "Contratado → En proceso → Completado.",
+        "No realizado: cuando no se pudo hacer (con motivo).",
+      ] },
+      { t: "p", x: "En la ficha, el apartado Avanzar reparación tiene un botón con el siguiente paso. Para No reparable / No realizado, escribe primero el motivo." },
+      { t: "lista", titulo: "Reglas importantes", x: [
+        "No se puede entregar un equipo sin ningún cobro registrado.",
+        "Si lo cobrado es menos que el presupuesto, el panel pregunta antes de entregar.",
+        "Al entregar o completar empieza la garantía de 6 meses.",
+        "Si un equipo No reparable se lo lleva el cliente, usa El cliente ha recogido el equipo (sin reparar): se entrega sin garantía.",
+        "Al llegar a Listo, Entregado o Completado puedes pedir la firma del cliente en la pantalla (firma de recogida o de conformidad).",
+      ] },
+      { t: "nota", x: "Si tienes plantillas de mensaje asignadas a un estado (ver Plantillas), al llegar a ese estado aparece el mensaje ya escrito con un botón para enviarlo por WhatsApp." },
+    ],
+  },
+  {
+    id: "presupuesto", icono: "📝", titulo: "Presupuestos y firma del cliente",
+    bloques: [
+      { t: "pasos", x: [
+        "En la ficha, apartado Presupuesto, escribe la descripción y el importe.",
+        "Si dudas del precio, pulsa Sugerir precio según mi historial: calcula un precio con tus trabajos anteriores parecidos.",
+        "Pulsa Crear presupuesto. Puedes verlo en PDF.",
+        "Pulsa Enviar presupuesto y pedir firma por WhatsApp: al cliente le llega un enlace a su página de seguimiento.",
+        "El cliente lo acepta firmando con el dedo en su móvil, o lo rechaza.",
+      ] },
+      { t: "lista", x: [
+        "Si lo acepta: queda guardada su firma, la fecha y la IP, y la orden pasa sola al siguiente paso (de Diagnóstico a En reparación, o de Contratado a En proceso).",
+        "Si lo rechaza: aparece un aviso en la pantalla principal y en la campanita.",
+        "Si cambias el presupuesto, vuelve a quedar pendiente y hay que pedir que lo acepte de nuevo.",
+      ] },
+    ],
+  },
+  {
+    id: "cobros", icono: "💶", titulo: "Cobros, recibos y facturas",
+    bloques: [
+      { t: "pasos", titulo: "Registrar un cobro", x: [
+        "En la ficha, apartado Cobro, escribe el concepto y el importe.",
+        "Elige cómo pagó: efectivo, tarjeta, transferencia o Bizum.",
+        "Pulsa Registrar cobro. Si además quieres factura, pulsa Cobrar y facturar.",
+      ] },
+      { t: "lista", x: [
+        "A domicilio: el botón + Añadir suplemento de desplazamiento rellena solo el importe que tengas en Ajustes.",
+        "Si en vez de un cobro es un gasto de esa orden (material, gasolina, peajes...), usa Registrar como gasto de esta visita.",
+      ] },
+      { t: "lista", titulo: "Recibo y factura", x: [
+        "Recibo: justificante del pago, para el cliente que no pide factura.",
+        "Factura: se emite por el total cobrado de la orden, IVA incluido. Lleva tus datos y los del cliente.",
+        "Tus datos (nombre, NIF y dirección) quedan copiados en cada factura al emitirla: aunque luego los cambies en Ajustes, la factura no cambia.",
+      ] },
+      { t: "nota", x: "Una factura emitida no se puede borrar ni modificar. Si hay un error, pulsa ¿Error en esta factura? Emitir una rectificativa, indica el motivo y, si cambia, el importe correcto. Si el error era el NIF del cliente, corrígelo antes en su ficha de Clientes." },
+    ],
+  },
+  {
+    id: "eliminar", icono: "🗑️", titulo: "Eliminar una orden",
+    bloques: [
+      { t: "pasos", x: [
+        "En la tabla, abre el menú ⋮ de la orden y pulsa Eliminar.",
+        "Escribe el número de la orden para confirmar.",
+      ] },
+      { t: "lista", x: [
+        "Se borra con sus fotos, firmas, comprobantes, checklist y recordatorios. Los repuestos que tuviera vuelven al stock.",
+        "No se puede eliminar una orden con factura (obligación fiscal) ni con cobros en Caja. En ese caso el panel explica qué hacer: márcala como No reparable o anula el cobro.",
+        "El número de una orden eliminada no se vuelve a usar.",
+      ] },
+      { t: "nota", x: "Borrar no se puede deshacer. Si dudas, mejor márcala como No reparable." },
+    ],
+  },
+  {
+    id: "clientes", icono: "👥", titulo: "Clientes",
+    bloques: [
+      { t: "lista", x: [
+        "Hay dos secciones: Clientes activos y Eliminados (RGPD).",
+        "En activos puedes filtrar por negocio: Firztnet (reparaciones) o Firztweb (diseño web).",
+        "Al pulsar un cliente ves su ficha: teléfono, email, NIF, sus reparaciones, equipos en garantía y trabajos entregados sin cobrar.",
+        "Editar: corrige teléfono, email, NIF y negocios.",
+      ] },
+      { t: "pasos", titulo: "Derecho al olvido (si un cliente pide borrar sus datos)", x: [
+        "Abre su ficha y pulsa Ejercer derecho al olvido (RGPD).",
+        "Confirma y escribe el motivo (queda registrado).",
+      ] },
+      { t: "p", x: "Se borran para siempre su nombre, teléfono, email, NIF, fotos, firmas, dirección y WiFi. Se conservan sus facturas y el historial de reparaciones, porque la ley obliga a guardarlos. El cliente pasa a la sección Eliminados y ya no se puede editar." },
+    ],
+  },
+  {
+    id: "caja", icono: "🏦", titulo: "Caja",
+    bloques: [
+      { t: "p", x: "Todos los cobros y gastos del negocio: los de las reparaciones y los que apuntes a mano (por ejemplo, la compra de material)." },
+      { t: "pasos", titulo: "Apuntar un movimiento", x: [
+        "Pulsa Nuevo movimiento.",
+        "Elige gasto o ingreso, el concepto, el importe (mayor que 0) y el método de pago.",
+        "Pulsa Guardar.",
+      ] },
+      { t: "pasos", titulo: "Corregir un movimiento mal apuntado", x: [
+        "Pulsa Anular en ese movimiento y escribe el motivo.",
+        "El movimiento queda tachado y aparece un apunte de corrección que lo compensa. Los totales ya no lo cuentan.",
+      ] },
+      { t: "nota", x: "Nada se borra: queda constancia de qué se anuló y por qué. Si el cobro ya tenía factura, el panel te avisa de que tendrás que hacer una rectificativa." },
+    ],
+  },
+  {
+    id: "inventario", icono: "📦", titulo: "Inventario y garantías con proveedores",
+    bloques: [
+      { t: "lista", titulo: "Inventario", x: [
+        "Nuevo repuesto: nombre, categoría, proveedor, stock inicial, stock mínimo y precios de compra y venta.",
+        "Reponer stock: escribe la cantidad en la casilla +cant. del repuesto y pulsa Enter.",
+        "Editar (lápiz): corrige nombre, categoría, precios o stock mínimo.",
+        "Vender suelto: vende un repuesto sin reparación de por medio; se descuenta del stock y el ingreso va a Caja.",
+        "Dar de baja: deja de aparecer, pero no se borra (para no perder el historial).",
+        "Arriba ves el capital invertido y la ganancia si vendieras todo el stock.",
+        "Cuando un repuesto baja de su stock mínimo, sale aviso en la tarjeta Stock.",
+      ] },
+      { t: "lista", titulo: "Garantías RMA (devoluciones a proveedores)", x: [
+        "Nueva devolución (RMA): proveedor, repuesto, número de serie, orden relacionada y motivo.",
+        "Ve cambiando su estado: Enviado, En proceso, Resuelto o Rechazado, y apunta lo recuperado.",
+        "Trazabilidad: busca por número de serie en qué reparación se usó una pieza, a quién se compró y con qué factura.",
+      ] },
+      { t: "p", x: "Garantías activas muestra los equipos de tus clientes que siguen en garantía, empezando por los que caducan antes." },
+    ],
+  },
+  {
+    id: "avisos", icono: "🔔", titulo: "Mensajes, recordatorios y solicitudes",
+    bloques: [
+      { t: "lista", titulo: "Plantillas", x: [
+        "Mensajes ya escritos para casos comunes (equipo listo, esperando repuesto...).",
+        "Puedes usar huecos que se rellenan solos: {cliente}, {equipo}, {numero_orden}, {estado}, {fecha_estimada}, {garantia}, {enlace_seguimiento} y {enlace_resena}.",
+        "Si le asignas un estado, el mensaje se prepara solo al llegar la orden a ese estado.",
+      ] },
+      { t: "lista", titulo: "Recordatorios", x: [
+        "Avisos de mantenimiento futuros (revisión de cámaras, baterías...). Se crean desde la ficha de un servicio a domicilio completado.",
+        "Desde aquí avisas al cliente con Enviar por WhatsApp y lo marcas como cumplido con la casilla.",
+      ] },
+      { t: "lista", titulo: "Solicitudes", x: [
+        "Peticiones que llegan de tu web (formulario de presupuesto) o de la página de seguimiento de un cliente. También te llegan por Telegram.",
+        "Si quien escribe todavía no es cliente, pulsa Convertir en cliente. Si le abres una reparación, se convierte solo.",
+        "Márcalas como atendidas cuando las resuelvas.",
+      ] },
+      { t: "p", x: "Base conocimiento: tus apuntes técnicos (IPs de routers, comandos, configuraciones...) con buscador y categorías." },
+    ],
+  },
+  {
+    id: "informes", icono: "📊", titulo: "Informes y estadísticas",
+    bloques: [
+      { t: "lista", x: [
+        "Reportes: resumen de hoy y del mes, contador de reparaciones y gráfica de ingresos y gastos de los últimos 7 días.",
+        "Exportar resumen contable: elige el mes y descarga un archivo para Excel con movimientos y facturas, listo para tu gestoría.",
+        "Rendimiento: trabajos completados y tiempo medio por técnico.",
+        "Rentabilidad: ingresos, coste de piezas y margen por tipo de servicio.",
+        "Ventas: ventas de tus otros negocios (webs, apps, sistemas a medida, productos de afiliados).",
+        "Visitas web: visitas de tus webs, de dónde llegan, desde qué dispositivo, a qué horas y qué botones pulsan.",
+      ] },
+    ],
+  },
+  {
+    id: "clientefinal", icono: "📱", titulo: "Lo que ve el cliente",
+    bloques: [
+      { t: "lista", x: [
+        "Página de seguimiento: cada orden tiene un enlace propio (va en el comprobante y en los mensajes). El cliente ve el estado, la fecha estimada, la garantía y el presupuesto, y puede firmarlo o pedir otro servicio.",
+        "Si pierde el enlace, puede buscar su orden con el número de orden y su DNI o su teléfono completo.",
+        "Formulario de presupuesto: la dirección de tu panel terminada en /presupuesto (por ejemplo firztnet-preview.vercel.app/presupuesto). Cualquiera puede pedirte presupuesto sin ser cliente; tu web también lo usa.",
+      ] },
+      { t: "nota", x: "En la página de seguimiento nunca salen precios de otros clientes ni datos de tu negocio que no sean públicos." },
+    ],
+  },
+  {
+    id: "seguridad", icono: "🛡️", titulo: "Seguridad y copias de seguridad",
+    bloques: [
+      { t: "lista", x: [
+        "Copia de seguridad automática: cada noche, de madrugada, te llega por Telegram un archivo con la base de datos, las fotos y las firmas. Guárdalo fuera (Google Drive, un pendrive...).",
+        "Si la copia falla o pesa demasiado para Telegram, te llega un aviso.",
+        "En Ajustes puedes descargarla en cualquier momento (Descargar ahora) o pedir que te la mande (Enviar por Telegram ahora).",
+        "Si alguien intenta entrar con una contraseña equivocada, te llega un aviso por Telegram. Tras varios fallos seguidos, esa conexión queda bloqueada un tiempo.",
+      ] },
+      { t: "nota", x: "Revisa de vez en cuando que la copia diaria te llega por Telegram. Es tu seguro si algo falla en el servidor." },
+    ],
+  },
+  {
+    id: "problemas", icono: "🧰", titulo: "Si algo no funciona",
+    bloques: [
+      { t: "lista", x: [
+        "\"No se pudo conectar con el backend\": el servidor no responde. Espera un minuto y recarga la página. Si sigue, mira en Railway que el servidor esté en marcha.",
+        "Un PDF no se abre: el navegador bloqueó la ventana nueva. Permite las ventanas emergentes para este panel.",
+        "No puedo entregar un equipo: falta registrar el cobro.",
+        "No puedo emitir una factura: rellena tu NIF y dirección en Ajustes, y registra antes un cobro.",
+        "No puedo eliminar una orden: tiene factura o cobros. Mira el apartado Eliminar una orden.",
+        "No me llegan avisos de Telegram: en Ajustes pulsa Enviar mensaje de prueba.",
+        "Me ha sacado de la sesión: han pasado 14 días o la sesión caducó. Vuelve a entrar.",
+      ] },
+    ],
+  },
+];
+
+function textoBloque(b) {
+  return [b.titulo || "", Array.isArray(b.x) ? b.x.join(" ") : b.x].join(" ");
+}
+
+function normalizar(texto) {
+  // Quita las tildes (para que "garantia" encuentre "garantía")
+  return Array.from((texto || "").toLowerCase().normalize("NFD"))
+    .filter((letra) => { const codigo = letra.charCodeAt(0); return codigo < 0x300 || codigo > 0x36f; })
+    .join("");
+}
+
+function BloqueManual({ b }) {
+  const estiloTitulo = { fontSize: 12.5, fontWeight: 700, color: COLORS.text, margin: "10px 0 4px" };
+  const estiloTexto = { fontSize: 13, color: COLORS.text, lineHeight: 1.6, margin: "6px 0" };
+  if (b.t === "p") return <p style={estiloTexto}>{b.x}</p>;
+  if (b.t === "nota") {
+    return (
+      <div style={{ display: "flex", gap: 8, fontSize: 12.5, lineHeight: 1.55, color: "#1E3A8A", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
+        <span aria-hidden="true">💡</span><span>{b.x}</span>
+      </div>
+    );
+  }
+  const Lista = b.t === "pasos" ? "ol" : "ul";
+  return (
+    <div>
+      {b.titulo && <div style={estiloTitulo}>{b.titulo}</div>}
+      <Lista style={{ ...estiloTexto, paddingLeft: 22, margin: "4px 0 8px" }}>
+        {b.x.map((linea, i) => <li key={i} style={{ marginBottom: 3 }}>{linea}</li>)}
+      </Lista>
+    </div>
+  );
+}
+
+// Versión para imprimir o guardar en PDF (se abre en una pestaña nueva).
+function imprimirManual() {
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const cuerpo = MANUAL_SECCIONES.map((s) => {
+    const bloques = s.bloques.map((b) => {
+      if (b.t === "p") return `<p>${esc(b.x)}</p>`;
+      if (b.t === "nota") return `<div class="nota">💡 ${esc(b.x)}</div>`;
+      const tag = b.t === "pasos" ? "ol" : "ul";
+      return `${b.titulo ? `<h3>${esc(b.titulo)}</h3>` : ""}<${tag}>${b.x.map((l) => `<li>${esc(l)}</li>`).join("")}</${tag}>`;
+    }).join("");
+    return `<section><h2>${s.icono} ${esc(s.titulo)}</h2>${bloques}</section>`;
+  }).join("");
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Manual del panel Firztnet</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;color:#0F172A;max-width:760px;margin:30px auto;padding:0 20px;line-height:1.55;font-size:13.5px}
+h1{color:#2563EB;margin-bottom:2px}.sub{color:#64748B;margin-top:0}h2{color:#1D4ED8;border-bottom:2px solid #DBEAFE;padding-bottom:4px;margin-top:28px}
+h3{font-size:13.5px;margin:12px 0 4px}li{margin-bottom:3px}.nota{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:8px 12px;margin:10px 0;color:#1E3A8A}
+section{page-break-inside:avoid}@media print{body{margin:0}}</style></head>
+<body><h1>Manual del panel Firztnet</h1><p class="sub">Gestión de reparaciones, clientes, cobros e inventario</p>${cuerpo}</body></html>`;
+  const ventana = window.open("", "_blank");
+  if (!ventana) { window.alert("El navegador ha bloqueado la ventana nueva. Permite las ventanas emergentes para este panel."); return; }
+  ventana.document.write(html);
+  ventana.document.close();
+  ventana.focus();
+  setTimeout(() => ventana.print(), 400);
+}
+
+function ManualUso() {
+  const [abierto, setAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [abiertas, setAbiertas] = useState(() => new Set(["inicio"]));
+
+  const termino = normalizar(busqueda.trim());
+  const secciones = termino
+    ? MANUAL_SECCIONES.filter((s) => normalizar(s.titulo + " " + s.bloques.map(textoBloque).join(" ")).includes(termino))
+    : MANUAL_SECCIONES;
+
+  function alternar(id) {
+    setAbiertas((prev) => {
+      const nuevo = new Set(prev);
+      if (nuevo.has(id)) nuevo.delete(id); else nuevo.add(id);
+      return nuevo;
+    });
+  }
+  function irA(id) {
+    setAbiertas((prev) => new Set(prev).add(id));
+    setTimeout(() => document.getElementById(`manual-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #2563EB, #1D4ED8)", color: "#FFFFFF", fontSize: 21 }} aria-hidden="true">📖</div>
+          <div>
+            <div style={{ fontFamily: "Oswald", fontSize: 17, color: COLORS.text }}>Manual de uso</div>
+            <div style={{ fontSize: 12, color: COLORS.textDim }}>Cómo funciona cada parte del panel, paso a paso.</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {abierto && (
+            <button type="button" onClick={imprimirManual} style={{ ...btnStyle(COLORS.surface, COLORS.text, COLORS.line), flex: "none", padding: "8px 12px" }}>
+              <Printer size={14} /> Imprimir / PDF
+            </button>
+          )}
+          <button type="button" onClick={() => setAbierto((v) => !v)} aria-expanded={abierto} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 14px" }}>
+            {abierto ? "Cerrar manual" : "Abrir manual"}
+          </button>
+        </div>
+      </div>
+
+      {abierto && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.bg, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+            <Search size={14} color={COLORS.textDim} />
+            <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar en el manual: factura, cobro, garantía..." style={{ background: "none", border: "none", outline: "none", fontSize: 13, width: "100%", color: COLORS.text }} />
+            {busqueda && <button type="button" onClick={() => setBusqueda("")} aria-label="Borrar búsqueda" style={{ border: "none", background: "none", cursor: "pointer", color: COLORS.textDim, padding: 0, display: "flex" }}><X size={14} /></button>}
+          </div>
+
+          {!termino && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+              {MANUAL_SECCIONES.map((s) => (
+                <button key={s.id} type="button" onClick={() => irA(s.id)} style={{ fontSize: 12, padding: "5px 10px", borderRadius: 999, border: `1px solid ${COLORS.line}`, background: COLORS.surface, color: COLORS.text, cursor: "pointer" }}>
+                  {s.icono} {s.titulo}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {termino && secciones.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, padding: "10px 0" }}>No hay nada en el manual sobre “{busqueda}”.</div>}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {secciones.map((s) => {
+              const visible = termino || abiertas.has(s.id);
+              return (
+                <div key={s.id} id={`manual-${s.id}`} style={{ border: `1px solid ${visible ? "#BFDBFE" : COLORS.line}`, borderRadius: 10, overflow: "hidden", scrollMarginTop: 16 }}>
+                  <button type="button" onClick={() => alternar(s.id)} aria-expanded={!!visible} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 10, padding: "11px 14px", border: "none", background: visible ? "#EFF6FF" : COLORS.surface, cursor: "pointer", textAlign: "left" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}><span aria-hidden="true" style={{ marginRight: 8 }}>{s.icono}</span>{s.titulo}</span>
+                    <ChevronDown size={16} color={COLORS.textDim} style={{ transform: visible ? "rotate(180deg)" : "none", transition: "transform 0.2s ease", flexShrink: 0 }} />
+                  </button>
+                  {visible && (
+                    <div style={{ padding: "4px 16px 12px" }}>
+                      {s.bloques.map((b, i) => <BloqueManual key={i} b={b} />)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AjustesView() {
   const [form, setForm] = useState({ nombre_negocio: "", eslogan: "", direccion: "", telefono: "", email: "", nif: "", iva_pct: 21, suplemento_desplazamiento: 20, tarifa_hora: 25, enlace_resenas_google: "", coste_almacenamiento_diario: 1, telegram_chat_id: "", telefono_bizum: "" });
   const [cargando, setCargando] = useState(true);
@@ -5867,6 +6329,10 @@ function AjustesView() {
   if (cargando) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
 
   return (
+    <div>
+    <div style={{ maxWidth: 860 }}>
+      <ManualUso />
+    </div>
     <div style={{ maxWidth: 440 }}>
       <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 20 }}>
         <div style={{ fontFamily: "Oswald", fontSize: 16, color: COLORS.text, marginBottom: 4 }}>Datos del negocio</div>
@@ -6084,6 +6550,7 @@ function AjustesView() {
         </button>
         {guardado && <div style={{ fontSize: 12, color: COLORS.green, marginTop: 8 }}>Guardado. Los próximos comprobantes ya usarán estos datos.</div>}
       </div>
+    </div>
     </div>
   );
 }
