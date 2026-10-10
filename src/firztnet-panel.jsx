@@ -6874,7 +6874,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         /* Nombre "FIRZTNET" de arriba a la izquierda */
         .fn-marca {
           font-family: "Orbitron", "Oswald", sans-serif; font-size: 20px; font-weight: 800;
-          letter-spacing: 1.5px; cursor: default; user-select: none; display: inline-block;
+          letter-spacing: 1.5px; cursor: pointer; user-select: none; display: inline-block;
+          background: none; border: none; padding: 4px 2px; margin: 0; border-radius: 6px; line-height: 1.2;
           transition: letter-spacing 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .fn-marca-firzt, .fn-marca-net {
@@ -6887,6 +6888,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-marca-net { background-image: linear-gradient(100deg, #D97706 0%, #F59E0B 40%, #FDE68A 50%, #F59E0B 60%, #D97706 100%); animation-delay: 0.25s; }
         @keyframes fn-marca-brillo { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
         .fn-marca:hover { letter-spacing: 4px; transform: scale(1.05); }
+        .fn-marca:active { transform: scale(0.97); }
+        .fn-marca:focus-visible { outline: 2px solid ${COLORS.amber}; outline-offset: 3px; }
         .fn-marca:hover .fn-marca-firzt, .fn-marca:hover .fn-marca-net { animation-duration: 1.2s; filter: drop-shadow(0 0 6px rgba(37,99,235,0.45)); }
         @media (prefers-reduced-motion: reduce) {
           .fn-marca, .fn-marca * { animation: none !important; transition: none !important; }
@@ -7155,9 +7158,21 @@ function FirztnetPanel({ onCerrarSesion }) {
               </button>
               {/* Nombre junto al botón ☰: letra tecnológica (Orbitron) con un brillo que recorre
                   las letras sin parar; al pasar el ratón, las letras se separan y se iluminan. */}
-              <span className="fn-marca" aria-label="Firztnet">
+              {/* Además, al pulsarlo te lleva a la pantalla principal (Reparaciones), estés donde estés. */}
+              <button
+                type="button"
+                className="fn-marca"
+                onClick={() => {
+                  setVista("reparaciones");
+                  setMenuAbierto(false);
+                  setMostrarMasMovil(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                title="Ir a la pantalla principal"
+                aria-label="Firztnet: ir a la pantalla principal"
+              >
                 <span className="fn-marca-firzt">FIRZT</span><span className="fn-marca-net">NET</span>
-              </span>
+              </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
               <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
