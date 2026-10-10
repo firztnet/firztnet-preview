@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import {
@@ -3030,6 +3030,12 @@ function InsigniasNegocio({ negocios }) {
   );
 }
 
+// Un cliente "eliminado" es el que ejerció el derecho al olvido (RGPD): sus datos personales
+// se borraron y su nombre pasó a ser "Cliente eliminado (RGPD #...)".
+function esClienteEliminado(c) {
+  return (c?.nombre || "").startsWith("Cliente eliminado (RGPD");
+}
+
 function ClientesView() {
   const [clientes, setClientes] = useState([]);
   const [query, setQuery] = useState("");
@@ -3042,6 +3048,7 @@ function ClientesView() {
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [borrandoRgpd, setBorrandoRgpd] = useState(false);
   const [resultadoRgpd, setResultadoRgpd] = useState(null);
+  const [seccion, setSeccion] = useState("activos"); // "activos" o "eliminados"
 
   async function ejercerDerechoAlOlvido() {
     if (!window.confirm(
@@ -3059,6 +3066,8 @@ function ClientesView() {
       setResultadoRgpd(resultado);
       const actualizado = await apiGet(`/clientes/${detalle.id}`);
       setDetalle(actualizado);
+      setSeleccionado(actualizado);
+      setSeccion("eliminados"); // el cliente pasa a la sección de eliminados: se la enseñamos
       cargar(query);
     } catch (e) {
       setResultadoRgpd({ ok: false, error: e.message });
@@ -3118,7 +3127,19 @@ function ClientesView() {
   }
 
   const delNegocio = (cliente, key) => (cliente.negocios || ["firztnet"]).includes(key);
-  const clientesVisibles = filtroNegocio ? clientes.filter((cl) => delNegocio(cl, filtroNegocio)) : clientes;
+  // Los activos y los eliminados (RGPD) van en secciones separadas.
+  const activos = clientes.filter((cl) => !esClienteEliminado(cl));
+  const eliminados = clientes.filter(esClienteEliminado);
+  const clientesVisibles = filtroNegocio ? activos.filter((cl) => delNegocio(cl, filtroNegocio)) : activos;
+
+  function cambiarSeccion(nueva) {
+    if (nueva === seccion) return;
+    setSeccion(nueva);
+    setSeleccionado(null);
+    setDetalle(null);
+    setEditando(false);
+    setResultadoRgpd(null);
+  }
 
   // En la ficha, un cliente no puede quedarse sin ningún negocio: la última etiqueta no se puede quitar.
   function alternarNegocio(key) {
@@ -3137,8 +3158,34 @@ function ClientesView() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente por nombre..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%" }} />
         </div>
 
+        {/* Dos secciones: clientes activos y clientes eliminados por el derecho al olvido (RGPD) */}
+        <div role="tablist" style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 12, background: COLORS.surface, border: `1px solid ${COLORS.line}`, marginBottom: 14 }}>
+          {[
+            { key: "activos", texto: "Clientes activos", cuantos: activos.length, icono: Users, color: COLORS.amber },
+            { key: "eliminados", texto: "Eliminados (RGPD)", cuantos: eliminados.length, icono: UserX, color: COLORS.slate },
+          ].map((op) => {
+            const activo = seccion === op.key;
+            const Icono = op.icono;
+            return (
+              <button
+                key={op.key}
+                type="button"
+                role="tab"
+                aria-selected={activo}
+                onClick={() => cambiarSeccion(op.key)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 9, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: activo ? op.color : "transparent", color: activo ? "#FFFFFF" : COLORS.textDim, transition: "background-color 0.2s ease" }}
+              >
+                <Icono size={15} /> {op.texto}
+                <span style={{ fontSize: 11.5, fontWeight: 700, padding: "1px 8px", borderRadius: 999, background: activo ? "rgba(255,255,255,0.25)" : COLORS.surfaceRaised, color: activo ? "#FFFFFF" : COLORS.textDim }}>{op.cuantos}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {seccion === "activos" && (
+        <>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-          {[{ key: "", nombre: "Todos", color: COLORS.slate, cuantos: clientes.length }, ...NEGOCIOS_CLIENTE.map((n) => ({ ...n, cuantos: clientes.filter((cl) => delNegocio(cl, n.key)).length }))].map((op) => {
+          {[{ key: "", nombre: "Todos", color: COLORS.slate, cuantos: activos.length }, ...NEGOCIOS_CLIENTE.map((n) => ({ ...n, cuantos: activos.filter((cl) => delNegocio(cl, n.key)).length }))].map((op) => {
             const activo = filtroNegocio === op.key;
             return (
               <button
@@ -3156,8 +3203,8 @@ function ClientesView() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando clientes...</div>}
-          {!cargando && clientes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>No hay clientes todavía.</div>}
-          {!cargando && clientes.length > 0 && clientesVisibles.length === 0 && (
+          {!cargando && activos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{query ? "Ningún cliente activo coincide con la búsqueda." : "No hay clientes todavía."}</div>}
+          {!cargando && activos.length > 0 && clientesVisibles.length === 0 && (
             <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ningún cliente de {NEGOCIOS_CLIENTE.find((n) => n.key === filtroNegocio)?.nombre} todavía.</div>
           )}
           {clientesVisibles.map((c) => (
@@ -3183,6 +3230,49 @@ function ClientesView() {
             </button>
           ))}
         </div>
+        </>
+        )}
+
+        {seccion === "eliminados" && (
+          <div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 12.5, color: COLORS.text, lineHeight: 1.5, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${COLORS.slate}`, borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
+              <ShieldCheck size={18} color={COLORS.slate} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                Clientes que ejercieron el <strong>derecho al olvido</strong>. Sus datos personales ya no existen. Se conservan solo sus <strong>facturas</strong> y el <strong>historial de reparaciones</strong>, por obligación fiscal. No cuentan como clientes en la tarjeta del panel.
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {cargando && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+              {!cargando && eliminados.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>No hay ningún cliente eliminado.</div>}
+              {eliminados.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => verDetalle(c)}
+                  style={{
+                    background: seleccionado?.id === c.id ? COLORS.surfaceRaised : "#F8FAFC",
+                    border: `1px dashed ${seleccionado?.id === c.id ? COLORS.slate : "#CBD5E1"}`,
+                    borderRadius: 10, padding: "12px 14px", textAlign: "left", cursor: "pointer",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E2E8F0", color: COLORS.textDim }}>
+                      <UserX size={15} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.textDim }}>{c.codigo}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13.5, color: COLORS.textDim }}>{c.nombre}</span>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 2 }}>Datos personales borrados</div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color={COLORS.textDim} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="fn-side-panel" style={{ width: 300, flexShrink: 0 }}>
@@ -3200,7 +3290,9 @@ function ClientesView() {
               {!editando ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <div style={{ fontSize: 12, color: COLORS.textDim }}>{detalle.telefono || "Sin teléfono"}{detalle.email ? ` · ${detalle.email}` : " · Sin email"}{detalle.nif ? ` · NIF ${detalle.nif}` : ""}</div>
-                  <button onClick={() => setEditando(true)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
+                  {!esClienteEliminado(detalle) && (
+                    <button onClick={() => setEditando(true)} style={{ background: "none", border: "none", color: COLORS.amber, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Editar</button>
+                  )}
                 </div>
               ) : (
                 <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -6578,7 +6670,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       // Tarjeta "Clientes": cuenta todos menos los eliminados por el derecho al olvido (RGPD).
       // Va aparte para que, si fallara, no impida cargar el resto del panel.
       apiGet("/clientes")
-        .then((lista) => setNumClientes(lista.filter((c) => !(c.nombre || "").startsWith("Cliente eliminado (RGPD")).length))
+        .then((lista) => setNumClientes(lista.filter((c) => !esClienteEliminado(c)).length))
         .catch(() => setNumClientes(null));
     } catch (e) {
       setErrorCarga("No se pudo conectar con el backend (" + API_BASE + "). ¿Está corriendo `python run.py`?");
