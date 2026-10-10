@@ -979,10 +979,15 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
 function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onCambio, cargando }) {
   const etapas = stagesFor(tipoTrabajo);
   const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
+  // Las órdenes de clientes eliminados (RGPD) no se muestran en el tablero. Se pueden ver
+  // pulsando el enlace de abajo, por si hiciera falta consultar alguna.
+  const [verEliminados, setVerEliminados] = useState(false);
 
-  const filas = [...reparaciones].sort(
+  const ordenadas = [...reparaciones].sort(
     (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
   );
+  const deEliminados = ordenadas.filter((t) => esClienteEliminado(t.cliente));
+  const filas = verEliminados ? ordenadas : ordenadas.filter((t) => !esClienteEliminado(t.cliente));
 
   return (
     <div style={estiloBloqueOrdenes}>
@@ -995,6 +1000,19 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onC
         fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
       <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
+      {!cargando && deEliminados.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: "#F8FAFC", fontSize: 12, color: COLORS.textDim }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <UserX size={14} />
+            {verEliminados
+              ? `Mostrando también ${deEliminados.length} ${deEliminados.length === 1 ? "orden" : "órdenes"} de clientes eliminados (RGPD).`
+              : `${deEliminados.length} ${deEliminados.length === 1 ? "orden oculta" : "órdenes ocultas"} de clientes eliminados (RGPD).`}
+          </span>
+          <button type="button" onClick={() => setVerEliminados((v) => !v)} style={{ border: "none", background: "none", color: COLORS.amber, fontSize: 12, fontWeight: 600, cursor: "pointer", padding: 0, whiteSpace: "nowrap" }}>
+            {verEliminados ? "Ocultarlas" : "Ver"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
