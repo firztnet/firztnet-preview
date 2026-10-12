@@ -1416,7 +1416,9 @@ function CrearRecordatorio({ reparacion }) {
   );
 }
 
-function TicketModal({ t, onClose, onEstadoActualizado }) {
+// onDatosCambiados: avisa al panel de que hay cobros/gastos/facturas nuevos, para que
+// recargue las tarjetas (Balance de hoy, Este mes...) sin tener que recargar la página.
+function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -1858,6 +1860,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       if (!factura) {
         factura = await apiPost("/facturas", { reparacion_id: t.id });
         setFacturaExistente(factura);
+        onDatosCambiados?.();
       }
       await abrirPdfDesdeUrl(`${API_BASE}/facturas/${factura.id}/pdf`, ventana);
     } catch (e) {
@@ -1885,6 +1888,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       });
       setMovimientos((prev) => [nuevo, ...prev]);
       setMontoCobro("");
+      onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
     } finally {
@@ -1908,6 +1912,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
       setMovimientos((prev) => [resultado.movimiento, ...prev]);
       setFacturaExistente(resultado.factura);
       setMontoCobro("");
+      onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
     } finally {
@@ -2543,6 +2548,7 @@ function TicketModal({ t, onClose, onEstadoActualizado }) {
                 const nuevo = await apiPost("/finanzas", { reparacion_id: t.id, tipo: "gasto", concepto: conceptoCobro || "Gasto de esta visita", monto: parseFloat(montoCobro), metodo_pago: metodoCobro });
                 setMovimientos((prev) => [nuevo, ...prev]);
                 setMontoCobro("");
+                onDatosCambiados?.();
               } catch (e) {
                 setErrorCobro(e.message);
               } finally {
@@ -7805,7 +7811,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         </main>
       </div>
 
-      <TicketModal t={selected} onClose={() => setSelected(null)} onEstadoActualizado={handleEstadoActualizado} />
+      <TicketModal t={selected} onClose={() => { setSelected(null); cargarTodo(); }} onEstadoActualizado={handleEstadoActualizado} onDatosCambiados={cargarTodo} />
       {mostrarNueva && <NuevaReparacionModal onClose={() => setMostrarNueva(false)} onCreada={handleCreada} />}
     </div>
   );
