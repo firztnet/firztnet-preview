@@ -1456,6 +1456,11 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
   const [cargandoCobros, setCargandoCobros] = useState(true);
   const [montoCobro, setMontoCobro] = useState("");
   const [conceptoCobro, setConceptoCobro] = useState("Reparación");
+  // En un servicio in situ el concepto por defecto es "Servicio"; en el taller, "Reparación".
+  const conceptoPorDefecto = t?.tipo_trabajo === "domicilio" ? "Servicio" : "Reparación";
+  useEffect(() => { setConceptoCobro(conceptoPorDefecto); }, [t?.id, conceptoPorDefecto]);
+  const [siguienteVisita, setSiguienteVisita] = useState(null); // { para: id de la orden, texto }
+  const [creandoSiguiente, setCreandoSiguiente] = useState(false);
   const [suplementoDesplazamiento, setSuplementoDesplazamiento] = useState(20);
 
   useEffect(() => {
@@ -1819,6 +1824,51 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
 
   if (!t) return null;
   const listaEstados = stagesFor(t.tipo_trabajo);
+  // Servicio in situ / a domicilio: la ficha oculta lo que es solo de taller
+  // (etiqueta QR, fotos de recepción, presupuesto, repuestos, "falta pieza"),
+  // salvo que esa orden ya tenga algo apuntado ahí, para no esconder datos.
+  const enSitu = t.tipo_trabajo === "domicilio";
+
+  // Mantenimientos periódicos: crea la orden de la visita siguiente (un mes después)
+  // con los mismos datos: cliente, servicio, categoría, dirección, técnico y WiFi.
+  async function programarSiguienteVisita() {
+    const base = t.fecha_estimada ? new Date(t.fecha_estimada) : new Date();
+    const propuesta = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
+    const dosCifras = (n) => String(n).padStart(2, "0");
+    const textoPropuesta = `${dosCifras(propuesta.getDate())}/${dosCifras(propuesta.getMonth() + 1)}/${propuesta.getFullYear()}`;
+    const respuesta = window.prompt(`Se creará una orden nueva para ${t.cliente?.nombre || "el cliente"} con los mismos datos (${t.equipo}).\n\nFecha de la próxima visita (DD/MM/AAAA):`, textoPropuesta);
+    if (respuesta === null) return;
+    const partes = respuesta.trim().split(/[\/\-.]/).map((p) => parseInt(p, 10));
+    const [dia, mes, anio] = partes;
+    const fecha = new Date(anio, (mes || 0) - 1, dia);
+    if (partes.length !== 3 || !anio || !mes || !dia || fecha.getDate() !== dia || fecha.getMonth() !== mes - 1) {
+      window.alert("La fecha no es válida. Escríbela así: 12/11/2026");
+      return;
+    }
+    setCreandoSiguiente(true);
+    try {
+      const iso = `${anio}-${dosCifras(mes)}-${dosCifras(dia)}`;
+      const nueva = await apiPost("/reparaciones", {
+        cliente_id: t.cliente?.id,
+        equipo: t.equipo,
+        tipo_trabajo: "domicilio",
+        categoria: t.categoria,
+        direccion_servicio: t.direccion_servicio,
+        tecnico: t.tecnico,
+        problema_reportado: t.problema_reportado,
+        fecha_estimada: new Date(iso).toISOString(),
+      });
+      if (t.wifi_ssid || t.wifi_password) {
+        await apiPatch(`/reparaciones/${nueva.id}`, { wifi_ssid: t.wifi_ssid || null, wifi_password: t.wifi_password || null }).catch(() => {});
+      }
+      setSiguienteVisita({ para: t.id, texto: `✓ Creada la orden #${nueva.numero_orden} para el ${respuesta.trim()}. Ya la tienes en el tablero.` });
+      onDatosCambiados?.();
+    } catch (e) {
+      setSiguienteVisita({ para: t.id, texto: `No se pudo crear: ${e.message}`, error: true });
+    } finally {
+      setCreandoSiguiente(false);
+    }
+  }
   const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
   const esFinal = ["entregado", "no_reparable", "completado"].includes(t.estado_actual);
 
@@ -1888,7 +1938,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
       });
       setMovimientos((prev) => [nuevo, ...prev]);
       setMontoCobro("");
-      setConceptoCobro("Reparación"); // el siguiente cobro no hereda el concepto (p. ej. el suplemento)
+      setConceptoCobro(conceptoPorDefecto); // el siguiente cobro no hereda el concepto (p. ej. el suplemento)
       onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
@@ -1942,7 +1992,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
       setMovimientos((prev) => [resultado.movimiento, ...prev]);
       setFacturaExistente(resultado.factura);
       setMontoCobro("");
-      setConceptoCobro("Reparación");
+      setConceptoCobro(conceptoPorDefecto);
       onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
@@ -2033,7 +2083,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
 
         <div style={{ borderTop: `1px dashed ${COLORS.line}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
           <Row label="Cliente" value={t.cliente?.nombre} />
-          <Row label="Equipo" value={t.equipo} />
+          <Row label={enSitu ? "Servicio" : "Equipo"} value={t.equipo} />
           {t.tipo_trabajo === "domicilio" && t.direccion_servicio && <Row label="Dirección" value={t.direccion_servicio} />}
           {t.tipo_trabajo === "domicilio" && t.categoria && (
             <Row label="Categoría" value={CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.label || t.categoria} />
@@ -2054,8 +2104,9 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
               />
             </div>
           )}
-          <Row label="Problema reportado" value={t.problema_reportado || "—"} />
-          <Row label="Fecha recepción" value={fechaLarga(t.fecha_recepcion)} />
+          {(!enSitu || t.problema_reportado) && <Row label={enSitu ? "Qué pide el cliente" : "Problema reportado"} value={t.problema_reportado || "—"} />}
+          <Row label={enSitu ? "Fecha de alta" : "Fecha recepción"} value={fechaLarga(t.fecha_recepcion)} />
+          {!enSitu && (
           <button
             type="button"
             onClick={async () => {
@@ -2074,6 +2125,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
           >
             🏷️ Imprimir etiqueta con QR (para pegar en el equipo)
           </button>
+          )}
           <Row label="Estado" value={stage.label} />
           {tecnicosDisponibles.length > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -2090,7 +2142,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
           )}
           {!esFinal ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 13, color: COLORS.textDim }}>Fecha estimada de entrega</span>
+              <span style={{ fontSize: 13, color: COLORS.textDim }}>{enSitu ? "Fecha de la visita" : "Fecha estimada de entrega"}</span>
               <input
                 type="date"
                 defaultValue={t.fecha_estimada ? t.fecha_estimada.slice(0, 10) : ""}
@@ -2154,6 +2206,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
                   🚗 En camino
                 </button>
               )}
+              {!enSitu && (
               <button
                 type="button"
                 onClick={() => {
@@ -2168,6 +2221,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
               >
                 📦 Falta pieza
               </button>
+              )}
               {telefonoBizum && (
                 <button
                   type="button"
@@ -2263,7 +2317,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
           </div>
         )}
 
-        {!esFinal && (
+        {!esFinal && (!enSitu || t.presupuesto_importe != null) && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Presupuesto</div>
@@ -2389,6 +2443,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
         </div>
         )}
 
+        {(!enSitu || fotos.length > 0) && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6 }}>Fotos de recepción</div>
@@ -2431,8 +2486,9 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
             </div>
           )}
         </div>
+        )}
 
-        {t.estado_actual !== "no_reparable" && (
+        {t.estado_actual !== "no_reparable" && (!enSitu || repuestosUsados.length > 0) && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
           <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Repuestos usados</div>
           {errorRepuesto && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{errorRepuesto}</div>}
@@ -2587,7 +2643,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
                 const nuevo = await apiPost("/finanzas", { reparacion_id: t.id, tipo: "gasto", concepto: conceptoCobro || "Gasto de esta visita", monto: parseFloat(montoCobro), metodo_pago: metodoCobro });
                 setMovimientos((prev) => [nuevo, ...prev]);
                 setMontoCobro("");
-                setConceptoCobro("Reparación");
+                setConceptoCobro(conceptoPorDefecto);
                 onDatosCambiados?.();
               } catch (e) {
                 setErrorCobro(e.message);
@@ -2617,7 +2673,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
 
         {!esFinal && (
           <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
-            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Avanzar reparación</div>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>{enSitu ? "Avanzar servicio" : "Avanzar reparación"}</div>
             {error && <div style={{ fontSize: 12, color: COLORS.rust, marginBottom: 8 }}>{error}</div>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {siguiente && (
@@ -2721,6 +2777,19 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
             <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 6 }}>
               Descarga el PDF y adjúntalo manualmente en WhatsApp — no se puede enviar el archivo directo desde aquí.
             </div>
+          </div>
+        )}
+
+        {t.tipo_trabajo === "domicilio" && ["completado", "entregado"].includes(t.estado_actual) && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Próxima visita</div>
+            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>Si es un mantenimiento periódico, crea ya la orden de la visita siguiente con los mismos datos. Cada mes queda con sus propios cobros y su factura.</div>
+            <button type="button" disabled={creandoSiguiente} onClick={programarSiguienteVisita} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", padding: "9px 12px" }}>
+              <Calendar size={14} /> {creandoSiguiente ? "Creando..." : "Crear la visita del mes que viene"}
+            </button>
+            {siguienteVisita?.para === t.id && (
+              <div style={{ fontSize: 12, marginTop: 8, color: siguienteVisita.error ? COLORS.rust : COLORS.green, fontWeight: 600 }}>{siguienteVisita.texto}</div>
+            )}
           </div>
         )}
 
@@ -5961,7 +6030,7 @@ const MANUAL_SECCIONES = [
       ] },
       { t: "lista", titulo: "Mensajes rápidos por WhatsApp", x: [
         "🚗 En camino (a domicilio): avisa de que vas y en cuántos minutos llegas.",
-        "📦 Falta pieza: avisa de que has pedido un repuesto y cuándo llega.",
+        "📦 Falta pieza (solo taller): avisa de que has pedido un repuesto y cuándo llega.",
         "💳 Solicitar por Bizum: pide el pago con tu número de Bizum (solo si lo has puesto en Ajustes).",
       ] },
       { t: "lista", titulo: "Trabajo a domicilio", x: [
@@ -5969,6 +6038,8 @@ const MANUAL_SECCIONES = [
         "Hoja de trabajo: lista de puntos a revisar. Hay plantillas por tipo de servicio. Si cierras con puntos sin marcar, te avisa.",
         "Parte de trabajo (al completar): PDF con el servicio realizado, para mandárselo al cliente.",
         "Recordatorio de mantenimiento (al completar): programa un aviso para dentro de 6 o 12 meses.",
+        "Próxima visita (al completar): para los mantenimientos de cada mes, pulsa Crear la visita del mes que viene. Se crea una orden nueva con los mismos datos y la fecha que elijas; así cada mes tiene sus propios cobros y su factura.",
+        "En los servicios in situ no salen la etiqueta QR, las fotos de recepción, el presupuesto ni los repuestos (salvo que esa orden ya tenga alguno apuntado).",
       ] },
       { t: "p", x: "En taller hay un Checklist de salida (cargador incluido, teclado probado, pantalla probada...) para no olvidar nada al entregar." },
     ],
