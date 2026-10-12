@@ -1888,11 +1888,41 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
       });
       setMovimientos((prev) => [nuevo, ...prev]);
       setMontoCobro("");
+      setConceptoCobro("Reparación"); // el siguiente cobro no hereda el concepto (p. ej. el suplemento)
       onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
     } finally {
       setGuardandoCobro(false);
+    }
+  }
+
+  // Anular un cobro mal apuntado desde la propia ficha (igual que en Caja: no se borra,
+  // se compensa con un apunte en negativo y queda el motivo).
+  async function anularCobro(m) {
+    const importe = Number(m.monto).toLocaleString("es-ES", { minimumFractionDigits: 2 });
+    const motivo = window.prompt(`Vas a ANULAR el cobro "${m.concepto || "Cobro"}" de ${importe} €.\n\nNo se borra: se añade un apunte que lo compensa y queda constancia.\n\n¿Por qué lo anulas? (por ejemplo: "cobrado por error")`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { setErrorCobro("Hay que indicar el motivo para anular un cobro."); return; }
+    setErrorCobro("");
+    try {
+      const enviar = (confirmar) => fetch(`${API_BASE}/finanzas/${m.id}/anular`, { method: "POST", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ motivo, confirmar }) });
+      let res = await enviar(false);
+      manejar401(res);
+      let datos = await res.json().catch(() => ({}));
+      if (res.status === 409 && datos.requiere_confirmacion) {
+        if (!window.confirm(datos.mensaje)) return;
+        res = await enviar(true);
+        manejar401(res);
+        datos = await res.json().catch(() => ({}));
+      }
+      if (res.status === 404 || res.status === 405) { setErrorCobro("El servidor todavía no tiene la opción de anular. Sube primero el backend nuevo."); return; }
+      if (!res.ok) { setErrorCobro(datos.mensaje || datos.error || "No se pudo anular el cobro."); return; }
+      const data = await apiGet(`/reparaciones/${t.id}`);
+      setMovimientos(data.movimientos || []);
+      onDatosCambiados?.();
+    } catch (e) {
+      setErrorCobro(`No se pudo anular: ${e.message}`);
     }
   }
 
@@ -1912,6 +1942,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
       setMovimientos((prev) => [resultado.movimiento, ...prev]);
       setFacturaExistente(resultado.factura);
       setMontoCobro("");
+      setConceptoCobro("Reparación");
       onDatosCambiados?.();
     } catch (e) {
       setErrorCobro(e.message);
@@ -2482,6 +2513,14 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
                   >
                     Recibo
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => anularCobro(m)}
+                    title="Anular este cobro (queda constancia del motivo)"
+                    style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 11, cursor: "pointer", padding: 0, flexShrink: 0 }}
+                  >
+                    Anular
+                  </button>
                 </div>
               ))}
             </div>
@@ -2548,6 +2587,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
                 const nuevo = await apiPost("/finanzas", { reparacion_id: t.id, tipo: "gasto", concepto: conceptoCobro || "Gasto de esta visita", monto: parseFloat(montoCobro), metodo_pago: metodoCobro });
                 setMovimientos((prev) => [nuevo, ...prev]);
                 setMontoCobro("");
+                setConceptoCobro("Reparación");
                 onDatosCambiados?.();
               } catch (e) {
                 setErrorCobro(e.message);
@@ -5980,6 +6020,7 @@ const MANUAL_SECCIONES = [
         "Elige cómo pagó: efectivo, tarjeta, transferencia o Bizum.",
         "Pulsa Registrar cobro. Si además quieres factura, pulsa Cobrar y facturar.",
       ] },
+      { t: "nota", x: "¿Te has equivocado al cobrar? Pulsa Anular junto a ese cobro (en la propia ficha o en Caja) y escribe el motivo. No se borra: se compensa y queda constancia." },
       { t: "lista", x: [
         "A domicilio: el botón + Añadir suplemento de desplazamiento rellena solo el importe que tengas en Ajustes.",
         "Si en vez de un cobro es un gasto de esa orden (material, gasolina, peajes...), usa Registrar como gasto de esta visita.",
