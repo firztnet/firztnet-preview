@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import {
@@ -761,6 +761,21 @@ function MenuAccionesOrden({ t, stage, esFinal, onAbrir, onCambio }) {
   );
 }
 
+// Servicios in situ con fecha de visita: lo que importa es el día de la visita, no el día
+// en que se dio de alta (una visita del mes que viene se crea con un mes de antelación).
+function fechaVisita(t) {
+  return t?.tipo_trabajo === "domicilio" && t.fecha_estimada ? new Date(t.fecha_estimada) : null;
+}
+function fechaReferencia(t) {
+  return fechaVisita(t) || (t?.fecha_recepcion ? new Date(t.fecha_recepcion) : new Date(0));
+}
+// Días naturales entre hoy y una fecha (positivo = ya pasó; negativo = todavía falta).
+function diasNaturalesDesde(fecha) {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const dia = new Date(fecha); dia.setHours(0, 0, 0, 0);
+  return Math.round((hoy - dia) / (1000 * 60 * 60 * 24));
+}
+
 function diasDesde(fecha) {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
 }
@@ -869,13 +884,21 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
             const lista = etapasDe(t);
             const stage = lista.find((s) => s.key === t.estado_actual) || lista[0];
             const esFinal = ["entregado", "completado"].includes(t.estado_actual);
-            const dias = diasDesde(t.fecha_recepcion);
             const numero = (t.numero_orden || "").split("-")[1] || t.numero_orden;
-            const fecha = t.fecha_recepcion ? new Date(t.fecha_recepcion) : null;
-            const anio = fecha ? fecha.getFullYear() : "";
-            const diaMes = fecha ? `${String(fecha.getDate()).padStart(2, "0")}/${String(fecha.getMonth() + 1).padStart(2, "0")}` : "—";
             const domicilio = t.tipo_trabajo === "domicilio";
-            const retrasada = dias >= 5;
+            // In situ con fecha de visita: se enseña el día de la visita y cuánto falta (o cuánto se ha pasado).
+            const visita = fechaVisita(t);
+            const fecha = visita || (t.fecha_recepcion ? new Date(t.fecha_recepcion) : null);
+            const anio = visita ? "Visita" : fecha ? fecha.getFullYear() : "";
+            const diaMes = fecha ? `${String(fecha.getDate()).padStart(2, "0")}/${String(fecha.getMonth() + 1).padStart(2, "0")}` : "—";
+            const diasVisita = visita && !esFinal ? diasNaturalesDesde(visita) : null;
+            const dias = diasVisita !== null ? diasVisita : diasDesde(t.fecha_recepcion);
+            const futura = diasVisita !== null && diasVisita < 0;
+            const retrasada = diasVisita !== null ? diasVisita >= 1 : dias >= 5;
+            const textoDias = diasVisita === null ? `${dias} ${dias === 1 ? "día" : "días"}`
+              : diasVisita === 0 ? "Hoy"
+              : futura ? `En ${-diasVisita} ${diasVisita === -1 ? "día" : "días"}`
+              : `${diasVisita} ${diasVisita === 1 ? "día" : "días"} tarde`;
             return (
               <tr
                 key={t.id}
@@ -916,8 +939,8 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                   </span>
                 </td>
                 <td style={{ padding: "10px 8px" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: retrasada ? COLORS.rust : COLORS.textDim, background: retrasada ? `${COLORS.rust}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 10px", whiteSpace: "nowrap" }}>
-                    <Clock size={12} /> {dias} {dias === 1 ? "día" : "días"}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: futura || diasVisita === 0 ? COLORS.amber : retrasada ? COLORS.rust : COLORS.textDim, background: futura || diasVisita === 0 ? `${COLORS.amber}14` : retrasada ? `${COLORS.rust}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 10px", whiteSpace: "nowrap" }}>
+                    <Clock size={12} /> {textoDias}
                   </span>
                 </td>
                 <td style={{ padding: "10px 8px" }}>
@@ -957,7 +980,7 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
       !["entregado", "no_reparable", "completado"].includes(r.estado_actual) ||
       (["entregado", "completado"].includes(r.estado_actual) && r.fecha_entrega && new Date(r.fecha_entrega).toDateString() === hoy)
     )
-    .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion));
+    .sort((a, b) => (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || fechaReferencia(a) - fechaReferencia(b));
 
   if (filas.length === 0) return null;
 
@@ -984,7 +1007,7 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onC
   const [verEliminados, setVerEliminados] = useState(false);
 
   const ordenadas = [...reparaciones].sort(
-    (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || new Date(a.fecha_recepcion) - new Date(b.fecha_recepcion)
+    (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || fechaReferencia(a) - fechaReferencia(b)
   );
   const deEliminados = ordenadas.filter((t) => esClienteEliminado(t.cliente));
   const filas = verEliminados ? ordenadas : ordenadas.filter((t) => !esClienteEliminado(t.cliente));
@@ -1459,8 +1482,6 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
   // En un servicio in situ el concepto por defecto es "Servicio"; en el taller, "Reparación".
   const conceptoPorDefecto = t?.tipo_trabajo === "domicilio" ? "Servicio" : "Reparación";
   useEffect(() => { setConceptoCobro(conceptoPorDefecto); }, [t?.id, conceptoPorDefecto]);
-  const [siguienteVisita, setSiguienteVisita] = useState(null); // { para: id de la orden, texto }
-  const [creandoSiguiente, setCreandoSiguiente] = useState(false);
   const [suplementoDesplazamiento, setSuplementoDesplazamiento] = useState(20);
 
   useEffect(() => {
@@ -1829,46 +1850,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
   // salvo que esa orden ya tenga algo apuntado ahí, para no esconder datos.
   const enSitu = t.tipo_trabajo === "domicilio";
 
-  // Mantenimientos periódicos: crea la orden de la visita siguiente (un mes después)
-  // con los mismos datos: cliente, servicio, categoría, dirección, técnico y WiFi.
-  async function programarSiguienteVisita() {
-    const base = t.fecha_estimada ? new Date(t.fecha_estimada) : new Date();
-    const propuesta = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
-    const dosCifras = (n) => String(n).padStart(2, "0");
-    const textoPropuesta = `${dosCifras(propuesta.getDate())}/${dosCifras(propuesta.getMonth() + 1)}/${propuesta.getFullYear()}`;
-    const respuesta = window.prompt(`Se creará una orden nueva para ${t.cliente?.nombre || "el cliente"} con los mismos datos (${t.equipo}).\n\nFecha de la próxima visita (DD/MM/AAAA):`, textoPropuesta);
-    if (respuesta === null) return;
-    const partes = respuesta.trim().split(/[\/\-.]/).map((p) => parseInt(p, 10));
-    const [dia, mes, anio] = partes;
-    const fecha = new Date(anio, (mes || 0) - 1, dia);
-    if (partes.length !== 3 || !anio || !mes || !dia || fecha.getDate() !== dia || fecha.getMonth() !== mes - 1) {
-      window.alert("La fecha no es válida. Escríbela así: 12/11/2026");
-      return;
-    }
-    setCreandoSiguiente(true);
-    try {
-      const iso = `${anio}-${dosCifras(mes)}-${dosCifras(dia)}`;
-      const nueva = await apiPost("/reparaciones", {
-        cliente_id: t.cliente?.id,
-        equipo: t.equipo,
-        tipo_trabajo: "domicilio",
-        categoria: t.categoria,
-        direccion_servicio: t.direccion_servicio,
-        tecnico: t.tecnico,
-        problema_reportado: t.problema_reportado,
-        fecha_estimada: new Date(iso).toISOString(),
-      });
-      if (t.wifi_ssid || t.wifi_password) {
-        await apiPatch(`/reparaciones/${nueva.id}`, { wifi_ssid: t.wifi_ssid || null, wifi_password: t.wifi_password || null }).catch(() => {});
-      }
-      setSiguienteVisita({ para: t.id, texto: `✓ Creada la orden #${nueva.numero_orden} para el ${respuesta.trim()}. Ya la tienes en el tablero.` });
-      onDatosCambiados?.();
-    } catch (e) {
-      setSiguienteVisita({ para: t.id, texto: `No se pudo crear: ${e.message}`, error: true });
-    } finally {
-      setCreandoSiguiente(false);
-    }
-  }
+
   const stage = listaEstados.find((s) => s.key === t.estado_actual) || listaEstados[0];
   const esFinal = ["entregado", "no_reparable", "completado"].includes(t.estado_actual);
 
@@ -2782,19 +2764,6 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
 
         {t.tipo_trabajo === "domicilio" && ["completado", "entregado"].includes(t.estado_actual) && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
-            <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Próxima visita</div>
-            <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>Si es un mantenimiento periódico, crea ya la orden de la visita siguiente con los mismos datos. Cada mes queda con sus propios cobros y su factura.</div>
-            <button type="button" disabled={creandoSiguiente} onClick={programarSiguienteVisita} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), width: "100%", padding: "9px 12px" }}>
-              <Calendar size={14} /> {creandoSiguiente ? "Creando..." : "Crear la visita del mes que viene"}
-            </button>
-            {siguienteVisita?.para === t.id && (
-              <div style={{ fontSize: 12, marginTop: 8, color: siguienteVisita.error ? COLORS.rust : COLORS.green, fontWeight: 600 }}>{siguienteVisita.texto}</div>
-            )}
-          </div>
-        )}
-
-        {t.tipo_trabajo === "domicilio" && ["completado", "entregado"].includes(t.estado_actual) && (
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.line}` }}>
             <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Recordatorio de mantenimiento</div>
             <CrearRecordatorio reparacion={t} />
           </div>
@@ -3623,13 +3592,14 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
         apiGet("/reportes/garantias-activas").catch(() => []),
         apiGet("/solicitudes").catch(() => []),
         apiGet("/estadisticas/novedades").catch(() => null),
+        apiGet("/mantenimientos/contratos").catch(() => []),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3641,6 +3611,9 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
       const solicitudesPendientes = solicitudes.filter((s) => !s.atendida);
       if (solicitudesPendientes.length > 0) nuevos.push({ tipo: "solicitud", texto: `${solicitudesPendientes.length} solicitud(es) de servicio sin atender`, accion: () => onIrVista("solicitudes") });
+      // Mantenimientos: ya has ido este mes pero la cuota sigue sin cobrar
+      (contratosMant || []).filter((c) => c.estado === "activo" && c.mes_actual && c.mes_actual.num_visitas > 0 && !c.mes_actual.cuota_pagada)
+        .forEach((c) => nuevos.push({ tipo: "cuota", texto: `Cuota de ${c.mes_actual.nombre.split(" ")[0]} sin cobrar — ${c.cliente?.nombre}`, accion: () => onIrVista("mantenimientos") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
       setItems(nuevos);
@@ -5793,6 +5766,778 @@ function RecordatoriosView() {
   );
 }
 
+// ---------------------------------------------------------------------
+// MANTENIMIENTOS: contratos con cuota fija mensual y visitas libres.
+// Cada mes es independiente: sus visitas y el cobro de su cuota (sin factura).
+// ---------------------------------------------------------------------
+const ESTADOS_CONTRATO_UI = {
+  activo: { label: "Activo", color: COLORS.green },
+  pendiente: { label: "Pendiente de confirmar", color: COLORS.statusAmber },
+  baja: { label: "Dado de baja", color: COLORS.textDim },
+};
+const ORDEN_ESTADO_CONTRATO = { activo: 0, pendiente: 1, baja: 2 };
+
+function eurosMant(n) {
+  return `${Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+// "2026-10-12" → "12/10/2026" (sin pasar por Date para que no cambie el día)
+function fechaDia(iso) {
+  if (!iso) return "";
+  const [a, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${a}`;
+}
+function fechaLargaDia(iso) {
+  if (!iso) return "";
+  const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+}
+function horaDe(iso) {
+  return iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "";
+}
+function periodoActualLocal() {
+  return hoyLocalISO().slice(0, 7);
+}
+function mayusculaInicial(t) {
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+async function borrarEnApi(path) {
+  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE", headers: cabecerasAuth() });
+  manejar401(res);
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(datos.mensaje || datos.error || `No se pudo borrar (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return datos;
+}
+
+function InsigniaEstadoContrato({ estado }) {
+  const e = ESTADOS_CONTRATO_UI[estado] || ESTADOS_CONTRATO_UI.activo;
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, color: e.color, background: `${e.color}1A`, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{e.label}</span>
+  );
+}
+
+function MantenimientosView({ onCambio }) {
+  const [contratos, setContratos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [abiertoId, setAbiertoId] = useState(null);
+  const [creando, setCreando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    setError("");
+    try {
+      setContratos(await apiGet("/mantenimientos/contratos"));
+    } catch (e) {
+      setError(String(e.message).includes("404")
+        ? "El servidor todavía no tiene la sección de mantenimientos. Sube primero el backend nuevo."
+        : `No se pudieron cargar los mantenimientos: ${e.message}`);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  if (abiertoId) {
+    return (
+      <FichaContratoMantenimiento
+        id={abiertoId}
+        onVolver={() => { setAbiertoId(null); cargar(); }}
+        onCambio={onCambio}
+      />
+    );
+  }
+
+  const ordenados = [...contratos].sort((a, b) =>
+    (ORDEN_ESTADO_CONTRATO[a.estado] ?? 9) - (ORDEN_ESTADO_CONTRATO[b.estado] ?? 9) ||
+    (a.cliente?.nombre || "").localeCompare(b.cliente?.nombre || "", "es"));
+  const activos = contratos.filter((c) => c.estado === "activo");
+  const cuotaMensual = activos.reduce((s, c) => s + Number(c.cuota || 0), 0);
+  const pendientesCobro = activos.filter((c) => c.mes_actual && !c.mes_actual.cuota_pagada).length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: COLORS.textDim }}>
+          {activos.length} {activos.length === 1 ? "contrato activo" : "contratos activos"} · {eurosMant(cuotaMensual)} al mes
+          {pendientesCobro > 0 && <span style={{ color: COLORS.statusAmber, fontWeight: 600 }}> · {pendientesCobro} {pendientesCobro === 1 ? "cuota" : "cuotas"} de este mes sin cobrar</span>}
+        </div>
+        {!creando && (
+          <button onClick={() => setCreando(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px", fontSize: 13 }}>
+            <Plus size={15} /> Nuevo contrato
+          </button>
+        )}
+      </div>
+
+      {creando && (
+        <FormularioContrato
+          onCancelar={() => setCreando(false)}
+          onGuardado={(c) => { setCreando(false); onCambio?.(); setAbiertoId(c.id); }}
+        />
+      )}
+
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginBottom: 10 }}>{error}</div>}
+      {cargando && contratos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+      {!cargando && !error && contratos.length === 0 && !creando && (
+        <div style={{ background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 22, fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>
+          Aún no hay contratos de mantenimiento. Pulsa <b>Nuevo contrato</b> para crear el primero.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+        {ordenados.map((c) => {
+          const est = ESTADOS_CONTRATO_UI[c.estado] || ESTADOS_CONTRATO_UI.activo;
+          const mes = c.mes_actual;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setAbiertoId(c.id)}
+              className="fn-tarjeta-mant"
+              style={{ textAlign: "left", cursor: "pointer", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${est.color}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 8, opacity: c.estado === "baja" ? 0.7 : 1, font: "inherit", color: COLORS.text }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.cliente?.nombre || "Sin cliente"}</div>
+                  <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{c.servicio}</div>
+                </div>
+                <InsigniaEstadoContrato estado={c.estado} />
+              </div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700, color: COLORS.amber }}>
+                {eurosMant(c.cuota)}<span style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 500 }}> /mes</span>
+              </div>
+              {mes ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 12 }}>
+                  <span style={{ background: COLORS.surfaceRaised, borderRadius: 999, padding: "3px 9px", color: COLORS.text }}>
+                    {mayusculaInicial(mes.nombre)}: {mes.num_visitas} {mes.num_visitas === 1 ? "visita" : "visitas"}
+                  </span>
+                  <span style={{ borderRadius: 999, padding: "3px 9px", fontWeight: 600, color: mes.cuota_pagada ? COLORS.green : COLORS.statusAmber, background: mes.cuota_pagada ? `${COLORS.green}1A` : `${COLORS.statusAmber}1A` }}>
+                    {mes.cuota_pagada ? "Cuota cobrada" : "Cuota sin cobrar"}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: COLORS.textDim }}>
+                  {c.estado === "pendiente" ? "Cuando lo confirmes, cámbialo a Activo y empezará a contar los meses." : "Sin actividad este mes."}
+                </div>
+              )}
+              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>
+                {c.ultima_visita ? `Última visita: ${fechaDia(c.ultima_visita)}` : "Todavía sin visitas"}
+                {c.proxima_visita && <span style={{ color: COLORS.amber, fontWeight: 600 }}> · Próxima: {fechaDia(c.proxima_visita)}</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Crear o editar un contrato. Con "inicial" edita; sin él, crea (y deja pasar una orden in situ ya hecha).
+function FormularioContrato({ inicial, onCancelar, onGuardado }) {
+  const editando = !!inicial;
+  const [clientes, setClientes] = useState([]);
+  const [buscar, setBuscar] = useState("");
+  const [clienteId, setClienteId] = useState("");
+  const [ordenesCliente, setOrdenesCliente] = useState([]);
+  const [adoptarId, setAdoptarId] = useState("");
+  const [adoptarMes, setAdoptarMes] = useState("");
+  const [f, setF] = useState({
+    servicio: inicial?.servicio || "Mantenimiento informático",
+    cuota: inicial ? String(inicial.cuota).replace(".", ",") : "",
+    direccion: inicial?.direccion || "",
+    wifi_ssid: inicial?.wifi_ssid || "",
+    wifi_password: inicial?.wifi_password || "",
+    tareas: (inicial?.tareas || []).join("\n"),
+    notas: inicial?.notas || "",
+    estado: inicial?.estado || "activo",
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const cambiar = (campo) => (e) => setF((prev) => ({ ...prev, [campo]: e.target.value }));
+  const inputStyle = { width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4, fontFamily: "inherit" };
+  const etiqueta = { fontSize: 12, color: COLORS.textDim, fontWeight: 600 };
+
+  useEffect(() => {
+    if (editando) return;
+    apiGet("/clientes?incluir_contactos=true")
+      .then((lista) => setClientes((lista || []).filter((c) => !esClienteEliminado(c))))
+      .catch(() => setError("No se pudo cargar la lista de clientes."));
+  }, [editando]);
+
+  useEffect(() => {
+    setOrdenesCliente([]);
+    setAdoptarId("");
+    if (!clienteId) return;
+    apiGet(`/clientes/${clienteId}`)
+      .then((d) => setOrdenesCliente((d.reparaciones || []).filter((r) => r.tipo_trabajo === "domicilio" && !r.contrato_id)))
+      .catch(() => {});
+  }, [clienteId]);
+
+  function elegirOrden(id) {
+    setAdoptarId(id);
+    const orden = ordenesCliente.find((o) => String(o.id) === String(id));
+    if (!orden) return;
+    setF((prev) => ({
+      ...prev,
+      direccion: prev.direccion || orden.direccion_servicio || "",
+      servicio: !prev.servicio.trim() || prev.servicio === "Mantenimiento informático" ? (orden.equipo || prev.servicio).slice(0, 100) : prev.servicio,
+    }));
+  }
+
+  const filtrados = clientes.filter((c) => normalizar(c.nombre).includes(normalizar(buscar))).slice(0, 200);
+
+  async function guardar() {
+    setError("");
+    if (!editando && !clienteId) { setError("Elige el cliente."); return; }
+    if (!f.servicio.trim()) { setError("Escribe qué servicio es."); return; }
+    const cuota = parseFloat(String(f.cuota).replace(",", "."));
+    if (!(cuota >= 0)) { setError("Escribe la cuota mensual (precio final)."); return; }
+    setGuardando(true);
+    try {
+      const datos = { ...f, cuota };
+      let resultado;
+      if (editando) {
+        resultado = await apiPatch(`/mantenimientos/contratos/${inicial.id}`, datos);
+      } else {
+        resultado = await apiPost("/mantenimientos/contratos", {
+          ...datos,
+          cliente_id: Number(clienteId),
+          ...(adoptarId ? { adoptar_reparacion_id: Number(adoptarId) } : {}),
+          ...(adoptarId && adoptarMes ? { adoptar_periodo: adoptarMes } : {}),
+        });
+      }
+      onGuardado(resultado);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, marginBottom: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{editando ? "Editar contrato" : "Nuevo contrato de mantenimiento"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+        {!editando && (
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={etiqueta}>Cliente</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input placeholder="Buscar por nombre..." value={buscar} onChange={(e) => setBuscar(e.target.value)} style={{ ...inputStyle, flex: "1 1 180px", width: "auto" }} />
+              <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} style={{ ...inputStyle, flex: "2 1 240px", width: "auto" }} aria-label="Cliente">
+                <option value="">— Elige el cliente —</option>
+                {filtrados.map((c) => <option key={c.id} value={c.id}>{c.nombre}{c.telefono ? ` · ${c.telefono}` : ""}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+        {!editando && ordenesCliente.length > 0 && (
+          <div style={{ gridColumn: "1 / -1", background: COLORS.surfaceRaised, borderRadius: 9, padding: 12 }}>
+            <label style={etiqueta}>¿Pasar a este contrato una orden in situ que ya tienes?</label>
+            <select value={adoptarId} onChange={(e) => elegirOrden(e.target.value)} style={inputStyle}>
+              <option value="">No, empezar de cero</option>
+              {ordenesCliente.map((o) => <option key={o.id} value={o.id}>#{o.numero_orden} · {o.equipo}</option>)}
+            </select>
+            {adoptarId && (
+              <div style={{ marginTop: 8 }}>
+                <label style={etiqueta}>Mes al que corresponde (si lo dejas vacío, el mes en que la cobraste)</label>
+                <input type="month" value={adoptarMes} onChange={(e) => setAdoptarMes(e.target.value)} style={{ ...inputStyle, maxWidth: 220 }} />
+                <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 6 }}>
+                  Esa orden deja de salir en el tablero de reparaciones y sus cobros pasan a ser la cuota de ese mes.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <div>
+          <label style={etiqueta}>Servicio</label>
+          <input value={f.servicio} onChange={cambiar("servicio")} maxLength={100} style={inputStyle} />
+        </div>
+        <div>
+          <label style={etiqueta}>Cuota mensual (precio final, €)</label>
+          <input value={f.cuota} onChange={cambiar("cuota")} inputMode="decimal" placeholder="40" style={inputStyle} />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={etiqueta}>Dirección</label>
+          <input value={f.direccion} onChange={cambiar("direccion")} maxLength={200} style={inputStyle} />
+        </div>
+        <div>
+          <label style={etiqueta}>WiFi (nombre)</label>
+          <input value={f.wifi_ssid} onChange={cambiar("wifi_ssid")} maxLength={80} style={inputStyle} />
+        </div>
+        <div>
+          <label style={etiqueta}>WiFi (contraseña)</label>
+          <input value={f.wifi_password} onChange={cambiar("wifi_password")} maxLength={120} style={inputStyle} />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={etiqueta}>Tareas incluidas (una por línea)</label>
+          <textarea value={f.tareas} onChange={cambiar("tareas")} rows={4} placeholder={"Copias de seguridad\nActualizaciones de Windows\nRevisar antivirus"} style={{ ...inputStyle, resize: "vertical" }} />
+        </div>
+        <div>
+          <label style={etiqueta}>Estado</label>
+          <select value={f.estado} onChange={cambiar("estado")} style={inputStyle}>
+            <option value="activo">Activo</option>
+            <option value="pendiente">Pendiente de confirmar</option>
+            {editando && <option value="baja">Dado de baja</option>}
+          </select>
+        </div>
+        <div>
+          <label style={etiqueta}>Notas</label>
+          <input value={f.notas} onChange={cambiar("notas")} style={inputStyle} />
+        </div>
+      </div>
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginTop: 10 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+        <button onClick={onCancelar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "9px 16px" }}>Cancelar</button>
+        <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 18px" }}>
+          {guardando ? "Guardando..." : editando ? "Guardar cambios" : "Crear contrato"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FichaContratoMantenimiento({ id, onVolver, onCambio }) {
+  const [contrato, setContrato] = useState(null);
+  const [error, setError] = useState("");
+  const [periodo, setPeriodo] = useState(null);
+  const [editando, setEditando] = useState(false);
+
+  const cargar = useCallback(async (periodoDeseado) => {
+    try {
+      const datos = await apiGet(`/mantenimientos/contratos/${id}`);
+      setContrato(datos);
+      setPeriodo((actual) => {
+        const quiero = periodoDeseado || actual;
+        if (quiero && datos.meses.some((m) => m.periodo === quiero)) return quiero;
+        const hoy = periodoActualLocal();
+        return datos.meses.some((m) => m.periodo === hoy) ? hoy : datos.meses[0]?.periodo || null;
+      });
+    } catch (e) {
+      setError(`No se pudo abrir el contrato: ${e.message}`);
+    }
+  }, [id]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const refrescar = (p) => { cargar(p); onCambio?.(); };
+
+  async function eliminarContrato() {
+    if (!window.confirm("¿Borrar este contrato? Solo es para contratos creados por error. Si ya no lo haces, mejor cámbialo a «Dado de baja».")) return;
+    try {
+      await borrarEnApi(`/mantenimientos/contratos/${id}`);
+      onCambio?.();
+      onVolver();
+    } catch (e) {
+      window.alert(e.message);
+    }
+  }
+
+  const volver = (
+    <button onClick={onVolver} style={{ background: "none", border: "none", color: COLORS.amber, cursor: "pointer", fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+      ← Todos los mantenimientos
+    </button>
+  );
+
+  if (error) return <div>{volver}<div style={{ fontSize: 13, color: COLORS.rust }}>{error}</div></div>;
+  if (!contrato) return <div>{volver}<div style={{ fontSize: 13, color: COLORS.textDim }}>Cargando...</div></div>;
+
+  const telefono = (contrato.cliente?.telefono || "").replace(/\D/g, "");
+  const mes = contrato.meses.find((m) => m.periodo === periodo);
+  const tarjeta = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16 };
+
+  return (
+    <div>
+      {volver}
+      {editando ? (
+        <FormularioContrato
+          inicial={contrato}
+          onCancelar={() => setEditando(false)}
+          onGuardado={() => { setEditando(false); refrescar(); }}
+        />
+      ) : (
+        <div style={{ ...tarjeta, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 18, fontWeight: 700 }}>{contrato.cliente?.nombre}</span>
+                <InsigniaEstadoContrato estado={contrato.estado} />
+              </div>
+              <div style={{ fontSize: 13, color: COLORS.textDim, marginTop: 2 }}>
+                {contrato.servicio} · <b style={{ color: COLORS.amber }}>{eurosMant(contrato.cuota)} al mes</b> (precio final, sin factura)
+                {contrato.fecha_inicio && <> · desde {fechaDia(contrato.fecha_inicio)}</>}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {telefono && (
+                <a href={`https://wa.me/${telefono}`} target="_blank" rel="noreferrer" style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "8px 12px", fontSize: 12.5, textDecoration: "none" }}>
+                  <IconoWhatsApp size={14} /> WhatsApp
+                </a>
+              )}
+              {contrato.direccion && (
+                <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(contrato.direccion)}`} target="_blank" rel="noreferrer" style={{ ...btnStyle("transparent", COLORS.amber, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5, textDecoration: "none" }}>
+                  <MapPin size={14} /> Cómo llegar
+                </a>
+              )}
+              <button onClick={() => setEditando(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+                <Pencil size={14} /> Editar
+              </button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14, fontSize: 12.5 }}>
+            <div>
+              <div style={{ color: COLORS.textDim, fontWeight: 600, marginBottom: 3 }}>Dirección</div>
+              <div>{contrato.direccion || "—"}</div>
+            </div>
+            <div>
+              <div style={{ color: COLORS.textDim, fontWeight: 600, marginBottom: 3 }}>WiFi</div>
+              <div>{contrato.wifi_ssid || "—"}{contrato.wifi_password && <> · <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{contrato.wifi_password}</span></>}</div>
+            </div>
+            <div>
+              <div style={{ color: COLORS.textDim, fontWeight: 600, marginBottom: 3 }}>Tareas incluidas</div>
+              <div>{contrato.tareas.length ? contrato.tareas.join(" · ") : "—"}</div>
+            </div>
+            {contrato.notas && (
+              <div>
+                <div style={{ color: COLORS.textDim, fontWeight: 600, marginBottom: 3 }}>Notas</div>
+                <div style={{ whiteSpace: "pre-wrap" }}>{contrato.notas}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Meses: cada uno con lo suyo */}
+      <div style={{ fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Meses</div>
+      {contrato.meses.length === 0 ? (
+        <div style={{ ...tarjeta, fontSize: 13, color: COLORS.textDim, marginBottom: 14 }}>
+          {contrato.estado === "pendiente" ? "El contrato está pendiente de confirmar. Cuando lo cambies a Activo aparecerá el mes en curso." : "Todavía no hay meses."}
+          {contrato.estado !== "baja" && <div style={{ marginTop: 10 }}><NuevaVisitaMantenimiento contrato={contrato} onCreada={(p) => refrescar(p)} /></div>}
+        </div>
+      ) : (
+        <div className="fn-sin-barra" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6, marginBottom: 12 }}>
+          {contrato.meses.map((m) => {
+            const activo = m.periodo === periodo;
+            return (
+              <button
+                key={m.periodo}
+                onClick={() => setPeriodo(m.periodo)}
+                style={{ flexShrink: 0, textAlign: "left", cursor: "pointer", borderRadius: 10, padding: "8px 12px", border: `1.5px solid ${activo ? COLORS.amber : COLORS.line}`, background: activo ? `${COLORS.amber}10` : COLORS.surface, font: "inherit", color: COLORS.text }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{mayusculaInicial(m.nombre)}</div>
+                <div style={{ fontSize: 11, color: COLORS.textDim }}>
+                  {m.num_visitas} {m.num_visitas === 1 ? "visita" : "visitas"} · <span style={{ color: m.cuota_pagada ? COLORS.green : COLORS.statusAmber, fontWeight: 600 }}>{m.cuota_pagada ? "cobrado" : "sin cobrar"}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {mes && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, alignItems: "start" }}>
+          <CuotaDelMes contrato={contrato} mes={mes} onCambio={() => refrescar(mes.periodo)} />
+          <div style={tarjeta}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Visitas de {mes.nombre}</div>
+              <NuevaVisitaMantenimiento contrato={contrato} periodo={mes.periodo} onCreada={(p) => refrescar(p)} />
+            </div>
+            {mes.visitas.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin visitas este mes. Las visitas van incluidas en la cuota (no se cobran aparte).</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {mes.visitas.map((v) => (
+                <VisitaMantenimientoTarjeta key={v.id} visita={v} tareas={contrato.tareas} onCambio={(p) => refrescar(p || mes.periodo)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 22, textAlign: "right" }}>
+        <button onClick={eliminarContrato} style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 12, cursor: "pointer" }}>
+          Borrar contrato (solo si se creó por error)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NuevaVisitaMantenimiento({ contrato, periodo, onCreada }) {
+  const hoy = hoyLocalISO();
+  // Si estás mirando otro mes, propone el día 1 de ese mes; si es el mes en curso, hoy.
+  const porDefecto = periodo && periodo !== hoy.slice(0, 7) ? `${periodo}-01` : hoy;
+  const [abierto, setAbierto] = useState(false);
+  const [fecha, setFecha] = useState(porDefecto);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { setFecha(porDefecto); }, [porDefecto]);
+
+  async function crear() {
+    setError("");
+    setGuardando(true);
+    try {
+      const v = await apiPost(`/mantenimientos/contratos/${contrato.id}/visitas`, { fecha });
+      setAbierto(false);
+      onCreada?.(v.fecha.slice(0, 7));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button onClick={() => setAbierto(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12.5 }}>
+        <Plus size={14} /> Nueva visita
+      </button>
+    );
+  }
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} aria-label="Fecha de la visita" style={{ fontSize: 12.5, padding: "6px 8px", borderRadius: 7, border: `1px solid ${COLORS.line}` }} />
+      <button disabled={guardando || !fecha} onClick={crear} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "7px 12px", fontSize: 12.5 }}>{guardando ? "..." : "Añadir"}</button>
+      <button onClick={() => setAbierto(false)} style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer" }} aria-label="Cancelar"><X size={15} /></button>
+      {error && <div style={{ width: "100%", fontSize: 12, color: COLORS.rust }}>{error}</div>}
+    </div>
+  );
+}
+
+function CuotaDelMes({ contrato, mes, onCambio }) {
+  const cuotaMes = mes.cuota ?? contrato.cuota; // la cuota acordada para ese mes
+  const pendiente = Math.max(0, Math.round((cuotaMes - mes.cobrado) * 100) / 100);
+  const [monto, setMonto] = useState(String(pendiente || cuotaMes).replace(".", ","));
+  const [metodo, setMetodo] = useState("efectivo");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { setMonto(String(pendiente || cuotaMes).replace(".", ",")); setError(""); }, [mes.periodo, pendiente, cuotaMes]);
+
+  async function cobrar() {
+    setError("");
+    const importe = parseFloat(String(monto).replace(",", "."));
+    if (!(importe > 0)) { setError("Indica un importe válido."); return; }
+    setGuardando(true);
+    try {
+      await apiPost("/finanzas", {
+        reparacion_id: mes.reparacion_id,
+        tipo: "ingreso",
+        concepto: `Cuota ${contrato.servicio} · ${mes.nombre}`,
+        monto: importe,
+        metodo_pago: metodo,
+      });
+      onCambio();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function verRecibo(m) {
+    const ventana = window.open("", "_blank");
+    try {
+      await abrirPdfEnPestana(`${API_BASE}/recibos/movimiento/${m.id}/pdf`, ventana);
+    } catch (e) {
+      ventana?.close();
+      setError("No se pudo abrir el recibo.");
+    }
+  }
+
+  async function anular(m) {
+    const motivo = window.prompt(`Vas a ANULAR el cobro de ${eurosMant(m.monto)}.\n\nNo se borra: se añade un apunte que lo compensa y queda constancia.\n\n¿Por qué lo anulas? (por ejemplo: "cobrado por error")`);
+    if (motivo === null) return;
+    if (!motivo.trim()) { setError("Hay que indicar el motivo para anular un cobro."); return; }
+    setError("");
+    const enviar = (confirmar) => fetch(`${API_BASE}/finanzas/${m.id}/anular`, { method: "POST", headers: cabecerasAuth({ "Content-Type": "application/json" }), body: JSON.stringify({ motivo, confirmar }) });
+    try {
+      let res = await enviar(false);
+      manejar401(res);
+      let datos = await res.json().catch(() => ({}));
+      if (res.status === 409 && datos.requiere_confirmacion) {
+        if (!window.confirm(datos.mensaje)) return;
+        res = await enviar(true);
+        manejar401(res);
+        datos = await res.json().catch(() => ({}));
+      }
+      if (!res.ok) { setError(datos.mensaje || datos.error || "No se pudo anular el cobro."); return; }
+      onCambio();
+    } catch (e) {
+      setError(`No se pudo anular: ${e.message}`);
+    }
+  }
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderTop: `4px solid ${mes.cuota_pagada ? COLORS.green : COLORS.statusAmber}`, borderRadius: 12, padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>Cuota de {mes.nombre}</div>
+        <div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'IBM Plex Mono', monospace" }}>{mes.numero_orden}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "8px 0 12px" }}>
+        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 700, color: mes.cuota_pagada ? COLORS.green : COLORS.text }}>{eurosMant(mes.cobrado)}</span>
+        <span style={{ fontSize: 12.5, color: COLORS.textDim }}>de {eurosMant(cuotaMes)}</span>
+        <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, borderRadius: 999, padding: "3px 9px", color: mes.cuota_pagada ? COLORS.green : COLORS.statusAmber, background: mes.cuota_pagada ? `${COLORS.green}1A` : `${COLORS.statusAmber}1A` }}>
+          {mes.cuota_pagada ? "Cobrada" : "Sin cobrar"}
+        </span>
+      </div>
+
+      {mes.cobros.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {mes.cobros.map((m) => (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, background: COLORS.surfaceRaised, borderRadius: 8, padding: "7px 10px" }}>
+              <span style={{ flex: 1, minWidth: 0, color: COLORS.textDim }}>{m.fecha ? fechaLarga(m.fecha) : ""} · {m.metodo_pago}</span>
+              <span style={{ color: COLORS.green, fontWeight: 600 }}>+{eurosMant(m.monto)}</span>
+              <button onClick={() => verRecibo(m)} style={{ background: "none", border: "none", color: COLORS.statusBlue, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Recibo</button>
+              <button onClick={() => anular(m)} style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 11.5, cursor: "pointer", padding: 0 }}>Anular</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!mes.cuota_pagada && (
+        <div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="decimal" aria-label="Importe a cobrar" style={{ flex: "1 1 90px", fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, minWidth: 0 }} />
+            <select value={metodo} onChange={(e) => setMetodo(e.target.value)} style={{ flex: "1 1 120px", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}>
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="bizum">Bizum</option>
+            </select>
+          </div>
+          <button disabled={guardando} onClick={cobrar} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), width: "100%", marginTop: 8, padding: "9px 12px" }}>
+            {guardando ? "Registrando..." : `Cobrar cuota de ${mes.nombre}`}
+          </button>
+        </div>
+      )}
+      {error && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 8 }}>{error}</div>}
+      <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 10 }}>Precio final con todo incluido. Sin factura; puedes dar el recibo.</div>
+    </div>
+  );
+}
+
+function VisitaMantenimientoTarjeta({ visita, tareas, onCambio }) {
+  const [notas, setNotas] = useState(visita.notas || "");
+  const [hechas, setHechas] = useState(visita.tareas_hechas || []);
+  const [firmando, setFirmando] = useState(false);
+  const [nombreFirmante, setNombreFirmante] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { setNotas(visita.notas || ""); setHechas(visita.tareas_hechas || []); }, [visita.id, visita.notas, visita.tareas_hechas]);
+
+  async function patch(datos, recargar = true) {
+    setError("");
+    try {
+      const v = await apiPatch(`/mantenimientos/visitas/${visita.id}`, datos);
+      if (recargar) onCambio(v.fecha?.slice(0, 7));
+      return v;
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  function marcarTarea(tarea, marcada) {
+    const nuevas = marcada ? [...hechas, tarea] : hechas.filter((t) => t !== tarea);
+    setHechas(nuevas);
+    patch({ tareas_hechas: nuevas }, false);
+  }
+
+  async function firmar(dataUrl) {
+    setGuardando(true);
+    setError("");
+    try {
+      await apiPost(`/mantenimientos/visitas/${visita.id}/firma`, { firma_png: dataUrl, nombre_firmante: nombreFirmante });
+      setFirmando(false);
+      onCambio();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function borrar() {
+    if (!window.confirm(`¿Borrar la visita del ${fechaDia(visita.fecha)}?`)) return;
+    try {
+      await borrarEnApi(`/mantenimientos/visitas/${visita.id}`);
+      onCambio();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  let estado;
+  if (visita.fin) estado = { texto: `Hecha · ${horaDe(visita.inicio)}–${horaDe(visita.fin)}${visita.minutos != null ? ` (${visita.minutos} min)` : ""}`, color: COLORS.green };
+  else if (visita.inicio) estado = { texto: `En curso desde las ${horaDe(visita.inicio)}`, color: COLORS.statusBlue };
+  else estado = { texto: "Sin empezar", color: COLORS.textDim };
+
+  // Tareas del contrato + las que se marcaron antes y ya no están en el contrato
+  const todasTareas = [...tareas, ...hechas.filter((t) => !tareas.includes(t))];
+
+  return (
+    <div style={{ border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${estado.color}`, borderRadius: 10, padding: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <Calendar size={15} color={COLORS.textDim} />
+        <span style={{ fontSize: 13.5, fontWeight: 700 }}>{fechaLargaDia(visita.fecha)}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: estado.color }}>{estado.texto}</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {!visita.inicio && (
+            <button onClick={() => patch({ empezar: true })} style={{ ...btnStyle(COLORS.statusBlue, "#FFFFFF"), flex: "none", padding: "6px 11px", fontSize: 12 }}>Empezar</button>
+          )}
+          {!visita.fin && (
+            <button onClick={() => patch({ terminar: true })} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "6px 11px", fontSize: 12 }}>Terminar</button>
+          )}
+          <button onClick={borrar} title="Borrar visita" aria-label="Borrar visita" style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 4 }}><Trash2 size={15} /></button>
+        </div>
+      </div>
+
+      {todasTareas.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
+          {todasTareas.map((t) => (
+            <label key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer" }}>
+              <input type="checkbox" checked={hechas.includes(t)} onChange={(e) => marcarTarea(t, e.target.checked)} style={{ width: 16, height: 16 }} />
+              <span style={{ color: hechas.includes(t) ? COLORS.textDim : COLORS.text, textDecoration: hechas.includes(t) ? "line-through" : "none" }}>{t}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        value={notas}
+        onChange={(e) => setNotas(e.target.value)}
+        onBlur={() => { if ((notas || "") !== (visita.notas || "")) patch({ notas }, false); }}
+        placeholder="Notas de la visita (qué se hizo, qué queda pendiente...)"
+        rows={2}
+        style={{ width: "100%", boxSizing: "border-box", marginTop: 10, fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, resize: "vertical", fontFamily: "inherit" }}
+      />
+
+      <div style={{ marginTop: 8 }}>
+        {visita.firmada && !firmando ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: COLORS.green }}>
+            <CheckCircle2 size={14} /> Firmada{visita.nombre_firmante ? ` por ${visita.nombre_firmante}` : ""}
+            <button onClick={() => setFirmando(true)} style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 11.5, cursor: "pointer", textDecoration: "underline" }}>Volver a firmar</button>
+          </div>
+        ) : firmando ? (
+          <div>
+            <input value={nombreFirmante} onChange={(e) => setNombreFirmante(e.target.value)} placeholder="Nombre de quien firma" style={{ width: "100%", boxSizing: "border-box", fontSize: 12.5, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, marginBottom: 8 }} />
+            <PadFirma onGuardar={firmar} guardando={guardando} textoBoton="Guardar firma" />
+            <button onClick={() => setFirmando(false)} style={{ background: "none", border: "none", color: COLORS.textDim, fontSize: 12, cursor: "pointer", marginTop: 4 }}>Cancelar</button>
+          </div>
+        ) : (
+          <button onClick={() => setFirmando(true)} style={{ ...btnStyle("transparent", COLORS.amber, COLORS.line), flex: "none", padding: "6px 11px", fontSize: 12 }}>
+            <Pencil size={13} /> Firma del cliente
+          </button>
+        )}
+      </div>
+      {error && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 6 }}>{error}</div>}
+    </div>
+  );
+}
+
 function PlantillasView() {
   const [plantillas, setPlantillas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -5982,8 +6727,8 @@ const MANUAL_SECCIONES = [
       { t: "p", x: "Cada tabla enseña 6 órdenes. Para ver las siguientes, pon el ratón encima de la tabla y gira la rueda (en el móvil, desliza con el dedo). Un ligero degradado abajo indica que hay más." },
       { t: "lista", titulo: "Columnas", x: [
         "# Orden: número de la orden. La llamita 🔥 indica urgente. La raya de color a la izquierda es el color del estado.",
-        "Fecha: día en que se recibió.",
-        "Días: días desde que se recibió. En rojo a partir de 5 días.",
+        "Fecha: día en que se recibió (en las visitas in situ, el día de la visita).",
+        "Días: días desde que se recibió. En rojo a partir de 5 días. En las visitas in situ con fecha: cuánto falta (En 30 días), Hoy, o los días de retraso.",
         "Estado: en qué punto está.",
         "WhatsApp: abre el chat con el cliente y un mensaje ya escrito. Sale en gris si no tiene teléfono.",
         "Factura: solo aparece cuando la orden está entregada o completada.",
@@ -6038,7 +6783,6 @@ const MANUAL_SECCIONES = [
         "Hoja de trabajo: lista de puntos a revisar. Hay plantillas por tipo de servicio. Si cierras con puntos sin marcar, te avisa.",
         "Parte de trabajo (al completar): PDF con el servicio realizado, para mandárselo al cliente.",
         "Recordatorio de mantenimiento (al completar): programa un aviso para dentro de 6 o 12 meses.",
-        "Próxima visita (al completar): para los mantenimientos de cada mes, pulsa Crear la visita del mes que viene. Se crea una orden nueva con los mismos datos y la fecha que elijas; así cada mes tiene sus propios cobros y su factura.",
         "En los servicios in situ no salen la etiqueta QR, las fotos de recepción, el presupuesto ni los repuestos (salvo que esa orden ya tenga alguno apuntado).",
       ] },
       { t: "p", x: "En taller hay un Checklist de salida (cargador incluido, teclado probado, pantalla probada...) para no olvidar nada al entregar." },
@@ -6133,6 +6877,29 @@ const MANUAL_SECCIONES = [
         "Confirma y escribe el motivo (queda registrado).",
       ] },
       { t: "p", x: "Se borran para siempre su nombre, teléfono, email, NIF, fotos, firmas, dirección y WiFi. Se conservan sus facturas y el historial de reparaciones, porque la ley obliga a guardarlos. El cliente pasa a la sección Eliminados y ya no se puede editar." },
+    ],
+  },
+  {
+    id: "mantenimientos", icono: "🗓️", titulo: "Mantenimientos (cuota mensual)",
+    bloques: [
+      { t: "p", x: "Para los clientes a los que vas todos los meses por una cuota fija. No salen en el tablero de reparaciones: tienen su propia sección en el menú, Mantenimientos." },
+      { t: "pasos", titulo: "Crear un contrato", x: [
+        "Pulsa Nuevo contrato.",
+        "Elige el cliente, el servicio y la cuota mensual (precio final, sin factura).",
+        "Rellena dirección, WiFi y las tareas que incluye (una por línea). Las tareas salen luego como casillas en cada visita.",
+        "Estado: Activo, o Pendiente de confirmar si aún no está cerrado.",
+        "Si ya tenías una orden in situ de ese cliente, puedes pasarla al contrato: sus cobros cuentan como la cuota de ese mes y deja de salir en el tablero.",
+      ] },
+      { t: "lista", x: [
+        "Cada mes va por separado: arriba eliges el mes y solo ves sus visitas y su cuota.",
+        "El mes en curso se crea solo en los contratos activos. Los meses anteriores quedan como historial.",
+        "Visitas: puedes ir las veces que haga falta; no se cobran aparte. En cada visita: Empezar, Terminar, marcar tareas, notas y la firma del cliente.",
+        "Si te equivocas de día, borra la visita (icono de papelera) y créala de nuevo con la fecha buena.",
+        "Cuota: pulsa Cobrar cuota. El importe ya viene puesto. Puedes sacar el Recibo o Anular un cobro mal apuntado.",
+        "Los cobros de las cuotas cuentan en Caja e Informes como cualquier otro cobro.",
+        "La campanita te avisa si ya has ido ese mes y la cuota sigue sin cobrar.",
+        "Si dejas de hacer un mantenimiento, edítalo y ponlo en Dado de baja (se guarda su historial). Borrar el contrato solo se puede si no tiene cobros.",
+      ] },
     ],
   },
   {
@@ -7233,6 +8000,8 @@ function FirztnetPanel({ onCerrarSesion }) {
     const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
     const retrasadas = activas.filter((r) => {
       if (r.urgente) return true;
+      // Visita in situ con fecha: solo cuenta como retrasada si ese día ya pasó
+      if (fechaVisita(r)) return diasNaturalesDesde(fechaVisita(r)) >= 1;
       if (!r.fecha_recepcion) return false;
       const dias = (HOY - new Date(r.fecha_recepcion)) / (1000 * 60 * 60 * 24);
       return dias > DIAS_RETRASO;
@@ -7455,6 +8224,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         html, body { scrollbar-width: none; -ms-overflow-style: none; }
         html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
         .fn-sin-barra { scrollbar-width: none; -ms-overflow-style: none; }
+        .fn-tarjeta-mant { transition: transform .18s ease, box-shadow .18s ease; }
+        .fn-tarjeta-mant:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -12px rgba(37,99,235,.35); }
         .fn-sin-barra::-webkit-scrollbar { display: none; }
         /* Nombre "FIRZTNET" de arriba a la izquierda */
         .fn-marca {
@@ -7655,6 +8426,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {[
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
             { key: "clientes", icon: Users, label: "Clientes", movil: "principal" },
+            { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos", movil: "mas" },
             { key: "reportes", icon: FileBarChart, label: "Reportes", movil: "mas" },
             { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
@@ -7703,6 +8475,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.menuBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: COLORS.menuBorde, borderRadius: 999, margin: "0 auto 16px" }} />
               {[
+                { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos" },
                 { key: "reportes", icon: FileBarChart, label: "Reportes" },
                 { key: "inventario", icon: Package, label: "Inventario" },
                 { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
@@ -7770,6 +8543,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
                 {vista === "reparaciones" && "Panel de reparaciones"}
                 {vista === "clientes" && "Clientes"}
+                {vista === "mantenimientos" && "Mantenimientos"}
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
@@ -7803,6 +8577,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           )}
 
           {vista === "clientes" && <ClientesView />}
+          {vista === "mantenimientos" && <MantenimientosView onCambio={cargarTodo} />}
           {vista === "reportes" && (
             <ReportesView
               reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia}
@@ -7923,7 +8698,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         </main>
       </div>
 
-      <TicketModal t={selected} onClose={() => { setSelected(null); cargarTodo(); }} onEstadoActualizado={handleEstadoActualizado} onDatosCambiados={cargarTodo} />
+      <TicketModal key={selected?.id || "ninguna"} t={selected} onClose={() => { setSelected(null); cargarTodo(); }} onEstadoActualizado={handleEstadoActualizado} onDatosCambiados={cargarTodo} />
       {mostrarNueva && <NuevaReparacionModal onClose={() => setMostrarNueva(false)} onCreada={handleCreada} />}
     </div>
   );
