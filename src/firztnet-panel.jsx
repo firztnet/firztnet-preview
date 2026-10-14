@@ -6703,7 +6703,7 @@ const MANUAL_SECCIONES = [
         "Reparaciones totales, En curso y Entregadas: al pulsarlas filtran las tablas de abajo. Vuelve a pulsar para quitar el filtro.",
         "Clientes: número de clientes activos (sin contar los eliminados). Al pulsarla vas a Clientes.",
         "Retrasadas / urgentes: órdenes marcadas como urgentes o con más de 5 días sin terminar.",
-        "Tiempo medio: días de media entre recibir y entregar, de lo entregado en los últimos 30 días.",
+        "Mantenimientos: contratos de mantenimiento activos y cuántas cuotas del mes quedan sin cobrar. Al pulsarla vas a Mantenimientos.",
         "Balance de hoy: lo cobrado menos lo gastado hoy, equipos recibidos y clientes nuevos.",
         "Este mes: ingresos y gastos del mes. Al pulsarla vas a Reportes.",
         "Stock: repuestos con stock bajo. Al pulsarla vas a Inventario.",
@@ -8024,6 +8024,7 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [reparaciones]);
 
   const [numClientes, setNumClientes] = useState(null); // tarjeta "Clientes" (sin los eliminados por RGPD)
+  const [resumenMant, setResumenMant] = useState(null); // tarjeta "Mantenimientos": contratos activos y cuotas del mes sin cobrar
   const cargarTodo = useCallback(async () => {
     setErrorCarga("");
     try {
@@ -8044,6 +8045,17 @@ function FirztnetPanel({ onCerrarSesion }) {
       apiGet("/clientes")
         .then((lista) => setNumClientes(lista.filter((c) => !esClienteEliminado(c)).length))
         .catch(() => setNumClientes(null));
+      // Tarjeta "Mantenimientos" (también aparte, por si el servidor aún no tiene la sección)
+      apiGet("/mantenimientos/contratos")
+        .then((lista) => {
+          const activos = lista.filter((c) => c.estado === "activo");
+          setResumenMant({
+            activos: activos.length,
+            sinCobrar: activos.filter((c) => c.mes_actual && !c.mes_actual.cuota_pagada).length,
+            pendientes: lista.filter((c) => c.estado === "pendiente").length,
+          });
+        })
+        .catch(() => setResumenMant(null));
     } catch (e) {
       setErrorCarga("No se pudo conectar con el backend (" + API_BASE + "). ¿Está corriendo `python run.py`?");
     } finally {
@@ -8605,7 +8617,18 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
             <StatCard alta label="Clientes" value={numClientes ?? "—"} sub="sin contar los eliminados" icon={Users} accent={COLORS.statusAmber} onClick={() => setVista("clientes")} />
             <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
-            <StatCard alta label="Tiempo medio" value={metricasEficiencia.tiempoMedioDias !== null ? `${metricasEficiencia.tiempoMedioDias.toFixed(1)}d` : "—"} sub="por reparación, últimos 30 días" icon={Clock} accent={COLORS.violet} />
+            <StatCard
+              alta
+              label="Mantenimientos"
+              value={resumenMant ? resumenMant.activos : "—"}
+              sub={!resumenMant ? "contratos activos"
+                : resumenMant.sinCobrar > 0 ? `${resumenMant.sinCobrar} ${resumenMant.sinCobrar === 1 ? "cuota" : "cuotas"} del mes sin cobrar`
+                : resumenMant.activos > 0 ? "cuotas del mes cobradas"
+                : resumenMant.pendientes > 0 ? `${resumenMant.pendientes} por confirmar` : "sin contratos"}
+              icon={CalendarCheck}
+              accent={COLORS.violet}
+              onClick={() => setVista("mantenimientos")}
+            />
             <StatCard
               alta
               label="Balance de hoy"
