@@ -999,15 +999,21 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   );
 }
 
-function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onCambio, cargando }) {
-  const etapas = stagesFor(tipoTrabajo);
-  const ordenEtapa = Object.fromEntries(etapas.map((s, i) => [s.key, i]));
+function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onCambio, cargando, titulo = "Tablero completo", subtitulo = "Todas las órdenes del sistema, con su estado actual.", mensajeVacio = "Sin equipos aquí." }) {
+  // tipoTrabajo "todos" (pantalla Buscar): taller e in situ juntos, cada orden con sus propias etapas
+  const mezclado = tipoTrabajo === "todos";
+  const etapas = stagesFor(mezclado ? "taller" : tipoTrabajo);
+  const posicionEtapa = (t) => {
+    const lista = mezclado ? stagesFor(t.tipo_trabajo) : etapas;
+    const i = lista.findIndex((s) => s.key === t.estado_actual);
+    return i === -1 ? 99 : i;
+  };
   // Las órdenes de clientes eliminados (RGPD) no se muestran en el tablero. Se pueden ver
   // pulsando el enlace de abajo, por si hiciera falta consultar alguna.
   const [verEliminados, setVerEliminados] = useState(false);
 
   const ordenadas = [...reparaciones].sort(
-    (a, b) => (ordenEtapa[a.estado_actual] ?? 99) - (ordenEtapa[b.estado_actual] ?? 99) || fechaReferencia(a) - fechaReferencia(b)
+    (a, b) => posicionEtapa(a) - posicionEtapa(b) || fechaReferencia(a) - fechaReferencia(b)
   );
   const deEliminados = ordenadas.filter((t) => esClienteEliminado(t.cliente));
   const filas = verEliminados ? ordenadas : ordenadas.filter((t) => !esClienteEliminado(t.cliente));
@@ -1016,13 +1022,13 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onC
     <div style={estiloBloqueOrdenes}>
       <CabeceraBloqueOrdenes
         icono={Check}
-        titulo="Tablero completo"
-        subtitulo="Todas las órdenes del sistema, con su estado actual."
+        titulo={titulo}
+        subtitulo={subtitulo}
         total={filas.length}
         iconoContador={Layers}
         fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
-      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={() => etapas} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : "Sin equipos aquí."} />
+      <TablaOrdenes filas={cargando ? [] : filas} etapasDe={(t) => (mezclado ? stagesFor(t.tipo_trabajo) : etapas)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : mensajeVacio} />
       {!cargando && deEliminados.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: "#F8FAFC", fontSize: 12, color: COLORS.textDim }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -6709,10 +6715,11 @@ const MANUAL_SECCIONES = [
         "Stock: repuestos con stock bajo. Al pulsarla vas a Inventario.",
         "Nueva reparación: abre el formulario para dar de alta un equipo o un servicio.",
       ] },
-      { t: "lista", titulo: "Filtros", x: [
-        "Buscador: por nombre del cliente, número de orden o equipo.",
-        "Marca y Modelo (solo en taller), Cliente y Estado.",
-        "Hoy: solo lo recibido hoy. Urgente: solo lo urgente.",
+      { t: "lista", titulo: "Buscar órdenes (la lupa de arriba, junto a la campana)", x: [
+        "Abre una pantalla con el buscador y su tablero con los resultados.",
+        "Busca por nombre del cliente, teléfono, número de orden, equipo, marca o modelo (da igual las tildes).",
+        "Filtros: Taller e In Situ (o solo uno de los dos), Marca y Modelo, Cliente, Estado, Hoy (recibido hoy) y Urgente.",
+        "Quitar filtros: deja la búsqueda como al principio.",
       ] },
       { t: "p", x: "A la derecha pueden salir avisos: equipos listos sin recoger hace más de 30 días, presupuestos rechazados y garantías a punto de caducar. Si no hay avisos, ese hueco desaparece." },
     ],
@@ -8075,7 +8082,13 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [filtroEstado, setFiltroEstado] = useState(""); // etapa concreta: recibido, diagnóstico, en reparación...
   const [filtroUrgente, setFiltroUrgente] = useState(false);
   const [vistaTrabajo, setVistaTrabajo] = useState("taller"); // "taller" o "domicilio"
-  useEffect(() => { setFiltroEstado(""); setFiltroMarca(""); setFiltroModelo(""); }, [vistaTrabajo]);
+  // Pantalla Buscar: "todos", "taller" o "domicilio" (independiente del selector de la pantalla principal)
+  const [tipoBusqueda, setTipoBusqueda] = useState("todos");
+  useEffect(() => { setFiltroEstado(""); if (tipoBusqueda === "domicilio") { setFiltroMarca(""); setFiltroModelo(""); } }, [tipoBusqueda]);
+  function limpiarBusqueda() {
+    setQuery(""); setFiltroMarca(""); setFiltroModelo(""); setFiltroCliente(""); setFiltroEstado("");
+    setFiltroHoy(false); setFiltroUrgente(false); setTipoBusqueda("todos");
+  }
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
@@ -8134,15 +8147,30 @@ function FirztnetPanel({ onCerrarSesion }) {
     return Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([marca]) => marca);
   }, [reparaciones]);
 
+  // Tablero completo de la pantalla principal: solo el tipo (taller / in situ) y el filtro de las tarjetas.
+  const tableroPrincipal = useMemo(() => reparaciones.filter((t) => {
+    if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
+    if (filtroEstadoResumen === "en_curso" && ["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
+    if (filtroEstadoResumen === "entregadas" && !["entregado", "completado"].includes(t.estado_actual)) return false;
+    if (filtroEstadoResumen === "no_reparables" && t.estado_actual !== "no_reparable") return false;
+    return true;
+  }), [reparaciones, vistaTrabajo, filtroEstadoResumen]);
+
+  // Pantalla Buscar: buscador + filtros
+  const hayFiltrosBusqueda = !!(query.trim() || filtroMarca || filtroModelo || filtroCliente || filtroEstado || filtroHoy || filtroUrgente || tipoBusqueda !== "todos");
   const filtered = useMemo(() => {
     const hoyStr = new Date().toDateString();
     return reparaciones.filter((t) => {
       if (query.trim()) {
-        const q = query.toLowerCase();
+        const q = normalizar(query.trim());
+        const digitos = query.replace(/\D/g, "");
         const coincideTexto =
-          t.cliente?.nombre?.toLowerCase().includes(q) ||
-          t.numero_orden?.includes(q) ||
-          t.equipo?.toLowerCase().includes(q);
+          normalizar(t.cliente?.nombre).includes(q) ||
+          normalizar(t.numero_orden).includes(q) ||
+          normalizar(t.equipo).includes(q) ||
+          normalizar(t.marca).includes(q) ||
+          normalizar(t.modelo).includes(q) ||
+          (digitos.length >= 3 && (t.cliente?.telefono || "").replace(/\D/g, "").includes(digitos));
         if (!coincideTexto) return false;
       }
       if (filtroMarca && t.marca !== filtroMarca) return false;
@@ -8151,13 +8179,20 @@ function FirztnetPanel({ onCerrarSesion }) {
       if (filtroHoy && new Date(t.fecha_recepcion).toDateString() !== hoyStr) return false;
       if (filtroUrgente && !t.urgente) return false;
       if (filtroEstado && t.estado_actual !== filtroEstado) return false;
-      if (filtroEstadoResumen === "en_curso" && ["entregado", "no_reparable", "completado"].includes(t.estado_actual)) return false;
-      if (filtroEstadoResumen === "entregadas" && !["entregado", "completado"].includes(t.estado_actual)) return false;
-      if (filtroEstadoResumen === "no_reparables" && t.estado_actual !== "no_reparable") return false;
-      if ((t.tipo_trabajo || "taller") !== vistaTrabajo) return false;
+      if (tipoBusqueda !== "todos" && (t.tipo_trabajo || "taller") !== tipoBusqueda) return false;
       return true;
     });
-  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstado, filtroEstadoResumen, vistaTrabajo]);
+  }, [query, reparaciones, filtroMarca, filtroModelo, filtroCliente, filtroHoy, filtroUrgente, filtroEstado, tipoBusqueda]);
+  // Estados posibles en la búsqueda (con "Todos", los del taller y los de in situ sin repetir)
+  const estadosBusqueda = useMemo(() => {
+    if (tipoBusqueda !== "todos") return stagesFor(tipoBusqueda);
+    const vistos = new Map();
+    [...STAGES_TALLER, ...STAGES_DOMICILIO].forEach((s) => {
+      if (!vistos.has(s.key)) vistos.set(s.key, { ...s });
+      else if (vistos.get(s.key).label !== s.label) vistos.get(s.key).label += ` / ${s.label}`;
+    });
+    return [...vistos.values()];
+  }, [tipoBusqueda]);
 
   const textoBalanceHoy = `${reporteDiario.balance_neto >= 0 ? "+" : ""}${fmtEur(reporteDiario.balance_neto)}`;
   const textoBalanceMes = fmtEur(reporteMensual.balance_neto);
@@ -8545,6 +8580,16 @@ function FirztnetPanel({ onCerrarSesion }) {
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+              <button
+                type="button"
+                className="fn-boton-buscar"
+                onClick={() => { setVista("buscar"); setMenuAbierto(false); setMostrarMasMovil(false); }}
+                aria-label="Buscar órdenes"
+                title="Buscar órdenes"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", background: vista === "buscar" ? COLORS.menuActivoBg : COLORS.surface, border: `1px solid ${vista === "buscar" ? COLORS.amber : COLORS.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer" }}
+              >
+                <Search size={15} color={vista === "buscar" ? COLORS.amber : COLORS.textDim} />
+              </button>
               <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
               <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
             </div>
@@ -8556,6 +8601,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "reparaciones" && "Panel de reparaciones"}
                 {vista === "clientes" && "Clientes"}
                 {vista === "mantenimientos" && "Mantenimientos"}
+                {vista === "buscar" && "Buscar órdenes"}
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
                 {vista === "rma" && "Garantías con proveedores (RMA)"}
@@ -8673,30 +8719,53 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           {vista === "reparaciones" && (
           <>
-          <div className="fn-filtros" style={{ "--n": String(vistaTrabajo === "taller" ? 6 : 4), marginTop: 22, marginBottom: 14 }}>
-                <div className="fn-search fn-filtro-buscar" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0, height: 36, boxSizing: "border-box", background: COLORS.surface, border: `1px solid ${query.trim() ? COLORS.amber : COLORS.line}`, borderRadius: 8, padding: "0 12px" }}>
-                <Search size={14} color={COLORS.textDim} style={{ flexShrink: 0 }} />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, nº orden o equipo..." style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13, width: "100%", minWidth: 0 }} />
+          <div style={{ height: 22 }} />
+          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
+
+              <TablaTableroCompleto reparaciones={tableroPrincipal} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} cargando={cargando} />
+            </div>
+
+            <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
+              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
+            </div>
+          </div>
+          </>
+          )}
+          {/* Pantalla Buscar: se llega con la lupa de arriba, junto a la campana */}
+          {vista === "buscar" && (
+          <>
+          <div className="fn-filtros" style={{ "--n": String(tipoBusqueda === "domicilio" ? 5 : 7), marginTop: 6, marginBottom: 10 }}>
+              <div className="fn-search fn-filtro-buscar" style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minWidth: 0, height: 40, boxSizing: "border-box", background: COLORS.surface, border: `1px solid ${query.trim() ? COLORS.amber : COLORS.line}`, borderRadius: 8, padding: "0 12px" }}>
+                <Search size={15} color={COLORS.textDim} style={{ flexShrink: 0 }} />
+                <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente, teléfono, nº orden o equipo..." aria-label="Buscar" style={{ background: "none", border: "none", outline: "none", color: COLORS.text, fontSize: 13.5, width: "100%", minWidth: 0 }} />
+                {query && <button type="button" onClick={() => setQuery("")} aria-label="Borrar búsqueda" style={{ border: "none", background: "none", cursor: "pointer", color: COLORS.textDim, padding: 0, display: "flex" }}><X size={14} /></button>}
               </div>
-              {vistaTrabajo === "taller" && (
+              <select className="fn-filtro-campo" value={tipoBusqueda} onChange={(e) => setTipoBusqueda(e.target.value)} aria-label="Tipo" style={estiloFiltro(tipoBusqueda !== "todos")}>
+                <option value="todos">Taller e In Situ</option>
+                <option value="taller">Solo taller</option>
+                <option value="domicilio">Solo In Situ</option>
+              </select>
+              {tipoBusqueda !== "domicilio" && (
                 <>
-                  <select className="fn-filtro-campo" value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} style={estiloFiltro(!!filtroMarca)}>
+                  <select className="fn-filtro-campo" value={filtroMarca} onChange={(e) => { setFiltroMarca(e.target.value); setFiltroModelo(""); }} aria-label="Marca" style={estiloFiltro(!!filtroMarca)}>
                     <option value="">Marca</option>
                     {marcasDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
-                  <select className="fn-filtro-campo" value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} style={estiloFiltro(!!filtroModelo)}>
+                  <select className="fn-filtro-campo" value={filtroModelo} onChange={(e) => setFiltroModelo(e.target.value)} aria-label="Modelo" style={estiloFiltro(!!filtroModelo)}>
                     <option value="">Modelo</option>
                     {modelosDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </>
               )}
-              <select className="fn-filtro-campo" value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} style={estiloFiltro(!!filtroCliente)}>
+              <select className="fn-filtro-campo" value={filtroCliente} onChange={(e) => setFiltroCliente(e.target.value)} aria-label="Cliente" style={estiloFiltro(!!filtroCliente)}>
                 <option value="">Cliente</option>
                 {clientesDisponibles.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
-              <select className="fn-filtro-campo" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={estiloFiltro(!!filtroEstado)}>
+              <select className="fn-filtro-campo" value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} aria-label="Estado" style={estiloFiltro(!!filtroEstado)}>
                 <option value="">Estado</option>
-                {stagesFor(vistaTrabajo).map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {estadosBusqueda.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
               <button type="button" className="fn-filtro-campo" onClick={() => setFiltroHoy((v) => !v)} style={estiloFiltroBoton(filtroHoy, COLORS.amber)}>
                 <Clock size={12} /> Hoy
@@ -8705,17 +8774,25 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <Flame size={12} /> Urgente
               </button>
           </div>
-          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
-
-              <TablaTableroCompleto reparaciones={filtered} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} cargando={cargando} />
-            </div>
-
-            <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
-              <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12, fontSize: 12.5, color: COLORS.textDim }}>
+            <span>{hayFiltrosBusqueda ? `${filtered.length} ${filtered.length === 1 ? "orden encontrada" : "órdenes encontradas"}` : "Escribe o elige un filtro. Mientras tanto se ven todas las órdenes."}</span>
+            {hayFiltrosBusqueda && (
+              <button type="button" onClick={limpiarBusqueda} style={{ border: "none", background: "none", color: COLORS.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                <X size={13} /> Quitar filtros
+              </button>
+            )}
           </div>
+          <TablaTableroCompleto
+            reparaciones={filtered}
+            tipoTrabajo={tipoBusqueda}
+            titulo={hayFiltrosBusqueda ? "Resultados de la búsqueda" : "Todas las órdenes"}
+            subtitulo={hayFiltrosBusqueda ? "Las órdenes que coinciden con lo que has buscado." : "Taller e In Situ, con su estado actual."}
+            mensajeVacio="Ninguna orden coincide. Prueba con otra palabra o quita algún filtro."
+            onAbrir={(t) => setSelected(t)}
+            onHover={handleHoverPreview}
+            onCambio={cargarTodo}
+            cargando={cargando}
+          />
           </>
           )}
         </main>
