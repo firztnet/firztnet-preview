@@ -3123,6 +3123,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
 const NEGOCIOS_CLIENTE = [
   { key: "firztnet", nombre: "Firztnet", color: COLORS.amber },
   { key: "firztweb", nombre: "Firztweb", color: COLORS.violet },
+  { key: "afiliados", nombre: "TechCompara", color: COLORS.green },
 ];
 
 function InsigniasNegocio({ negocios }) {
@@ -3152,7 +3153,7 @@ function ClientesView() {
   const [cargando, setCargando] = useState(true);
   const [editando, setEditando] = useState(false);
   const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "", nif: "", negocios: ["firztnet"] });
-  const [filtroNegocio, setFiltroNegocio] = useState(""); // "", "firztnet" o "firztweb"
+  const [filtroNegocio, setFiltroNegocio] = useState(""); // "", "firztnet", "firztweb" o "afiliados"
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [borrandoRgpd, setBorrandoRgpd] = useState(false);
   const [resultadoRgpd, setResultadoRgpd] = useState(null);
@@ -5642,9 +5643,14 @@ function SolicitudesView({ onCrearReparacion }) {
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, color: s.negocio === "firztweb" ? COLORS.violet : COLORS.amber, border: `1px solid ${s.negocio === "firztweb" ? COLORS.violet : COLORS.amber}`, borderRadius: 999, padding: "2px 7px" }}>
-                    {s.negocio === "firztweb" ? "Firztweb" : "Firztnet"}
-                  </span>
+                  {(() => {
+                    const neg = NEGOCIOS_CLIENTE.find((n) => n.key === s.negocio) || NEGOCIOS_CLIENTE[0];
+                    return (
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: neg.color, border: `1px solid ${neg.color}`, borderRadius: 999, padding: "2px 7px" }}>
+                        {neg.nombre}
+                      </span>
+                    );
+                  })()}
                   {s.origen === "nuevo_contacto" && s.cliente?.es_contacto && (
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.violet, background: `${COLORS.violet}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
                       Nuevo contacto
@@ -5656,7 +5662,11 @@ function SolicitudesView({ onCrearReparacion }) {
                     </span>
                   )}
                 </div>
-                {s.cliente?.telefono && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 1 }}>{s.cliente.telefono}</div>}
+                {(s.cliente?.telefono || s.cliente?.email) && (
+                  <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 1 }}>
+                    {[s.cliente.telefono, s.cliente.email].filter(Boolean).join(" · ")}
+                  </div>
+                )}
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{s.mensaje || "Sin mensaje adicional"}</div>
                 <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(s.fecha)}</div>
               </div>
@@ -6875,7 +6885,7 @@ const MANUAL_SECCIONES = [
     bloques: [
       { t: "lista", x: [
         "Hay dos secciones: Clientes activos y Eliminados (RGPD).",
-        "En activos puedes filtrar por negocio: Firztnet (reparaciones) o Firztweb (diseño web).",
+        "En activos puedes filtrar por negocio: Firztnet (reparaciones), Firztweb (diseño web) o TechCompara (web de afiliados).",
         "Al pulsar un cliente ves su ficha: teléfono, email, NIF, sus reparaciones, equipos en garantía y trabajos entregados sin cobrar.",
         "Editar: corrige teléfono, email, NIF y negocios.",
       ] },
