@@ -3123,7 +3123,6 @@ function NuevaReparacionModal({ onClose, onCreada }) {
 const NEGOCIOS_CLIENTE = [
   { key: "firztnet", nombre: "Firztnet", color: COLORS.amber },
   { key: "firztweb", nombre: "Firztweb", color: COLORS.violet },
-  { key: "afiliados", nombre: "TechCompara", color: COLORS.green },
 ];
 
 function InsigniasNegocio({ negocios }) {
@@ -3153,7 +3152,7 @@ function ClientesView() {
   const [cargando, setCargando] = useState(true);
   const [editando, setEditando] = useState(false);
   const [formEdicion, setFormEdicion] = useState({ telefono: "", email: "", nif: "", negocios: ["firztnet"] });
-  const [filtroNegocio, setFiltroNegocio] = useState(""); // "", "firztnet", "firztweb" o "afiliados"
+  const [filtroNegocio, setFiltroNegocio] = useState(""); // "", "firztnet" o "firztweb"
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [borrandoRgpd, setBorrandoRgpd] = useState(false);
   const [resultadoRgpd, setResultadoRgpd] = useState(null);
@@ -3742,7 +3741,7 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
   if (stockBajo.length === 0 && rechazados.length === 0 && abandonados.length === 0 && garantiasPorCaducar.length === 0) return null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, alignItems: "start", marginBottom: 14 }}>
       {rechazados.length > 0 && (
         <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -5643,14 +5642,9 @@ function SolicitudesView({ onCrearReparacion }) {
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.text }}>{s.cliente?.nombre}</span>
-                  {(() => {
-                    const neg = NEGOCIOS_CLIENTE.find((n) => n.key === s.negocio) || NEGOCIOS_CLIENTE[0];
-                    return (
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: neg.color, border: `1px solid ${neg.color}`, borderRadius: 999, padding: "2px 7px" }}>
-                        {neg.nombre}
-                      </span>
-                    );
-                  })()}
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: s.negocio === "firztweb" ? COLORS.violet : COLORS.amber, border: `1px solid ${s.negocio === "firztweb" ? COLORS.violet : COLORS.amber}`, borderRadius: 999, padding: "2px 7px" }}>
+                    {s.negocio === "firztweb" ? "Firztweb" : "Firztnet"}
+                  </span>
                   {s.origen === "nuevo_contacto" && s.cliente?.es_contacto && (
                     <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.violet, background: `${COLORS.violet}18`, borderRadius: 999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: 0.3 }}>
                       Nuevo contacto
@@ -5662,11 +5656,7 @@ function SolicitudesView({ onCrearReparacion }) {
                     </span>
                   )}
                 </div>
-                {(s.cliente?.telefono || s.cliente?.email) && (
-                  <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 1 }}>
-                    {[s.cliente.telefono, s.cliente.email].filter(Boolean).join(" · ")}
-                  </div>
-                )}
+                {s.cliente?.telefono && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 1 }}>{s.cliente.telefono}</div>}
                 <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{s.mensaje || "Sin mensaje adicional"}</div>
                 <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>{fechaLarga(s.fecha)}</div>
               </div>
@@ -6731,7 +6721,7 @@ const MANUAL_SECCIONES = [
         "Filtros: Taller e In Situ (o solo uno de los dos), Marca y Modelo, Cliente, Estado, Hoy (recibido hoy) y Urgente.",
         "Quitar filtros: deja la búsqueda como al principio.",
       ] },
-      { t: "p", x: "A la derecha pueden salir avisos: equipos listos sin recoger hace más de 30 días, presupuestos rechazados y garantías a punto de caducar. Si no hay avisos, ese hueco desaparece." },
+      { t: "p", x: "Debajo de las tablas pueden salir avisos: equipos listos sin recoger hace más de 30 días, presupuestos rechazados y garantías a punto de caducar. Si no hay avisos, no sale nada." },
     ],
   },
   {
@@ -6885,7 +6875,7 @@ const MANUAL_SECCIONES = [
     bloques: [
       { t: "lista", x: [
         "Hay dos secciones: Clientes activos y Eliminados (RGPD).",
-        "En activos puedes filtrar por negocio: Firztnet (reparaciones), Firztweb (diseño web) o TechCompara (web de afiliados).",
+        "En activos puedes filtrar por negocio: Firztnet (reparaciones) o Firztweb (diseño web).",
         "Al pulsar un cliente ves su ficha: teléfono, email, NIF, sus reparaciones, equipos en garantía y trabajos entregados sin cobrar.",
         "Editar: corrige teléfono, email, NIF y negocios.",
       ] },
@@ -8366,6 +8356,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
         /* Columna derecha: si no hay ningún aviso dentro, desaparece y el contenido usa todo el ancho */
         .fn-side-panel:empty { display: none !important; }
+        .fn-avisos-abajo:empty { display: none !important; }
         /* Fila de filtros: ocupa todo el ancho, igual que el bloque de tarjetas.
            La búsqueda mide el doble que cada uno de los demás campos, que son todos iguales entre sí. */
         .fn-filtros {
@@ -8730,14 +8721,15 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "reparaciones" && (
           <>
           <div style={{ height: 22 }} />
-          <div className="fn-content-flex" style={{ display: "flex", gap: 20 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Las tablas ocupan todo el ancho; los avisos van debajo (antes iban en una columna a la derecha y estrechaban las tablas) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ minWidth: 0 }}>
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
 
               <TablaTableroCompleto reparaciones={tableroPrincipal} tipoTrabajo={vistaTrabajo} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} cargando={cargando} />
             </div>
 
-            <div className="fn-side-panel" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 20, alignSelf: "flex-start", maxHeight: "calc(100vh - 40px)", overflowY: "auto" }}>
+            <div className="fn-avisos-abajo" style={{ minWidth: 0 }}>
               <PanelAlertas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onIrInventario={() => setVista("inventario")} onIrGarantias={() => setVista("garantias")} ocultarStockBajo />
             </div>
           </div>
