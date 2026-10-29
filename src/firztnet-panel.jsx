@@ -6984,7 +6984,7 @@ const MANUAL_SECCIONES = [
       { t: "lista", x: [
         "Página de seguimiento: cada orden tiene un enlace propio (va en el comprobante y en los mensajes). El cliente ve el estado, la fecha estimada, la garantía y el presupuesto, y puede firmarlo o pedir otro servicio.",
         "Si pierde el enlace, puede buscar su orden con el número de orden y su DNI o su teléfono completo.",
-        "Formulario de presupuesto: la dirección de tu panel terminada en /presupuesto (por ejemplo firztnet-preview.vercel.app/presupuesto). Cualquiera puede pedirte presupuesto sin ser cliente; tu web también lo usa.",
+        "Formulario de presupuesto: la dirección de tu panel terminada en /presupuesto (reparaciones.firztnet.es/presupuesto). Cualquiera puede pedirte presupuesto sin ser cliente; tu web también lo usa.",
       ] },
       { t: "nota", x: "En la página de seguimiento nunca salen precios de otros clientes ni datos de tu negocio que no sean públicos." },
     ],
