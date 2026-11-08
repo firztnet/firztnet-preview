@@ -6329,6 +6329,35 @@ function InformeVisitas({ local }) {
   );
 }
 
+function CuotaCliente({ f, onGuardada }) {
+  const [valor, setValor] = useState(f.cuota_manual_cents === null || f.cuota_manual_cents === undefined ? "" : String(f.cuota_manual_cents / 100).replace(".", ","));
+  const [aviso, setAviso] = useState("");
+  async function guardar() {
+    const texto = valor.trim().replace(",", ".");
+    const cents = texto === "" ? null : Math.round(Number(texto) * 100);
+    if (cents !== null && (!Number.isFinite(cents) || cents < 0)) { setAviso("Escribe un importe, por ejemplo 39 o 39,90"); return; }
+    try {
+      onGuardada(await apiPatch(`/central/clientes/${f.id}`, { cuota_manual_cents: cents }));
+      setAviso("Guardado");
+      setTimeout(() => setAviso(""), 2000);
+    } catch (e) { setAviso(e.message); }
+  }
+  return (
+    <div style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>Cuánto te paga al mes</div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+        <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder={f.ingreso_mes_cents ? String(f.ingreso_mes_cents / 100).replace(".", ",") : "0"} style={{ width: 90, border: `1px solid ${COLORS.line}`, borderRadius: 6, padding: "5px 8px", fontSize: 13, fontFamily: "Inter" }} />
+        <span style={{ fontSize: 13 }}>€</span>
+        <button onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "5px 10px", fontSize: 11.5 }}>Guardar</button>
+        {aviso && <span style={{ fontSize: 11.5, color: aviso === "Guardado" ? COLORS.green : COLORS.rust }}>{aviso}</span>}
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
+        {f.cuota_manual_cents !== null && f.cuota_manual_cents !== undefined ? "Puesto por ti." : f.ingreso_mes_cents ? `Según su sistema: ${euros(f.ingreso_mes_cents)} al mes. Escríbelo solo si es distinto.` : "Su sistema no lo indica: escríbelo para que cuente en tus ingresos."}
+      </div>
+    </div>
+  );
+}
+
 function FichaCliente({ id, onCerrar }) {
   const [f, setF] = useState(null);
   const [notas, setNotas] = useState("");
@@ -6372,6 +6401,7 @@ function FichaCliente({ id, onCerrar }) {
       </div>
       <div style={caja}>
         <div style={titulo}>Contrato</div>
+        <CuotaCliente f={f} onGuardada={(d) => setF(d)} />
         <div style={{ fontSize: 12.5, color: COLORS.text, lineHeight: 1.7 }}>
           <div>Sistema: <strong style={{ color: sistema.color }}>{sistema.label}</strong></div>
           <div>Estado: <strong style={{ color: e.color }}>{e.label}</strong>{textoPlazo(f) ? ` · ${textoPlazo(f)}` : ""}</div>
@@ -6534,6 +6564,155 @@ function ClientesSistemasView() {
           );
         })}
         {lista.length > 0 && visibles.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ningún cliente con ese filtro.</div>}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Cuadro de mando (Firztnet Central) --------------------
+// Cómo va tu negocio de un vistazo: ingresos fijos al mes, clientes que pagan y en prueba,
+// conversión de pruebas, altas y bajas, lo que vence pronto, la ayuda y la salud de todo.
+const EVENTO_TEXTO = {
+  alta: ["🆕", "Nuevo cliente"], activo: ["✅", "Pasa a cliente que paga"], prueba: ["🧪", "Vuelve a prueba"],
+  prueba_vencida: ["⌛", "Termina la prueba sin pagar"], suspendido: ["⛔", "Suspendido"], baja: ["👋", "Se da de baja"],
+};
+
+function Kpi({ titulo, valor, sub, color, grande }) {
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>{titulo}</div>
+      <div style={{ fontSize: grande ? 30 : 24, fontWeight: 800, color: color || COLORS.text, lineHeight: 1.1 }}>{valor}</div>
+      {sub && <div style={{ fontSize: 12, color: COLORS.textDim }}>{sub}</div>}
+    </div>
+  );
+}
+
+function CuadroMandoView({ onIrVista }) {
+  const [d, setD] = useState(null);
+  const [error, setError] = useState("");
+
+  const cargar = useCallback(async () => {
+    try { setD(await apiGet("/central/cuadro")); setError(""); } catch (e) { setError("No se pudo cargar el cuadro de mando."); }
+  }, []);
+  useEffect(() => { cargar(); const t = setInterval(cargar, 120000); return () => clearInterval(t); }, [cargar]);
+
+  if (!d) return <div style={{ fontSize: 12.5, color: error ? COLORS.rust : COLORS.textDim }}>{error || "Cargando..."}</div>;
+
+  const cambio = d.ingresos_hace_30_cents === null ? null : d.ingresos_mes_cents - d.ingresos_hace_30_cents;
+  const historia = d.historia.map((h) => ({ dia: new Date(`${h.fecha}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" }), euros: h.ingresos_mes_cents / 100, pagando: h.pagando }));
+  const caja = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16 };
+  const titulo = { fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 };
+  const maxSistema = Math.max(1, ...d.por_sistema.map((s) => s.ingresos_mes_cents));
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginBottom: 16, padding: "20px 22px", borderRadius: 16, color: "#FFFFFF",
+        background: "radial-gradient(500px circle at 0% 0%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(135deg, #1D4ED8, #0F1B3D)" }}>
+        <TrendingUp size={34} />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", opacity: 0.85 }}>Ingresos fijos al mes</div>
+          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{euros(d.ingresos_mes_cents)}</div>
+          <div style={{ fontSize: 13, opacity: 0.9 }}>
+            {cambio === null ? "Se compara con el mes pasado cuando haya 30 días de datos" : cambio === 0 ? "Igual que hace 30 días" : `${cambio > 0 ? "▲ +" : "▼ "}${euros(cambio)} respecto a hace 30 días`}
+            {" · "}{euros(d.ingresos_anual_cents)} al año
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", gap: "4px 22px", fontSize: 13 }}>
+          {[["Clientes que pagan", d.pagando], ["En prueba", d.en_prueba], ["Ticket medio", euros(d.ticket_medio_cents)]].map(([k, v]) => (
+            <div key={k}><div style={{ opacity: 0.8, fontSize: 11.5 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 800 }}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+
+      {d.sin_cuota > 0 && (
+        <div onClick={() => onIrVista?.("clientes-sistemas")} style={{ cursor: "pointer", marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FCD34D", fontSize: 13, color: "#92400E" }}>
+          💡 {d.sin_cuota} cliente{d.sin_cuota > 1 ? "s" : ""} que paga{d.sin_cuota > 1 ? "n" : ""} no tiene{d.sin_cuota > 1 ? "n" : ""} cuota apuntada, y no cuenta{d.sin_cuota > 1 ? "n" : ""} en tus ingresos. Ábrelos en «Clientes de sistemas» y pon «Cuánto te paga al mes».
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <Kpi titulo="Altas este mes" valor={d.altas_mes} color={COLORS.green} />
+        <Kpi titulo="Bajas este mes" valor={d.bajas_mes} color={d.bajas_mes ? COLORS.rust : COLORS.text} />
+        <Kpi titulo="Pruebas que pagan" valor={d.conversion_pct === null ? "—" : `${d.conversion_pct} %`} sub="últimos 90 días" />
+        <Kpi titulo="Pruebas que acaban en 7 días" valor={d.pruebas_7_dias} color={d.pruebas_7_dias ? COLORS.statusBlue : COLORS.text} sub="buen momento para llamar" />
+        <Kpi titulo="Renovaciones vencidas" valor={d.renovaciones_vencidas} color={d.renovaciones_vencidas ? COLORS.rust : COLORS.text} />
+        <Kpi titulo="Ayudas abiertas" valor={d.ayudas_abiertas} sub={d.respuesta_media_min === null ? "" : `respondes en ${d.respuesta_media_min < 60 ? `${d.respuesta_media_min} min` : `${Math.round(d.respuesta_media_min / 60)} h`} de media`} color={d.ayudas_abiertas ? COLORS.statusAmber : COLORS.text} />
+        <Kpi titulo="Sistemas y webs" valor={d.salud.caidos ? `${d.salud.caidos} caído${d.salud.caidos > 1 ? "s" : ""}` : "Todo bien"} sub={`${d.salud.total} vigilados`} color={d.salud.caidos ? COLORS.rust : COLORS.green} />
+        <Kpi titulo="Visitas a webs de clientes" valor={d.visitas_webs_mes.toLocaleString("es-ES")} sub="este mes" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 14 }}>
+        <div style={caja}>
+          <div style={titulo}>Evolución de tus ingresos fijos</div>
+          {historia.length < 2 ? (
+            <div style={{ fontSize: 12.5, color: COLORS.textDim, padding: "30px 0", textAlign: "center" }}>La gráfica se va dibujando sola: cada día se guarda una foto de tus ingresos.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={historia}>
+                <defs><linearGradient id="fnIngresos" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.35} /><stop offset="100%" stopColor={COLORS.amber} stopOpacity={0} /></linearGradient></defs>
+                <XAxis dataKey="dia" tick={{ fontSize: 10 }} minTickGap={24} />
+                <YAxis tick={{ fontSize: 10 }} width={44} tickFormatter={(v) => `${v} €`} />
+                <Tooltip formatter={(v, n) => (n === "euros" ? [`${Number(v).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`, "Ingresos al mes"] : [v, "Clientes que pagan"])} />
+                <Area type="monotone" dataKey="euros" stroke={COLORS.amber} strokeWidth={2.5} fill="url(#fnIngresos)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        <div style={caja}>
+          <div style={titulo}>Por sistema</div>
+          {d.por_sistema.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Todavía no hay clientes.</div>}
+          {d.por_sistema.map((s) => {
+            const info = SISTEMAS_AYUDA[s.sistema] || { label: s.sistema, color: COLORS.slate };
+            return (
+              <div key={s.sistema} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                  <span><strong style={{ color: info.color }}>{info.label}</strong> <span style={{ color: COLORS.textDim }}>· {s.pagando} pagan · {s.prueba} en prueba</span></span>
+                  <strong>{euros(s.ingresos_mes_cents)}</strong>
+                </div>
+                <div style={{ height: 8, borderRadius: 6, background: COLORS.surfaceRaised, marginTop: 4 }}>
+                  <div style={{ width: `${Math.max(2, (s.ingresos_mes_cents * 100) / maxSistema)}%`, height: "100%", borderRadius: 6, background: info.color }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
+        <div style={caja}>
+          <div style={titulo}>Lo que vence en los próximos 14 días</div>
+          {d.proximos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Nada urgente. 👌</div>}
+          {d.proximos.map((p) => {
+            const info = SISTEMAS_AYUDA[p.sistema] || { label: p.sistema, color: COLORS.slate };
+            const wa = enlaceWhatsapp(p.telefono, "Hola, te escribimos de Firztnet: ");
+            const texto = p.tipo === "prueba" ? (p.dias === 0 ? "La prueba termina hoy" : `La prueba termina en ${p.dias} día${p.dias > 1 ? "s" : ""}`)
+              : p.tipo === "vencida" ? "Renovación vencida" : `Renueva en ${p.dias} día${p.dias !== 1 ? "s" : ""}${p.importe_cents ? ` · ${euros(p.importe_cents)}` : ""}`;
+            return (
+              <div key={`${p.id}-${p.tipo}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${COLORS.line}` }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: info.color, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
+                  <strong>{p.nombre}</strong> <span style={{ color: COLORS.textDim }}>· {info.label}</span>
+                  <div style={{ color: p.tipo === "vencida" || p.dias <= 2 ? COLORS.rust : COLORS.textDim, fontWeight: p.dias <= 2 ? 700 : 400 }}>{texto}</div>
+                </div>
+                {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "5px 9px", fontSize: 11 }}>WhatsApp</a>}
+              </div>
+            );
+          })}
+        </div>
+        <div style={caja}>
+          <div style={titulo}>Últimos movimientos de clientes</div>
+          {d.recientes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Aquí irán apareciendo las altas, las pruebas que pasan a pagar y las bajas.</div>}
+          {d.recientes.map((e, i) => {
+            const [ico, texto] = EVENTO_TEXTO[e.tipo] || ["•", e.tipo];
+            return (
+              <div key={i} style={{ display: "flex", gap: 10, fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${COLORS.line}` }}>
+                <span>{ico}</span>
+                <span style={{ flex: 1 }}><strong>{e.nombre}</strong> · {texto} <span style={{ color: COLORS.textDim }}>· {SISTEMAS_AYUDA[e.sistema]?.label || e.sistema}</span></span>
+                <span style={{ color: COLORS.textDim, whiteSpace: "nowrap" }}>{haceCorto(e.fecha)}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -9344,6 +9523,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
             { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
+            { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando", movil: "mas" },
             { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas" },
             { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
             { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
@@ -9395,6 +9575,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
                 { key: "conocimiento", icon: Search, label: "Base conocimiento" },
                 { key: "recordatorios", icon: Bell, label: "Recordatorios" },
+                { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando" },
                 { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas" },
                 { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
                 { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
@@ -9478,6 +9659,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
                 {vista === "recordatorios" && "Recordatorios"}
+                {vista === "cuadro" && "Cuadro de mando de tu negocio"}
                 {vista === "clientes-sistemas" && "Clientes de tus sistemas"}
                 {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
                 {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
@@ -9520,6 +9702,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
           {vista === "recordatorios" && <RecordatoriosView />}
+          {vista === "cuadro" && <CuadroMandoView onIrVista={setVista} />}
           {vista === "clientes-sistemas" && <ClientesSistemasView />}
           {vista === "estado-sistemas" && <EstadoSistemasView />}
           {vista === "ayuda" && <AyudaClientesView />}
