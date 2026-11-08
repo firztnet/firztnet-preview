@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import {
@@ -3600,7 +3600,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
@@ -3609,6 +3609,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         apiGet("/estadisticas/novedades").catch(() => null),
         apiGet("/mantenimientos/contratos").catch(() => []),
         apiGet("/central/ayuda").catch(() => []),
+        apiGet("/central/salud").catch(() => null),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3618,6 +3619,15 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       abandonados.forEach((a) => nuevos.push({ tipo: "abandono", texto: `${a.cliente?.nombre}: equipo sin recoger hace ${a.dias_abandonado} días`, accion: () => { const rep = todasReparaciones.find((r) => r.id === a.id); if (rep) onAbrirTicket(rep); } }));
       const porCaducar = garantias.filter((g) => g.dias_restantes <= 15);
       if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
+      // Firztnet Central (fase 2): sistemas caídos y candados HTTPS a punto de caducar
+      (salud?.sistemas || []).filter((x) => x.activo && x.estado === "caido").forEach((x) => nuevos.push({
+        tipo: "caido",
+        texto: `🔴 ${x.nombre} NO RESPONDE desde ${new Date(x.caido_desde).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · ${x.error || ""}`,
+        accion: () => onIrVista("estado-sistemas"),
+      }));
+      (salud?.sistemas || []).filter((x) => x.activo && x.ssl_dias !== null && x.ssl_dias <= 14).forEach((x) => nuevos.push({
+        tipo: "ssl", texto: `🔒 El candado HTTPS de ${x.nombre} caduca en ${x.ssl_dias} día(s)`, accion: () => onIrVista("estado-sistemas"),
+      }));
       // Firztnet Central: cada petición de ayuda nueva de tus sistemas, una por una (las urgentes primero).
       // Quedan guardadas para siempre en «Ayuda a clientes»; aquí salen mientras estén sin atender.
       const ayudaNuevas = (ayudas || []).filter((p) => p.estado === "nueva")
@@ -3636,7 +3646,8 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         .forEach((c) => nuevos.push({ tipo: "cuota", texto: `Cuota de ${c.mes_actual.nombre.split(" ")[0]} sin cobrar — ${c.cliente?.nombre}`, accion: () => onIrVista("mantenimientos") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
-      nuevos.sort((a, b) => Number(b.tipo === "ayuda") - Number(a.tipo === "ayuda"));
+      const prioridad = { caido: 3, ayuda: 2, ssl: 1 };
+      nuevos.sort((a, b) => (prioridad[b.tipo] || 0) - (prioridad[a.tipo] || 0));
       setItems(nuevos);
     } catch (e) {
       /* silencioso */
@@ -5888,6 +5899,221 @@ function AyudaClientesView() {
           </div>
         )}
         {lista.map((p) => <TarjetaAyuda key={`${p.id}-${p.respuesta_fecha || ""}-${p.estado}`} p={p} onGuardar={guardar} />)}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Estado de los sistemas (Firztnet Central, fase 2) --------------------
+// Reparaciones abre cada 2 minutos tus sistemas y webs y anota si responden. Si uno se cae,
+// te avisa por Telegram y en la campana; aquí ves el semáforo, el historial y lo que tardan.
+const ESTADO_SALUD = {
+  ok: { label: "Funciona", color: "#16A34A", fondo: "#DCFCE7" },
+  lento: { label: "Lento", color: "#D97706", fondo: "#FEF3C7" },
+  caido: { label: "Caído", color: "#DC2626", fondo: "#FEE2E2" },
+  desconocido: { label: "Comprobando…", color: "#64748B", fondo: "#F1F5F9" },
+  pausado: { label: "En pausa", color: "#94A3B8", fondo: "#F1F5F9" },
+};
+
+function haceCorto(iso) {
+  if (!iso) return "nunca";
+  const seg = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seg < 60) return "hace un momento";
+  const min = Math.round(seg / 60);
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
+}
+const horaCorta = (iso) => new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const duracionTexto = (min) => (min < 60 ? `${min} min` : min < 1440 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ""}` : `${Math.floor(min / 1440)} d ${Math.floor((min % 1440) / 60)} h`);
+
+function TarjetaSistema({ s, onPausar, onBorrar }) {
+  const e = ESTADO_SALUD[s.estado] || ESTADO_SALUD.desconocido;
+  const sslMal = s.ssl_dias !== null && s.ssl_dias <= 14;
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${s.estado === "caido" ? "#FCA5A5" : COLORS.line}`, borderRadius: 14, padding: 14, display: "flex", flexDirection: "column", gap: 10, boxShadow: s.estado === "caido" ? "0 10px 24px -12px rgba(220,38,38,0.45)" : "none", opacity: s.activo ? 1 : 0.65 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span className={s.estado === "ok" ? "fn-punto-activo" : undefined} style={{ width: 12, height: 12, borderRadius: "50%", background: e.color, flexShrink: 0, boxShadow: `0 0 0 4px ${e.fondo}` }} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700, color: COLORS.text, display: "flex", alignItems: "center", gap: 6 }}>
+            {s.tipo === "web" ? <Globe size={14} color={COLORS.textDim} /> : <Server size={14} color={COLORS.textDim} />}
+            {s.nombre}
+          </div>
+          <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: COLORS.textDim, textDecoration: "none", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.url.replace(/^https?:\/\//, "")}</a>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 800, color: e.color, background: e.fondo, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{e.label}</span>
+      </div>
+      {s.estado === "caido" && (
+        <div style={{ fontSize: 12, color: "#991B1B", background: "#FEF2F2", borderRadius: 8, padding: "7px 10px" }}>
+          Caído desde {horaCorta(s.caido_desde)} · {s.error}
+        </div>
+      )}
+      {s.estado !== "caido" && s.error && s.activo && (
+        <div style={{ fontSize: 11.5, color: COLORS.textDim }}>Último intento falló ({s.error}); se vuelve a probar en 2 min.</div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+        {[
+          ["Responde en", !s.ms ? "—" : s.ms < 1000 ? `${s.ms} ms` : `${(s.ms / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} s`],
+          ["30 días", `${s.disponibilidad_30d.toLocaleString("es-ES")} %`],
+          ["Candado", s.ssl_dias === null ? "—" : `${s.ssl_dias} días`],
+        ].map(([k, v], i) => (
+          <div key={k} style={{ background: COLORS.surfaceRaised, borderRadius: 8, padding: "6px 8px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>{k}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: i === 2 && sslMal ? COLORS.rust : i === 1 && s.disponibilidad_30d < 99 ? COLORS.statusAmber : COLORS.text }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 11, color: COLORS.textDim }}>Comprobado {haceCorto(s.ultima_comprobacion)}</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => onPausar(s)} title={s.activo ? "Dejar de vigilar por ahora" : "Volver a vigilar"} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "5px 9px", fontSize: 11 }}>
+            {s.activo ? <><Pause size={12} /> Pausar</> : <><Play size={12} /> Vigilar</>}
+          </button>
+          <button onClick={() => onBorrar(s)} title="Quitar de la lista" style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), flex: "none", padding: "5px 9px", fontSize: 11 }}>
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EstadoSistemasView() {
+  const [datos, setDatos] = useState(null);
+  const [comprobando, setComprobando] = useState(false);
+  const [error, setError] = useState("");
+  const [nuevo, setNuevo] = useState({ nombre: "", url: "https://", tipo: "sistema" });
+  const [anadiendo, setAnadiendo] = useState(false);
+
+  const cargar = useCallback(async () => {
+    try {
+      setDatos(await apiGet("/central/salud"));
+      setError("");
+    } catch (e) {
+      setError("No se pudo cargar el estado de los sistemas.");
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+    const t = setInterval(cargar, 30000);
+    return () => clearInterval(t);
+  }, [cargar]);
+
+  async function comprobarAhora() {
+    setComprobando(true);
+    try {
+      setDatos(await apiPost("/central/salud/comprobar", {}));
+      window.dispatchEvent(new Event("fn:notificaciones-actualizar"));
+    } catch (e) {
+      setError(`No se pudo comprobar: ${e.message}`);
+    } finally {
+      setComprobando(false);
+    }
+  }
+
+  async function pausar(s) {
+    try {
+      await apiPatch(`/central/salud/sistemas/${s.id}`, { activo: !s.activo });
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function borrar(s) {
+    if (!window.confirm(`¿Quitar «${s.nombre}» de la vigilancia? Se borra también su historial de caídas.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/central/salud/sistemas/${s.id}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function anadir(ev) {
+    ev.preventDefault();
+    setAnadiendo(true);
+    try {
+      await apiPost("/central/salud/sistemas", nuevo);
+      setNuevo({ nombre: "", url: "https://", tipo: "sistema" });
+      await comprobarAhora();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAnadiendo(false);
+    }
+  }
+
+  if (!datos) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{error || "Cargando..."}</div>;
+
+  const activos = datos.sistemas.filter((s) => s.activo);
+  const caidos = activos.filter((s) => s.estado === "caido");
+  const lentos = activos.filter((s) => s.estado === "lento");
+  const sistemas = datos.sistemas.filter((s) => s.tipo !== "web");
+  const webs = datos.sistemas.filter((s) => s.tipo === "web");
+  const inputEstilo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", color: COLORS.text, background: "#FFFFFF" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16, padding: "16px 18px", borderRadius: 14, color: "#FFFFFF", background: caidos.length ? "linear-gradient(135deg, #EF4444, #B91C1C)" : lentos.length ? "linear-gradient(135deg, #F59E0B, #D97706)" : "linear-gradient(135deg, #22C55E, #15803D)" }}>
+        <Activity size={30} />
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>
+            {caidos.length ? `${caidos.length} sistema${caidos.length > 1 ? "s" : ""} caído${caidos.length > 1 ? "s" : ""}: ${caidos.map((s) => s.nombre).join(", ")}`
+              : lentos.length ? `Todo responde, pero ${lentos.map((s) => s.nombre).join(", ")} va${lentos.length > 1 ? "n" : ""} lento`
+                : `Todo funciona · ${activos.length} de ${activos.length}`}
+          </div>
+          <div style={{ fontSize: 12.5, opacity: 0.9 }}>Se comprueba solo cada {datos.intervalo_min} minutos. Si algo se cae, te llega un Telegram y un aviso en la campana.</div>
+        </div>
+        <button onClick={comprobarAhora} disabled={comprobando} style={{ ...btnStyle("rgba(255,255,255,0.18)", "#FFFFFF", "rgba(255,255,255,0.5)"), flex: "none", padding: "9px 14px" }}>
+          <RefreshCw size={14} className={comprobando ? "fn-girando" : undefined} /> {comprobando ? "Comprobando..." : "Comprobar ahora"}
+        </button>
+      </div>
+      {error && <div role="alert" style={{ marginBottom: 12, fontSize: 12.5, color: COLORS.rust }}>{error}</div>}
+
+      <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 10px" }}>Sistemas</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
+        {sistemas.map((s) => <TarjetaSistema key={s.id} s={s} onPausar={pausar} onBorrar={borrar} />)}
+      </div>
+      {webs.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 10px" }}>Webs</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
+            {webs.map((s) => <TarjetaSistema key={s.id} s={s} onPausar={pausar} onBorrar={borrar} />)}
+          </div>
+        </>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Historial de caídas</div>
+          {datos.incidencias.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ninguna caída registrada. 🎉</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {datos.incidencias.map((i) => (
+              <div key={i.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "7px 10px", borderRadius: 8, background: i.abierta ? "#FEF2F2" : COLORS.surfaceRaised }}>
+                <span style={{ minWidth: 0 }}><strong style={{ color: i.abierta ? COLORS.rust : COLORS.text }}>{i.sistema}</strong> <span style={{ color: COLORS.textDim }}>· {horaCorta(i.inicio)} · {i.motivo}</span></span>
+                <span style={{ fontWeight: 700, whiteSpace: "nowrap", color: i.abierta ? COLORS.rust : COLORS.textDim }}>{i.abierta ? "Sigue caído" : duracionTexto(i.minutos)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <form onSubmit={anadir} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Vigilar otra dirección</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim }}>Un sistema nuevo, la web de un cliente… Se comprueba igual que los demás.</div>
+          <input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Nombre (por ejemplo: Punto de venta)" maxLength={80} required style={inputEstilo} />
+          <input value={nuevo.url} onChange={(e) => setNuevo({ ...nuevo, url: e.target.value })} placeholder="https://..." maxLength={300} required style={inputEstilo} />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} style={{ ...inputEstilo, flex: 1 }}>
+              <option value="sistema">Sistema de gestión</option>
+              <option value="web">Web</option>
+            </select>
+            <button type="submit" disabled={anadiendo} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
+              <Plus size={14} /> {anadiendo ? "Añadiendo..." : "Añadir"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -8448,6 +8674,8 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-punto-activo {
           animation: fnPuntoActivo 2s ease-in-out infinite;
         }
+        @keyframes fnGirando { to { transform: rotate(360deg); } }
+        .fn-girando { animation: fnGirando 0.9s linear infinite; }
         @keyframes fnLogoGlow {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.amber}55; }
           50% { box-shadow: 0 0 16px 3px ${COLORS.amber}66; }
@@ -8696,6 +8924,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
             { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
+            { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
             { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
             { key: "ajustes", icon: Settings, label: "Ajustes", movil: "principal" },
@@ -8745,6 +8974,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
                 { key: "conocimiento", icon: Search, label: "Base conocimiento" },
                 { key: "recordatorios", icon: Bell, label: "Recordatorios" },
+                { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
                 { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
               ].map((item) => (
@@ -8826,6 +9056,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
                 {vista === "recordatorios" && "Recordatorios"}
+                {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
                 {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
@@ -8866,6 +9097,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
           {vista === "recordatorios" && <RecordatoriosView />}
+          {vista === "estado-sistemas" && <EstadoSistemasView />}
           {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
           {vista === "ajustes" && <AjustesView />}
