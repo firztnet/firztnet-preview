@@ -6387,7 +6387,11 @@ function FichaCliente({ id, onCerrar }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {[
               ...(f.uso.ventas_mes_cents !== undefined ? [["Ventas", euros(f.uso.ventas_mes_cents)], ["Tickets", f.uso.tickets_mes], [f.sistema === "peluquerias" ? "Citas" : "Personal", f.sistema === "peluquerias" ? f.uso.citas_mes : f.uso.personal]] : []),
-              ...(f.uso.cuota_cents !== undefined ? [["Cuota", f.uso.cuota_cents ? `${euros(f.uso.cuota_cents)} ${f.uso.periodo || ""}` : "Sin cuota"], ["Último pago", f.uso.ultimo_pago ? `${euros(f.uso.ultimo_pago.importe_cents)} · ${fechaCorta(f.uso.ultimo_pago.fecha)}` : "—"], ["Visitas web", f.uso.visitas_mes ?? 0]] : []),
+              ...(f.uso.paquetes_mes !== undefined ? [["Paquetes este mes", f.uso.paquetes_mes], ["Repartidores", f.uso.repartidores], ["Solicitudes por la web", f.uso.solicitudes_web_mes]] : []),
+              ...(f.uso.obras_activas !== undefined ? [["Obras en curso", f.uso.obras_activas], ["Presupuestos este mes", f.uso.presupuestos_mes], ["Solicitudes por la web", f.uso.solicitudes_web_mes], ["Operarios", f.uso.empleados]] : []),
+              ...(f.uso.cuota_cents !== undefined ? [["Cuota", f.uso.cuota_cents ? `${euros(f.uso.cuota_cents)} ${f.uso.periodo || ""}` : "Sin cuota"]] : []),
+              ...(f.uso.ultimo_pago !== undefined ? [["Último pago", f.uso.ultimo_pago ? `${euros(f.uso.ultimo_pago.importe_cents)} · ${fechaCorta(f.uso.ultimo_pago.fecha)}` : "—"]] : []),
+              ...(f.visitas_mes !== undefined ? [["Visitas web", f.visitas_mes]] : []),
               ["Último uso", f.ultimo_uso ? haceCorto(f.ultimo_uso) : "nunca"],
             ].map(([k, v]) => (
               <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "6px 8px" }}>
@@ -6397,6 +6401,7 @@ function FichaCliente({ id, onCerrar }) {
             ))}
           </div>
         ) : <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin datos de uso todavía.</div>}
+        {f.uso?.tiene_web === false && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8 }}>Esta empresa no tiene la web activada.</div>}
         {f.uso?.titular_sin_estrenar && <div style={{ fontSize: 12, color: COLORS.statusAmber, fontWeight: 700, marginTop: 8 }}>⚠ El titular todavía no ha entrado nunca con su clave.</div>}
       </div>
       <div style={caja}>
