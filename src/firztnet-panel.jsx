@@ -6712,7 +6712,7 @@ const MANUAL_SECCIONES = [
         "Clientes: número de clientes activos (sin contar los eliminados). Al pulsarla vas a Clientes.",
         "Retrasadas / urgentes: órdenes marcadas como urgentes o con más de 5 días sin terminar.",
         "Mantenimientos: contratos de mantenimiento activos y cuántas cuotas del mes quedan sin cobrar. Al pulsarla vas a Mantenimientos.",
-        "Balance de hoy: lo cobrado menos lo gastado hoy, equipos recibidos y clientes nuevos.",
+        "Sistemas: abre sistemas.firztnet.es (tus otros sistemas) en una pestaña nueva. El balance del día sigue en Reportes.",
         "Este mes: ingresos y gastos del mes. Al pulsarla vas a Reportes.",
         "Stock: repuestos con stock bajo. Al pulsarla vas a Inventario.",
         "Nueva reparación: abre el formulario para dar de alta un equipo o un servicio.",
@@ -8680,12 +8680,12 @@ function FirztnetPanel({ onCerrarSesion }) {
             />
             <StatCard
               alta
-              label="Balance de hoy"
-              value={textoBalanceHoy}
-              sub={`Recibidas hoy ${reporteDiario.equipos_recibidos ?? 0} · Clientes nuevos ${reporteDiario.nuevos_clientes ?? 0}`}
-              icon={Banknote}
+              label="Sistemas"
+              value="Abrir"
+              sub="sistemas.firztnet.es"
+              icon={LayoutGrid}
               accent={COLORS.pink}
-              tamValor={tamDinero(textoBalanceHoy)}
+              onClick={() => window.open("https://sistemas.firztnet.es", "_blank", "noopener")}
             />
             <StatCard
               alta
