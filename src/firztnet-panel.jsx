@@ -6152,6 +6152,154 @@ function textoPlazo(l) {
   return "";
 }
 
+// -------------------- Informe mensual de visitas (Firztnet Central, fase 4) --------------------
+// Dentro de la ficha de cada cliente: cuánta gente ha entrado en su web este mes, desde dónde y
+// con qué aparato, y cuántas reservas ha recibido por internet. Se imprime (o guarda en PDF) con
+// tu marca, o se le manda un resumen por WhatsApp o correo.
+const nombreMes = (mes) => new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+const escHtml = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function textoCambio(inf) {
+  if (inf.cambio_pct === null) return inf.visitas ? "primer mes con datos" : "";
+  if (inf.cambio_pct === 0) return "igual que el mes anterior";
+  return `${inf.cambio_pct > 0 ? "+" : ""}${inf.cambio_pct} % que el mes anterior`;
+}
+
+function resumenTexto(inf) {
+  const lineas = [
+    `Hola ${inf.local.contacto_nombre || ""}, te mandamos el resumen de la web de ${inf.local.nombre} de ${nombreMes(inf.mes)}:`,
+    `• ${inf.visitas} visitas (${textoCambio(inf) || "sin comparación"})`,
+  ];
+  if (inf.movil_pct !== null) lineas.push(`• ${inf.movil_pct} % desde el móvil`);
+  if (inf.origenes.length) lineas.push(`• Llegan sobre todo por: ${inf.origenes.slice(0, 3).map((o) => `${o.nombre} (${o.pct} %)`).join(", ")}`);
+  if (inf.mejor_dia_semana) lineas.push(`• El día con más visitas suele ser el ${inf.mejor_dia_semana}`);
+  lineas.push(`• ${inf.reservas_web} ${inf.reservas_tipo} hechas por internet`);
+  lineas.push("", "Un saludo, Firztnet");
+  return lineas.join("\n");
+}
+
+function imprimirInforme(inf) {
+  const max = Math.max(1, ...inf.por_dia.map((d) => d.visitas));
+  const ancho = 640, alto = 160, paso = ancho / inf.por_dia.length;
+  const barras = inf.por_dia.map((d, i) => {
+    const h = Math.round((d.visitas / max) * (alto - 20));
+    return `<rect x="${(i * paso + 1).toFixed(1)}" y="${alto - h}" width="${Math.max(2, paso - 3).toFixed(1)}" height="${h}" rx="2" fill="#2563EB"/>`
+      + (i % 5 === 0 ? `<text x="${(i * paso + paso / 2).toFixed(1)}" y="${alto + 14}" font-size="10" text-anchor="middle" fill="#64748B">${Number(d.fecha.slice(8))}</text>` : "");
+  }).join("");
+  const origenes = inf.origenes.map((o) => `<tr><td>${escHtml(o.nombre)}</td><td class="n">${o.visitas}</td><td class="bar"><span style="width:${o.pct}%"></span></td><td class="n">${o.pct} %</td></tr>`).join("");
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de visitas · ${escHtml(inf.local.nombre)} · ${escHtml(nombreMes(inf.mes))}</title>
+<style>
+  @page { size: A4; margin: 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: #0F172A; margin: 0; padding: 24px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563EB; padding-bottom: 12px; margin-bottom: 20px; }
+  .marca { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; } .marca span { color: #F59E0B; }
+  h1 { font-size: 24px; margin: 0 0 4px; } .sub { color: #64748B; font-size: 13px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .kpi { border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px; } .kpi b { display: block; font-size: 24px; } .kpi small { color: #64748B; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  h2 { font-size: 15px; margin: 22px 0 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; } td { padding: 6px 4px; border-bottom: 1px solid #F1F5F9; }
+  td.n { text-align: right; width: 60px; font-weight: 700; } td.bar { width: 40%; } td.bar span { display: block; height: 10px; border-radius: 6px; background: #2563EB; }
+  .nota { margin-top: 26px; padding: 12px 14px; background: #EFF6FF; border-radius: 10px; font-size: 12.5px; color: #1E3A8A; }
+  footer { margin-top: 28px; font-size: 11px; color: #94A3B8; text-align: center; }
+</style></head><body>
+<header><div><h1>Informe de visitas de tu web</h1><div class="sub">${escHtml(inf.local.nombre)} · ${escHtml(inf.local.direccion_web || "")} · ${escHtml(nombreMes(inf.mes))}</div></div>
+<div class="marca">FIRZT<span>NET</span></div></header>
+<div class="kpis">
+  <div class="kpi"><small>Visitas</small><b>${inf.visitas}</b><span class="sub">${escHtml(textoCambio(inf))}</span></div>
+  <div class="kpi"><small>Media al día</small><b>${String(inf.media_diaria).replace(".", ",")}</b></div>
+  <div class="kpi"><small>Desde el móvil</small><b>${inf.movil_pct ?? "—"}${inf.movil_pct !== null ? " %" : ""}</b></div>
+  <div class="kpi"><small>${escHtml(inf.reservas_tipo)} por internet</small><b>${inf.reservas_web}</b><span class="sub">mes anterior: ${inf.reservas_web_mes_anterior}</span></div>
+</div>
+<h2>Visitas cada día</h2>
+<svg viewBox="0 0 ${ancho} ${alto + 20}" width="100%" role="img" aria-label="Visitas por día">${barras}</svg>
+<h2>Cómo llegan a tu web</h2>
+<table>${origenes || '<tr><td>Todavía no hay visitas este mes.</td></tr>'}</table>
+${inf.mejor_dia ? `<div class="nota">📈 El día con más visitas fue el <b>${new Date(`${inf.mejor_dia.fecha}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</b> (${inf.mejor_dia.visitas} visitas), y el día de la semana que más gente entra suele ser el <b>${escHtml(inf.mejor_dia_semana)}</b>: buen día para publicar en redes o lanzar una oferta.</div>` : ""}
+<footer>Informe preparado por Firztnet · contacto@firztnet.es · Las visitas se cuentan sin cookies ni datos personales de tus clientes.</footer>
+<script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { alert("El navegador ha bloqueado la ventana. Permite las ventanas emergentes para imprimir el informe."); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function InformeVisitas({ local }) {
+  const [inf, setInf] = useState(null);
+  const [mes, setMes] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiGet(`/central/clientes/${local.id}/informe${mes ? `?mes=${mes}` : ""}`)
+      .then((d) => { setInf(d); if (!mes) setMes(d.mes); })
+      .catch(() => setError("No se pudo cargar el informe."));
+  }, [local.id, mes]);
+
+  if (error) return <div style={{ fontSize: 12.5, color: COLORS.rust }}>{error}</div>;
+  if (!inf) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando el informe...</div>;
+  const whatsapp = enlaceWhatsapp(local.contacto_telefono, resumenTexto(inf));
+  const correo = local.contacto_email ? `mailto:${local.contacto_email}?subject=${encodeURIComponent(`Visitas de tu web · ${nombreMes(inf.mes)}`)}&body=${encodeURIComponent(resumenTexto(inf))}` : null;
+  const meses = inf.meses.length ? inf.meses : [inf.mes];
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, fontFamily: "Inter", textTransform: "capitalize" }}>
+          {meses.map((m) => <option key={m} value={m}>{nombreMes(m)}</option>)}
+        </select>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => imprimirInforme(inf)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><Printer size={13} /> Imprimir o guardar PDF</button>
+          {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>Enviar resumen por WhatsApp</a>}
+          {correo && <a href={correo} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>✉️ Por correo</a>}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginBottom: 10 }}>
+        {[
+          ["Visitas", inf.visitas, textoCambio(inf), inf.cambio_pct !== null && inf.cambio_pct < 0 ? COLORS.rust : COLORS.green],
+          ["Media al día", String(inf.media_diaria).replace(".", ","), "", null],
+          ["Desde el móvil", inf.movil_pct === null ? "—" : `${inf.movil_pct} %`, "", null],
+          [`${inf.reservas_tipo} por internet`, inf.reservas_web, `mes anterior: ${inf.reservas_web_mes_anterior}`, null],
+        ].map(([k, v, sub, color]) => (
+          <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{v}</div>
+            {sub && <div style={{ fontSize: 11, color: color || COLORS.textDim, fontWeight: color ? 700 : 400 }}>{sub}</div>}
+          </div>
+        ))}
+      </div>
+      {inf.visitas === 0 ? (
+        <div style={{ fontSize: 12.5, color: COLORS.textDim, padding: "8px 0" }}>Todavía no hay visitas contadas este mes. Se empiezan a contar desde que se activó el contador.</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+          <div style={{ background: "#FFFFFF", borderRadius: 8, padding: 10, height: 190 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 4 }}>Visitas cada día</div>
+            <ResponsiveContainer width="100%" height={155}>
+              <BarChart data={inf.por_dia.map((d) => ({ dia: Number(d.fecha.slice(8)), visitas: d.visitas }))}>
+                <XAxis dataKey="dia" tick={{ fontSize: 10 }} interval={4} />
+                <YAxis tick={{ fontSize: 10 }} width={28} allowDecimals={false} />
+                <Tooltip formatter={(v) => [v, "Visitas"]} labelFormatter={(d) => `Día ${d}`} />
+                <Bar dataKey="visitas" fill={COLORS.amber} radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ background: "#FFFFFF", borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 6 }}>Cómo llegan</div>
+            {inf.origenes.map((o) => (
+              <div key={o.origen} style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{o.nombre}</span><strong>{o.visitas} · {o.pct} %</strong></div>
+                <div style={{ height: 6, borderRadius: 4, background: COLORS.surfaceRaised }}><div style={{ width: `${o.pct}%`, height: "100%", borderRadius: 4, background: COLORS.amber }} /></div>
+              </div>
+            ))}
+            {inf.mejor_dia_semana && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 8 }}>📈 El día que más entran suele ser el <strong>{inf.mejor_dia_semana}</strong>.</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FichaCliente({ id, onCerrar }) {
   const [f, setF] = useState(null);
   const [notas, setNotas] = useState("");
@@ -6230,6 +6378,10 @@ function FichaCliente({ id, onCerrar }) {
             </div>
           );
         })}
+      </div>
+      <div style={{ ...caja, gridColumn: "1 / -1" }}>
+        <div style={titulo}>Informe de visitas de su web</div>
+        <InformeVisitas local={f} />
       </div>
       <div style={{ ...caja, gridColumn: "1 / -1" }}>
         <div style={titulo}>Peticiones de ayuda ({f.ayudas.length})</div>
@@ -6332,6 +6484,7 @@ function ClientesSistemasView() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 12, color: COLORS.textDim }}>
+                  {l.visitas_mes !== undefined && <span title="Visitas de su web este mes">👁 <strong style={{ color: COLORS.text }}>{l.visitas_mes}</strong> visitas</span>}
                   {l.uso && <span title="Ventas este mes"><strong style={{ color: COLORS.text }}>{euros(l.uso.ventas_mes_cents)}</strong> este mes</span>}
                   <span title="Aparatos">🖥 {l.num_aparatos}{l.aparatos_sin_conexion ? <span style={{ color: COLORS.statusAmber, fontWeight: 700 }}> ({l.aparatos_sin_conexion} sin conectar)</span> : ""}</span>
                   <span title="Peticiones de ayuda abiertas" style={{ color: l.ayudas_abiertas ? COLORS.rust : COLORS.textDim, fontWeight: l.ayudas_abiertas ? 800 : 400 }}>🛟 {l.ayudas_abiertas}</span>
