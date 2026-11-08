@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import {
@@ -14,7 +14,7 @@ import {
 // Cambia esto por la URL donde corra tu backend Flask
 // (en local, con `python run.py`, es http://localhost:5000)
 // ---------------------------------------------------------------------
-const API_BASE = "https://firztnet-backend-production.up.railway.app/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://firztnet-backend-production.up.railway.app/api";
 // Dirección del panel que reciben los clientes en los enlaces (seguimiento, firma del presupuesto...)
 const PANEL_URL = "https://reparaciones.firztnet.es";
 
@@ -3600,7 +3600,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
@@ -3608,6 +3608,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         apiGet("/solicitudes").catch(() => []),
         apiGet("/estadisticas/novedades").catch(() => null),
         apiGet("/mantenimientos/contratos").catch(() => []),
+        apiGet("/central/ayuda").catch(() => []),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3617,6 +3618,17 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       abandonados.forEach((a) => nuevos.push({ tipo: "abandono", texto: `${a.cliente?.nombre}: equipo sin recoger hace ${a.dias_abandonado} días`, accion: () => { const rep = todasReparaciones.find((r) => r.id === a.id); if (rep) onAbrirTicket(rep); } }));
       const porCaducar = garantias.filter((g) => g.dias_restantes <= 15);
       if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
+      // Firztnet Central: cada petición de ayuda nueva de tus sistemas, una por una (las urgentes primero).
+      // Quedan guardadas para siempre en «Ayuda a clientes»; aquí salen mientras estén sin atender.
+      const ayudaNuevas = (ayudas || []).filter((p) => p.estado === "nueva")
+        .sort((a, b) => Number(b.urgente) - Number(a.urgente) || String(b.fecha).localeCompare(String(a.fecha)));
+      const NOMBRE_SIS = { hosteleria: "Hostelería", peluquerias: "Peluquerías", reformas: "Reformas", logistica: "Logística", reciclaje: "Reciclaje" };
+      ayudaNuevas.slice(0, 8).forEach((p) => nuevos.push({
+        tipo: "ayuda",
+        texto: `${p.urgente ? "🚨 URGENTE · " : "🛟 "}${p.negocio} (${NOMBRE_SIS[p.sistema] || p.sistema}) pide ayuda: ${(p.mensaje || "").slice(0, 70)}${(p.mensaje || "").length > 70 ? "…" : ""} · ${p.referencia}`,
+        accion: () => onIrVista("ayuda"),
+      }));
+      if (ayudaNuevas.length > 8) nuevos.push({ tipo: "ayuda", texto: `…y ${ayudaNuevas.length - 8} petición(es) de ayuda más`, accion: () => onIrVista("ayuda") });
       const solicitudesPendientes = solicitudes.filter((s) => !s.atendida);
       if (solicitudesPendientes.length > 0) nuevos.push({ tipo: "solicitud", texto: `${solicitudesPendientes.length} solicitud(es) de servicio sin atender`, accion: () => onIrVista("solicitudes") });
       // Mantenimientos: ya has ido este mes pero la cuota sigue sin cobrar
@@ -3624,6 +3636,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         .forEach((c) => nuevos.push({ tipo: "cuota", texto: `Cuota de ${c.mes_actual.nombre.split(" ")[0]} sin cobrar — ${c.cliente?.nombre}`, accion: () => onIrVista("mantenimientos") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
+      nuevos.sort((a, b) => Number(b.tipo === "ayuda") - Number(a.tipo === "ayuda"));
       setItems(nuevos);
     } catch (e) {
       /* silencioso */
@@ -5681,6 +5694,200 @@ function SolicitudesView({ onCrearReparacion }) {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Ayuda a clientes (Firztnet Central) --------------------
+// Los locales que usan tus otros sistemas (hostelería, peluquerías...) piden ayuda desde su
+// panel con «Pedir ayuda». Aquí las ves, cambias el estado y les respondes: tu respuesta
+// les aparece en su panel. Las notas internas solo las ves tú.
+const SISTEMAS_AYUDA = {
+  hosteleria: { label: "Hostelería", color: "#D97706" },
+  peluquerias: { label: "Peluquerías", color: "#C2457A" },
+  reformas: { label: "Reformas", color: "#1E3A5F" },
+  logistica: { label: "Logística", color: "#2563EB" },
+  reciclaje: { label: "Reciclaje", color: "#EA580C" },
+};
+const TIPOS_AYUDA = {
+  impresora: "🖨️ No imprime", datafono: "💳 Datáfono", aparato: "📱 Aparato o pantalla",
+  acceso: "🔑 No puede entrar", internet: "📶 Internet", otro: "💬 Otra cosa",
+};
+const ESTADOS_AYUDA = [
+  { key: "nueva", label: "Nueva", color: COLORS.statusBlue },
+  { key: "en_curso", label: "En marcha", color: COLORS.statusAmber },
+  { key: "resuelta", label: "Resuelta", color: COLORS.green },
+];
+
+function hace(iso) {
+  if (!iso) return "";
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  return new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function enlaceWhatsapp(telefono, texto) {
+  const digitos = (telefono || "").replace(/\D/g, "");
+  if (digitos.length < 9) return null;
+  const numero = digitos.length === 9 ? `34${digitos}` : digitos;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}
+
+function TarjetaAyuda({ p, onGuardar }) {
+  const [respuesta, setRespuesta] = useState(p.respuesta || "");
+  const [notas, setNotas] = useState(p.notas || "");
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const sistema = SISTEMAS_AYUDA[p.sistema] || { label: p.sistema, color: COLORS.slate };
+  const estado = ESTADOS_AYUDA.find((e) => e.key === p.estado) || ESTADOS_AYUDA[0];
+  const cambios = respuesta !== (p.respuesta || "") || notas !== (p.notas || "");
+  const whatsapp = enlaceWhatsapp(p.telefono, `Hola, te escribimos de Firztnet por tu petición ${p.referencia}: `);
+
+  async function guardar(extra = {}) {
+    setGuardando(true);
+    setAviso("");
+    try {
+      await onGuardar(p.id, { respuesta, notas, ...extra });
+      setAviso("Guardado");
+      setTimeout(() => setAviso(""), 2000);
+    } catch (e) {
+      setAviso(`No se pudo guardar: ${e.message}`);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${p.urgente && p.estado !== "resuelta" ? COLORS.rust : estado.color}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{p.negocio}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: sistema.color, border: `1px solid ${sistema.color}`, borderRadius: 999, padding: "2px 8px" }}>{sistema.label}</span>
+            {p.urgente && p.estado !== "resuelta" && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#FFFFFF", background: COLORS.rust, borderRadius: 999, padding: "2px 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Urgente</span>
+            )}
+            <span style={{ fontSize: 11, color: COLORS.textDim }}>{p.referencia} · {hace(p.fecha)}</span>
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 3 }}>
+            {p.persona || "—"}{p.puesto ? ` · ${p.puesto}` : ""}{p.empresa ? ` · ${p.empresa}` : ""}
+          </div>
+          {p.direccion_web && <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{p.direccion_web}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceRaised, borderRadius: 999, padding: 3 }}>
+          {ESTADOS_AYUDA.map((e) => (
+            <button
+              key={e.key}
+              onClick={() => guardar({ estado: e.key })}
+              disabled={guardando}
+              style={{ border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "Inter", background: p.estado === e.key ? e.color : "transparent", color: p.estado === e.key ? "#FFFFFF" : COLORS.textDim }}
+            >
+              {e.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontSize: 13.5, color: COLORS.text, background: COLORS.surfaceRaised, borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.textDim, marginBottom: 4 }}>{TIPOS_AYUDA[p.tipo] || p.tipo}{p.pagina ? ` · pantalla «${p.pagina}»` : ""}</div>
+        {p.mensaje}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {p.telefono && (
+          <a href={`tel:${p.telefono}`} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", textDecoration: "none", padding: "7px 12px", fontSize: 12 }}>📞 Llamar · {p.telefono}</a>
+        )}
+        {whatsapp && (
+          <a href={whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "7px 12px", fontSize: 12 }}>WhatsApp</a>
+        )}
+      </div>
+
+      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
+        Respuesta para el cliente (la ve en su panel)
+        <textarea value={respuesta} onChange={(e) => setRespuesta(e.target.value)} rows={2} maxLength={2000} placeholder="Por ejemplo: pasamos esta tarde a las 17:00 a revisar la impresora" style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical", color: COLORS.text }} />
+      </label>
+      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
+        Notas internas (solo las ves tú)
+        <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={1} maxLength={2000} placeholder="Qué era, qué cambiaste, piezas..." style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical", color: COLORS.text }} />
+      </label>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={() => guardar()} disabled={guardando || !cambios} style={{ ...btnStyle(cambios ? COLORS.amber : COLORS.surfaceRaised, cambios ? "#FFFFFF" : COLORS.textDim), flex: "none", padding: "8px 14px", opacity: guardando ? 0.7 : 1 }}>
+          {guardando ? "Guardando..." : "Guardar respuesta y notas"}
+        </button>
+        {p.respuesta_fecha && <span style={{ fontSize: 11.5, color: COLORS.textDim }}>Respondida {hace(p.respuesta_fecha)}</span>}
+        {aviso && <span style={{ fontSize: 12, fontWeight: 600, color: aviso.startsWith("No") ? COLORS.rust : COLORS.green }}>{aviso}</span>}
+      </div>
+    </div>
+  );
+}
+
+function AyudaClientesView() {
+  const [peticiones, setPeticiones] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [verTodas, setVerTodas] = useState(false);
+  const [filtro, setFiltro] = useState("todos");
+  const [error, setError] = useState("");
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    setError("");
+    try {
+      setPeticiones(await apiGet(`/central/ayuda${verTodas ? "?todas=true" : ""}`));
+    } catch (e) {
+      setError("No se pudieron cargar las peticiones de ayuda.");
+    } finally {
+      setCargando(false);
+    }
+  }, [verTodas]);
+
+  useEffect(() => {
+    cargar();
+    const t = setInterval(cargar, 60000);
+    return () => clearInterval(t);
+  }, [cargar]);
+
+  async function guardar(id, cambios) {
+    const actualizada = await apiPatch(`/central/ayuda/${id}`, cambios);
+    setPeticiones((prev) => prev.map((p) => (p.id === id ? actualizada : p)).filter((p) => verTodas || p.estado !== "resuelta"));
+  }
+
+  const sistemas = [...new Set(peticiones.map((p) => p.sistema))];
+  const lista = peticiones.filter((p) => filtro === "todos" || p.sistema === filtro);
+  const nuevas = peticiones.filter((p) => p.estado === "nueva").length;
+  const urgentes = peticiones.filter((p) => p.urgente && p.estado !== "resuelta").length;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Nuevas" value={nuevas} icon={LifeBuoy} accent={COLORS.statusBlue} />
+        <StatCard label="Urgentes sin resolver" value={urgentes} icon={Flame} accent={COLORS.rust} />
+        <StatCard label={verTodas ? "En la lista" : "Abiertas"} value={peticiones.length} icon={MessageSquare} accent={COLORS.amber} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {["todos", ...sistemas].map((s) => (
+            <button key={s} onClick={() => setFiltro(s)} style={{ ...btnStyle(filtro === s ? COLORS.amber : "transparent", filtro === s ? "#FFFFFF" : COLORS.textDim, filtro === s ? null : COLORS.line), flex: "none", padding: "6px 12px", fontSize: 12 }}>
+              {s === "todos" ? "Todos los sistemas" : SISTEMAS_AYUDA[s]?.label || s}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setVerTodas((v) => !v)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
+          {verTodas ? "Ver solo abiertas" : "Ver todas (incluye resueltas)"}
+        </button>
+      </div>
+      {error && <div role="alert" style={{ marginBottom: 12, fontSize: 12.5, color: COLORS.rust }}>{error}</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {cargando && peticiones.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+        {!cargando && lista.length === 0 && (
+          <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
+            Sin peticiones {verTodas ? "" : "abiertas"}. Aquí llegan las que hacen los locales con el botón «Pedir ayuda» de hostelería y peluquerías, y te avisa también por Telegram.
+          </div>
+        )}
+        {lista.map((p) => <TarjetaAyuda key={`${p.id}-${p.respuesta_fecha || ""}-${p.estado}`} p={p} onGuardar={guardar} />)}
       </div>
     </div>
   );
@@ -8489,6 +8696,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
             { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
+            { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
             { key: "ajustes", icon: Settings, label: "Ajustes", movil: "principal" },
           ].map((item) => (
@@ -8537,6 +8745,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
                 { key: "conocimiento", icon: Search, label: "Base conocimiento" },
                 { key: "recordatorios", icon: Bell, label: "Recordatorios" },
+                { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
               ].map((item) => (
                 <div
@@ -8617,6 +8826,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
                 {vista === "recordatorios" && "Recordatorios"}
+                {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
@@ -8656,6 +8866,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
           {vista === "recordatorios" && <RecordatoriosView />}
+          {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
           {vista === "ajustes" && <AjustesView />}
 
