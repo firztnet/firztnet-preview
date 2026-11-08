@@ -8681,7 +8681,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             <StatCard
               alta
               label="Sistemas"
-              value="Abrir"
+              value=""
               sub="sistemas.firztnet.es"
               icon={LayoutGrid}
               accent={COLORS.pink}
