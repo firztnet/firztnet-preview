@@ -6173,7 +6173,7 @@ function resumenTexto(inf) {
   if (inf.movil_pct !== null) lineas.push(`• ${inf.movil_pct} % desde el móvil`);
   if (inf.origenes.length) lineas.push(`• Llegan sobre todo por: ${inf.origenes.slice(0, 3).map((o) => `${o.nombre} (${o.pct} %)`).join(", ")}`);
   if (inf.mejor_dia_semana) lineas.push(`• El día con más visitas suele ser el ${inf.mejor_dia_semana}`);
-  lineas.push(`• ${inf.reservas_web} ${inf.reservas_tipo} hechas por internet`);
+  if (inf.reservas_tipo) lineas.push(`• ${inf.reservas_web} ${inf.reservas_tipo} hechas por internet`);
   lineas.push("", "Un saludo, Firztnet");
   return lineas.join("\n");
 }
@@ -6209,7 +6209,7 @@ function imprimirInforme(inf) {
   <div class="kpi"><small>Visitas</small><b>${inf.visitas}</b><span class="sub">${escHtml(textoCambio(inf))}</span></div>
   <div class="kpi"><small>Media al día</small><b>${String(inf.media_diaria).replace(".", ",")}</b></div>
   <div class="kpi"><small>Desde el móvil</small><b>${inf.movil_pct ?? "—"}${inf.movil_pct !== null ? " %" : ""}</b></div>
-  <div class="kpi"><small>${escHtml(inf.reservas_tipo)} por internet</small><b>${inf.reservas_web}</b><span class="sub">mes anterior: ${inf.reservas_web_mes_anterior}</span></div>
+  ${inf.reservas_tipo ? `<div class="kpi"><small>${escHtml(inf.reservas_tipo)} por internet</small><b>${inf.reservas_web}</b><span class="sub">mes anterior: ${inf.reservas_web_mes_anterior}</span></div>` : `<div class="kpi"><small>Mejor día</small><b>${inf.mejor_dia_semana ? escHtml(inf.mejor_dia_semana) : "—"}</b></div>`}
 </div>
 <h2>Visitas cada día</h2>
 <svg viewBox="0 0 ${ancho} ${alto + 20}" width="100%" role="img" aria-label="Visitas por día">${barras}</svg>
@@ -6260,7 +6260,7 @@ function InformeVisitas({ local }) {
           ["Visitas", inf.visitas, textoCambio(inf), inf.cambio_pct !== null && inf.cambio_pct < 0 ? COLORS.rust : COLORS.green],
           ["Media al día", String(inf.media_diaria).replace(".", ","), "", null],
           ["Desde el móvil", inf.movil_pct === null ? "—" : `${inf.movil_pct} %`, "", null],
-          [`${inf.reservas_tipo} por internet`, inf.reservas_web, `mes anterior: ${inf.reservas_web_mes_anterior}`, null],
+          ...(inf.reservas_tipo ? [[`${inf.reservas_tipo} por internet`, inf.reservas_web, `mes anterior: ${inf.reservas_web_mes_anterior}`, null]] : []),
         ].map(([k, v, sub, color]) => (
           <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
@@ -6356,7 +6356,11 @@ function FichaCliente({ id, onCerrar }) {
         <div style={titulo}>Uso este mes</div>
         {f.uso ? (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {[["Ventas", euros(f.uso.ventas_mes_cents)], ["Tickets", f.uso.tickets_mes], [f.sistema === "peluquerias" ? "Citas" : "Personal", f.sistema === "peluquerias" ? f.uso.citas_mes : f.uso.personal], ["Último uso", f.ultimo_uso ? haceCorto(f.ultimo_uso) : "nunca"]].map(([k, v]) => (
+            {[
+              ...(f.uso.ventas_mes_cents !== undefined ? [["Ventas", euros(f.uso.ventas_mes_cents)], ["Tickets", f.uso.tickets_mes], [f.sistema === "peluquerias" ? "Citas" : "Personal", f.sistema === "peluquerias" ? f.uso.citas_mes : f.uso.personal]] : []),
+              ...(f.uso.cuota_cents !== undefined ? [["Cuota", f.uso.cuota_cents ? `${euros(f.uso.cuota_cents)} ${f.uso.periodo || ""}` : "Sin cuota"], ["Último pago", f.uso.ultimo_pago ? `${euros(f.uso.ultimo_pago.importe_cents)} · ${fechaCorta(f.uso.ultimo_pago.fecha)}` : "—"], ["Visitas web", f.uso.visitas_mes ?? 0]] : []),
+              ["Último uso", f.ultimo_uso ? haceCorto(f.ultimo_uso) : "nunca"],
+            ].map(([k, v]) => (
               <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "6px 8px" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>{v}</div>
@@ -6485,7 +6489,7 @@ function ClientesSistemasView() {
                 </div>
                 <div style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 12, color: COLORS.textDim }}>
                   {l.visitas_mes !== undefined && <span title="Visitas de su web este mes">👁 <strong style={{ color: COLORS.text }}>{l.visitas_mes}</strong> visitas</span>}
-                  {l.uso && <span title="Ventas este mes"><strong style={{ color: COLORS.text }}>{euros(l.uso.ventas_mes_cents)}</strong> este mes</span>}
+                  {l.uso && l.uso.ventas_mes_cents !== undefined && <span title="Ventas este mes"><strong style={{ color: COLORS.text }}>{euros(l.uso.ventas_mes_cents)}</strong> este mes</span>}
                   <span title="Aparatos">🖥 {l.num_aparatos}{l.aparatos_sin_conexion ? <span style={{ color: COLORS.statusAmber, fontWeight: 700 }}> ({l.aparatos_sin_conexion} sin conectar)</span> : ""}</span>
                   <span title="Peticiones de ayuda abiertas" style={{ color: l.ayudas_abiertas ? COLORS.rust : COLORS.textDim, fontWeight: l.ayudas_abiertas ? 800 : 400 }}>🛟 {l.ayudas_abiertas}</span>
                   <ChevronDown size={16} style={{ transform: abierta === l.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
