@@ -6062,8 +6062,10 @@ function EstadoSistemasView() {
   const activos = datos.sistemas.filter((s) => s.activo);
   const caidos = activos.filter((s) => s.estado === "caido");
   const lentos = activos.filter((s) => s.estado === "lento");
-  const sistemas = datos.sistemas.filter((s) => s.tipo !== "web");
-  const webs = datos.sistemas.filter((s) => s.tipo === "web");
+  const sistemas = datos.sistemas.filter((s) => s.tipo !== "web" && s.origen !== "auto");
+  const webs = datos.sistemas.filter((s) => s.tipo === "web" && s.origen !== "auto");
+  const websClientes = datos.sistemas.filter((s) => s.origen === "auto");
+  const caidasClientes = websClientes.filter((s) => s.activo && s.estado === "caido").length;
   const inputEstilo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", color: COLORS.text, background: "#FFFFFF" };
 
   return (
@@ -6093,6 +6095,33 @@ function EstadoSistemasView() {
           <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 10px" }}>Webs</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
             {webs.map((s) => <TarjetaSistema key={s.id} s={s} onPausar={pausar} onBorrar={borrar} />)}
+          </div>
+        </>
+      )}
+
+      {websClientes.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 4px" }}>
+            Webs de tus clientes · {websClientes.length}{caidasClientes ? <span style={{ color: COLORS.rust }}> · {caidasClientes} caída{caidasClientes > 1 ? "s" : ""}</span> : null}
+          </h3>
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>Se añaden y se quitan solas con tus clientes en prueba o activos. Se comprueban cada {datos.intervalo_auto_min || 5} minutos; si caen varias de la misma plataforma a la vez, te llega un solo aviso.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 8, marginBottom: 18 }}>
+            {websClientes.map((s) => {
+              const e = ESTADO_SALUD[s.estado] || ESTADO_SALUD.desconocido;
+              const plataforma = SISTEMAS_AYUDA[s.sistema_cliente]?.label || s.sistema_cliente;
+              return (
+                <div key={s.id} title={s.error || ""} style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${s.estado === "caido" ? "#FCA5A5" : COLORS.line}`, borderRadius: 10, padding: "8px 10px", opacity: s.activo ? 1 : 0.6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.nombre}</div>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: COLORS.textDim, textDecoration: "none" }}>{plataforma} · {s.estado === "caido" ? `caída desde ${horaCorta(s.caido_desde)}` : s.ms ? `${s.ms} ms` : e.label}</a>
+                  </div>
+                  <button onClick={() => pausar(s)} title={s.activo ? "Dejar de vigilar por ahora" : "Volver a vigilar"} style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.textDim, padding: 4 }}>
+                    {s.activo ? <Pause size={13} /> : <Play size={13} />}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
