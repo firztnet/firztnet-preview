@@ -6754,7 +6754,7 @@ function InformesMensualesView() {
     setOcupado(true); setAviso("");
     try {
       const r = await apiPost("/central/informes/preparar", { mes });
-      setAviso(r.preparados ? `Preparados ${r.preparados} informe(s). Revísalos antes de enviarlos.` : "Ningún cliente con correo y visitas ese mes.");
+      setAviso(r.preparados ? `Preparados ${r.preparados} informe(s). Revísalos antes de enviarlos.` : "Ningún cliente con correo y visitas ese mes. (Las visitas se cuentan desde el 8 de noviembre de 2026.)");
       await cargar(mes);
     } catch (e) { setAviso(e.message); } finally { setOcupado(false); }
   }
@@ -6781,7 +6781,9 @@ function InformesMensualesView() {
 
   if (!d) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{aviso || "Cargando..."}</div>;
   const pendientes = d.informes.filter((i) => i.estado === "preparado" || i.estado === "error");
-  const meses = Array.from(new Set([d.mes, ...d.meses])).sort().reverse();
+  // Siempre se pueden elegir el mes pasado y el mes en curso (este, para ver cómo va antes de que acabe)
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const meses = Array.from(new Set([mesActual, d.mes, ...d.meses])).sort().reverse();
 
   return (
     <div>
