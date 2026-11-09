@@ -76,7 +76,32 @@ const COLORS = {
   slate: "#334155",
   brown: "#92400E",
   fuchsia: "#C026D3",
+  // Avisos (fondo suave + letra) que cambian con el tema
+  tintRojo: "#FEF2F2", tintRojoTx: "#991B1B",
+  tintAmbar: "#FFFBEB", tintAmbarTx: "#78350F",
+  tintVerde: "#F0FDF4", tintVerdeTx: "#166534",
+  tintAzul: "#EFF6FF", tintAzulTx: "#1E40AF",
 };
+
+// Temas del panel (se eligen en la pantalla principal). «Día» es el panel claro de siempre.
+// Los colores se cambian en COLORS antes de pintar, así todo el panel cambia a la vez.
+const OSCURO_BASE = {
+  tintRojo: "#3A1619", tintRojoTx: "#FCA5A5", tintAmbar: "#352A10", tintAmbarTx: "#FCD34D",
+  tintVerde: "#0F2E20", tintVerdeTx: "#86EFAC", tintAzul: "#14284A", tintAzulTx: "#93C5FD",
+  slate: "#64748B", brown: "#B45309", rust: "#F87171", green: "#34D399", statusBlue: "#60A5FA", statusAmber: "#FBBF24", violet: "#A78BFA",
+};
+const PALETAS = {
+  dia: { ...COLORS },
+  noche: { ...OSCURO_BASE, bg: "#0B1222", surface: "#111A2E", surfaceRaised: "#18233B", line: "#26324A", text: "#E6EDF7", textDim: "#94A3B8",
+    amber: "#3B82F6", amberDim: "#22D3EE", teal: "#22D3EE", menuBg: "#0F1830", menuTexto: "#BFDBFE", menuActivoBg: "#1E2E52", menuHoverBg: "#17233F", menuBorde: "#26324A", sidebarActiveBg: "#1E2E52" },
+  aurora: { ...OSCURO_BASE, bg: "#0E0A1F", surface: "#191334", surfaceRaised: "#211A42", line: "#342A5C", text: "#F1EDFF", textDim: "#A99FCB",
+    amber: "#8B5CF6", amberDim: "#2DD4BF", teal: "#2DD4BF", menuBg: "#150F2C", menuTexto: "#DDD6FE", menuActivoBg: "#2A1F55", menuHoverBg: "#201846", menuBorde: "#342A5C", sidebarActiveBg: "#2A1F55" },
+  grafito: { ...OSCURO_BASE, bg: "#0C0C0E", surface: "#18181B", surfaceRaised: "#202024", line: "#2F2F35", text: "#F4F4F5", textDim: "#A1A1AA",
+    amber: "#EA580C", amberDim: "#FB923C", teal: "#2DD4BF", menuBg: "#131315", menuTexto: "#FED7AA", menuActivoBg: "#2A1D14", menuHoverBg: "#1F1F23", menuBorde: "#2F2F35", sidebarActiveBg: "#2A1D14" },
+};
+function aplicarPaleta(tema) {
+  Object.assign(COLORS, PALETAS.dia, PALETAS[tema] || {});
+}
 
 const STAGES_TALLER = [
   { key: "recibido", label: "Recibido", accent: COLORS.violet },
@@ -912,7 +937,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                 style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
               >
                 <td style={{ padding: "10px 8px 10px 12px", borderLeft: `4px solid ${stage.accent}` }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, background: "#EEF2F8", color: COLORS.text, fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, background: COLORS.surfaceRaised, color: COLORS.text, fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
                     {t.urgente && <Flame size={12} color={COLORS.rust} />}#{numero}
                   </span>
                 </td>
@@ -927,7 +952,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                 </td>
                 <td style={{ padding: "10px 8px", overflow: "hidden" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E8EEF8", color: COLORS.sidebarBg }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceRaised, color: COLORS.amber }}>
                       <User size={15} />
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -968,13 +993,13 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
       </table>
     </div>
     {quedanMas && (
-      <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.95))" }} />
+      <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, pointerEvents: "none", background: `linear-gradient(to bottom, transparent, ${COLORS.surface})` }} />
     )}
     </div>
   );
 }
 
-const estiloBloqueOrdenes = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" };
+const estiloBloqueOrdenes = () => ({ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" });
 
 function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   const hoy = new Date().toDateString();
@@ -988,14 +1013,14 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   if (filas.length === 0) return null;
 
   return (
-    <div style={{ ...estiloBloqueOrdenes, marginBottom: 20 }}>
+    <div style={{ ...estiloBloqueOrdenes(), marginBottom: 20 }}>
       <CabeceraBloqueOrdenes
         icono={Calendar}
         titulo="Tablero de órdenes - Pendientes / En curso"
         subtitulo="Aquí puedes ver las órdenes activas y su estado actual."
         total={filas.length}
         iconoContador={Clock}
-        fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
+        fondo={`linear-gradient(90deg, ${COLORS.tintAzul}, ${COLORS.surface})`}
       />
       <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio="" />
     </div>
@@ -1022,18 +1047,18 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onC
   const filas = verEliminados ? ordenadas : ordenadas.filter((t) => !esClienteEliminado(t.cliente));
 
   return (
-    <div style={estiloBloqueOrdenes}>
+    <div style={estiloBloqueOrdenes()}>
       <CabeceraBloqueOrdenes
         icono={Check}
         titulo={titulo}
         subtitulo={subtitulo}
         total={filas.length}
         iconoContador={Layers}
-        fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
+        fondo={`linear-gradient(90deg, ${COLORS.tintVerde}, ${COLORS.surface})`}
       />
       <TablaOrdenes filas={cargando ? [] : filas} etapasDe={(t) => (mezclado ? stagesFor(t.tipo_trabajo) : etapas)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : mensajeVacio} />
       {!cargando && deEliminados.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: "#F8FAFC", fontSize: 12, color: COLORS.textDim }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: COLORS.surfaceRaised, fontSize: 12, color: COLORS.textDim }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <UserX size={14} />
             {verEliminados
@@ -1080,7 +1105,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
         <ChevronDown size={14} style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
       </button>
       {abierto && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, minWidth: 240, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 40, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, minWidth: 240, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 40, overflow: "hidden" }}>
           {opciones.map((o) => (
             <button
               key={o.key}
@@ -1150,7 +1175,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150,
+          background: COLORS.surface, border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150,
           position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default",
           ...(alta ? { minHeight: 104, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
           boxShadow: activa ? `0 0 0 3px ${accent}40` : hover ? `0 6px 16px -4px ${accent}60` : "none",
@@ -2167,11 +2192,11 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
         )}
 
         {t.tipo_trabajo === "domicilio" && t.estado_actual === "contratado" && t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
-          <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+          <div style={{ marginTop: 10, background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
             <div style={{ fontSize: 11.5, color: COLORS.statusAmber, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <Wrench size={12} /> Antes de salir, ¿llevas esto?
             </div>
-            <div style={{ fontSize: 12, color: "#78350F", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: COLORS.tintAmbarTx, lineHeight: 1.6 }}>
               {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.herramientas.join(" · ")}
             </div>
           </div>
@@ -2690,7 +2715,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
         {avisosPendientes.length > 0 && (
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             {avisosPendientes.map((aviso, i) => (
-              <div key={i} style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
+              <div key={i} style={{ background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 11.5, color: COLORS.green, fontWeight: 600, marginBottom: 4 }}>{aviso.nombre || "Aviso listo para enviar"}</div>
                 <div style={{ fontSize: 12.5, color: COLORS.text, marginBottom: 8 }}>{aviso.texto}</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -2986,7 +3011,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, position: "relative", display: "block" }}>Cliente
           <input style={inputStyle} value={form.nombreCliente} onChange={set("nombreCliente")} placeholder="Nombre y apellidos" autoComplete="off" />
           {sugerencias.length > 0 && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 8, marginTop: 2, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 160, overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, marginTop: 2, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 160, overflowY: "auto" }}>
               {sugerencias.map((c) => (
                 <button
                   key={c.id}
@@ -3007,9 +3032,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
           </div>
         )}
         {alertaCliente && (
-          <div style={{ marginTop: 8, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 10 }}>
+          <div style={{ marginTop: 8, background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 8, padding: 10 }}>
             {alertaCliente.map((texto, i) => (
-              <div key={i} style={{ fontSize: 11.5, color: "#78350F", display: "flex", gap: 6, marginBottom: i === alertaCliente.length - 1 ? 0 : 4 }}>
+              <div key={i} style={{ fontSize: 11.5, color: COLORS.tintAmbarTx, display: "flex", gap: 6, marginBottom: i === alertaCliente.length - 1 ? 0 : 4 }}>
                 <TriangleAlert size={13} color={COLORS.statusAmber} style={{ flexShrink: 0, marginTop: 1 }} />
                 <span>{texto}</span>
               </div>
@@ -3084,7 +3109,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
           </button>
         )}
         {sugerenciasFallos && (
-          <div style={{ fontSize: 11.5, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 10, marginBottom: 4 }}>
+          <div style={{ fontSize: 11.5, background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 8, padding: 10, marginBottom: 4 }}>
             {sugerenciasFallos.sugerencias.length === 0 ? (
               <span style={{ color: COLORS.textDim }}>Sin casos parecidos todavía.</span>
             ) : (
@@ -3367,7 +3392,7 @@ function ClientesView() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E2E8F0", color: COLORS.textDim }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceRaised, color: COLORS.textDim }}>
                       <UserX size={15} />
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -3457,17 +3482,17 @@ function ClientesView() {
               {detalle.resumen && (detalle.resumen.sin_cobrar?.length > 0 || detalle.resumen.en_garantia?.length > 0) && (
                 <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                   {detalle.resumen.sin_cobrar?.length > 0 && (
-                    <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <TriangleAlert size={14} color={COLORS.rust} style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div style={{ fontSize: 12, color: "#991B1B" }}>
+                      <div style={{ fontSize: 12, color: COLORS.tintRojoTx }}>
                         <strong>{detalle.resumen.sin_cobrar.length}</strong> reparación{detalle.resumen.sin_cobrar.length === 1 ? "" : "es"} entregada{detalle.resumen.sin_cobrar.length === 1 ? "" : "s"} sin cobrar: {detalle.resumen.sin_cobrar.map((r) => `#${r.numero_orden}`).join(", ")}
                       </div>
                     </div>
                   )}
                   {detalle.resumen.en_garantia?.length > 0 && (
-                    <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <ShieldCheck size={14} color={COLORS.green} style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div style={{ fontSize: 12, color: "#166534" }}>
+                      <div style={{ fontSize: 12, color: COLORS.tintVerdeTx }}>
                         <strong>{detalle.resumen.en_garantia.length}</strong> equipo{detalle.resumen.en_garantia.length === 1 ? "" : "s"} en garantía: {detalle.resumen.en_garantia.map((r) => `${r.equipo} (hasta ${fechaLarga(r.fecha_fin_garantia)})`).join("; ")}
                       </div>
                     </div>
@@ -3711,7 +3736,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         )}
       </button>
       {abierta && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
           <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 12.5, fontWeight: 700, color: COLORS.text }}>Notificaciones</div>
           {items.length === 0 ? (
             <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>Todo al día — sin avisos pendientes.</div>
@@ -3767,9 +3792,9 @@ function AlertaStockBajo({ onIrInventario }) {
     <button
       type="button"
       onClick={onIrInventario}
-      style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 14 }}
+      style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 14 }}
     >
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6 }}>
         <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
       </div>
     </button>
@@ -3794,13 +3819,13 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, alignItems: "start", marginBottom: 14 }}>
       {rechazados.length > 0 && (
-        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <TriangleAlert size={14} /> {rechazados.length} presupuesto{rechazados.length === 1 ? "" : "s"} rechazado{rechazados.length === 1 ? "" : "s"}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {rechazados.map((r) => (
-              <button key={r.id} onClick={() => onAbrir(r)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FECACA", background: "#FFFFFF", color: "#991B1B", cursor: "pointer" }}>
+              <button key={r.id} onClick={() => onAbrir(r)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FECACA", background: COLORS.surface, color: COLORS.tintRojoTx, cursor: "pointer" }}>
                 {r.cliente?.nombre} · #{r.numero_orden}
               </button>
             ))}
@@ -3808,8 +3833,8 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         </div>
       )}
       {abandonados.length > 0 && (
-        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#78350F", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintAmbarTx, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <Bell size={14} /> {abandonados.length} equipo{abandonados.length === 1 ? "" : "s"} listo{abandonados.length === 1 ? "" : "s"} sin recoger hace 30+ días
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -3817,7 +3842,7 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
               <button
                 key={a.id}
                 onClick={() => { const rep = reparaciones.find((r) => r.id === a.id); if (rep) onAbrir(rep); }}
-                style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FDE68A", background: "#FFFFFF", color: "#78350F", cursor: "pointer" }}
+                style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FDE68A", background: COLORS.surface, color: COLORS.tintAmbarTx, cursor: "pointer" }}
               >
                 {a.cliente?.nombre} · {a.dias_abandonado} días
               </button>
@@ -3829,7 +3854,7 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         <button
           type="button"
           onClick={onIrGarantias}
-          style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
         >
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.statusBlue, display: "flex", alignItems: "center", gap: 6 }}>
             <ShieldCheck size={14} /> {garantiasPorCaducar.length} garantía{garantiasPorCaducar.length === 1 ? "" : "s"} a punto de caducar (15 días o menos): {garantiasPorCaducar.map((g) => g.cliente?.nombre).join(", ")}
@@ -3840,9 +3865,9 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         <button
           type="button"
           onClick={onIrInventario}
-          style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
         >
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6 }}>
             <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
           </div>
         </button>
@@ -5029,7 +5054,7 @@ function RmaView() {
         </div>
         {errorSerie && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 8 }}>{errorSerie}</div>}
         {resultadoSerie && (
-          <div style={{ marginTop: 10, background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: 12 }}>
+          <div style={{ marginTop: 10, background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 8, padding: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{resultadoSerie.repuesto?.nombre}</div>
             <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
               Proveedor: <strong>{resultadoSerie.proveedor_compra?.nombre || "—"}</strong> · Factura: <strong>{resultadoSerie.numero_factura_compra || "—"}</strong> · Comprado: <strong>{resultadoSerie.fecha_compra ? fechaLarga(resultadoSerie.fecha_compra) : "—"}</strong>
@@ -5986,7 +6011,7 @@ function TarjetaSistema({ s, onPausar, onBorrar }) {
         <span style={{ fontSize: 11, fontWeight: 800, color: e.color, background: e.fondo, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{e.label}</span>
       </div>
       {s.estado === "caido" && (
-        <div style={{ fontSize: 12, color: "#991B1B", background: "#FEF2F2", borderRadius: 8, padding: "7px 10px" }}>
+        <div style={{ fontSize: 12, color: COLORS.tintRojoTx, background: COLORS.tintRojo, borderRadius: 8, padding: "7px 10px" }}>
           Caído desde {horaCorta(s.caido_desde)} · {s.error}
         </div>
       )}
@@ -6097,7 +6122,7 @@ function EstadoSistemasView() {
   const webs = datos.sistemas.filter((s) => s.tipo === "web" && s.origen !== "auto");
   const websClientes = datos.sistemas.filter((s) => s.origen === "auto");
   const caidasClientes = websClientes.filter((s) => s.activo && s.estado === "caido").length;
-  const inputEstilo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", color: COLORS.text, background: "#FFFFFF" };
+  const inputEstilo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", color: COLORS.text, background: COLORS.surface };
 
   return (
     <div>
@@ -6324,7 +6349,7 @@ function InformeVisitas({ local }) {
           ["Desde el móvil", inf.movil_pct === null ? "—" : `${inf.movil_pct} %`, "", null],
           ...(inf.reservas_tipo ? [[`${inf.reservas_tipo} por internet`, inf.reservas_web, `mes anterior: ${inf.reservas_web_mes_anterior}`, null]] : []),
         ].map(([k, v, sub, color]) => (
-          <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px" }}>
+          <div key={k} style={{ background: COLORS.surface, borderRadius: 8, padding: "8px 10px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{v}</div>
             {sub && <div style={{ fontSize: 11, color: color || COLORS.textDim, fontWeight: color ? 700 : 400 }}>{sub}</div>}
@@ -6335,7 +6360,7 @@ function InformeVisitas({ local }) {
         <div style={{ fontSize: 12.5, color: COLORS.textDim, padding: "8px 0" }}>Todavía no hay visitas contadas este mes. Se empiezan a contar desde que se activó el contador.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
-          <div style={{ background: "#FFFFFF", borderRadius: 8, padding: 10, height: 190 }}>
+          <div style={{ background: COLORS.surface, borderRadius: 8, padding: 10, height: 190 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 4 }}>Visitas cada día</div>
             <ResponsiveContainer width="100%" height={155}>
               <BarChart data={inf.por_dia.map((d) => ({ dia: Number(d.fecha.slice(8)), visitas: d.visitas }))}>
@@ -6346,7 +6371,7 @@ function InformeVisitas({ local }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ background: "#FFFFFF", borderRadius: 8, padding: 10 }}>
+          <div style={{ background: COLORS.surface, borderRadius: 8, padding: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 6 }}>Cómo llegan</div>
             {inf.origenes.map((o) => (
               <div key={o.origen} style={{ marginBottom: 6 }}>
@@ -6376,7 +6401,7 @@ function CuotaCliente({ f, onGuardada }) {
     } catch (e) { setAviso(e.message); }
   }
   return (
-    <div style={{ background: "#FFFFFF", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
+    <div style={{ background: COLORS.surface, borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>Cuánto te paga al mes</div>
       <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
         <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder={f.ingreso_mes_cents ? String(f.ingreso_mes_cents / 100).replace(".", ",") : "0"} style={{ width: 90, border: `1px solid ${COLORS.line}`, borderRadius: 6, padding: "5px 8px", fontSize: 13, fontFamily: "Inter" }} />
@@ -6457,7 +6482,7 @@ function FichaCliente({ id, onCerrar }) {
               ...(f.visitas_mes !== undefined ? [["Visitas web", f.visitas_mes]] : []),
               ["Último uso", f.ultimo_uso ? haceCorto(f.ultimo_uso) : "nunca"],
             ].map(([k, v]) => (
-              <div key={k} style={{ background: "#FFFFFF", borderRadius: 8, padding: "6px 8px" }}>
+              <div key={k} style={{ background: COLORS.surface, borderRadius: 8, padding: "6px 8px" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>{v}</div>
               </div>
@@ -6663,7 +6688,7 @@ function CuadroMandoView({ onIrVista }) {
       </div>
 
       {d.sin_cuota > 0 && (
-        <div onClick={() => onIrVista?.("clientes-sistemas")} style={{ cursor: "pointer", marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FCD34D", fontSize: 13, color: "#92400E" }}>
+        <div onClick={() => onIrVista?.("clientes-sistemas")} style={{ cursor: "pointer", marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: COLORS.tintAmbar, border: "1px solid #FCD34D", fontSize: 13, color: COLORS.tintAmbarTx }}>
           💡 {d.sin_cuota} cliente{d.sin_cuota > 1 ? "s" : ""} que paga{d.sin_cuota > 1 ? "n" : ""} no tiene{d.sin_cuota > 1 ? "n" : ""} cuota apuntada, y no cuenta{d.sin_cuota > 1 ? "n" : ""} en tus ingresos. Ábrelos en «Clientes de sistemas» y pon «Cuánto te paga al mes».
         </div>
       )}
@@ -6882,7 +6907,7 @@ function InformesMensualesView() {
 
       {vista && (
         <div role="dialog" aria-modal="true" onClick={() => setVista(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 14, width: "min(680px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: COLORS.surface, borderRadius: 14, width: "min(680px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 13 }}>
               <div><strong>Para:</strong> {vista.email}</div>
               <div><strong>Asunto:</strong> {vista.asunto}</div>
@@ -8065,7 +8090,7 @@ function PlantillasView() {
               <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{p.nombre}</div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
                 {p.estado_disparador && (
-                  <span style={{ fontSize: 10.5, color: COLORS.amber, background: "#FFFBEB", padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 10.5, color: COLORS.amber, background: COLORS.tintAmbar, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>
                     Auto: {NOMBRES_ESTADOS_PLANTILLA[p.estado_disparador]}
                   </span>
                 )}
@@ -8441,7 +8466,7 @@ function BloqueManual({ b }) {
   if (b.t === "p") return <p style={estiloTexto}>{b.x}</p>;
   if (b.t === "nota") {
     return (
-      <div style={{ display: "flex", gap: 8, fontSize: 12.5, lineHeight: 1.55, color: "#1E3A8A", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
+      <div style={{ display: "flex", gap: 8, fontSize: 12.5, lineHeight: 1.55, color: "#1E3A8A", background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
         <span aria-hidden="true">💡</span><span>{b.x}</span>
       </div>
     );
@@ -9510,6 +9535,8 @@ function FirztnetPanel({ onCerrarSesion }) {
 
   const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
   const [temaInicio, setTemaInicio] = useState(temaGuardado);
+  aplicarPaleta(temaInicio);
+  useEffect(() => () => aplicarPaleta("dia"), []); // al salir (p. ej. cerrar sesión), vuelve el claro
   const cambiarTemaInicio = (t) => { setTemaInicio(t); try { localStorage.setItem("fz-tema-inicio", t); } catch { /* sin almacenamiento */ } };
   useEffect(() => {
     if (vista !== "reparaciones") return;
@@ -9636,12 +9663,12 @@ function FirztnetPanel({ onCerrarSesion }) {
   }
 
   return (
-    <div className="fz-raiz" data-tema={vista === "reparaciones" ? temaInicio : undefined} style={{
+    <div className="fz-raiz" data-tema={temaInicio} style={{ colorScheme: temaInicio === "dia" ? "light" : "dark",
       minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif",
       background: `radial-gradient(circle at 15% 20%, ${COLORS.amber}4D, transparent 65%), radial-gradient(circle at 85% 15%, ${COLORS.violet}4D, transparent 65%), radial-gradient(circle at 50% 95%, ${COLORS.green}45, transparent 65%), ${COLORS.bg}`,
     }}>
       <link rel="stylesheet" href={FONTS_URL} />
-      {vista === "reparaciones" && <FondoInicio />}
+      <FondoInicio />
       <style>{`
         @keyframes fnPuntoActivo {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.green}55; }
@@ -9876,7 +9903,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
       `}</style>
 
-      <div className="fn-shell" style={{ display: "flex" }}>
+      <div className="fn-shell" key={temaInicio} style={{ display: "flex" }}>
         {menuAbierto && (
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
@@ -10061,7 +10088,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           )}
 
           {errorCarga && (
-            <div style={{ background: "#FEF2F2", border: `1px solid ${COLORS.rust}`, color: "#991B1B", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
+            <div style={{ background: COLORS.tintRojo, border: `1px solid ${COLORS.rust}`, color: COLORS.tintRojoTx, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
               {errorCarga}
             </div>
           )}
