@@ -6648,6 +6648,11 @@ function CuadroMandoView({ onIrVista }) {
             {cambio === null ? "Se compara con el mes pasado cuando haya 30 días de datos" : cambio === 0 ? "Igual que hace 30 días" : `${cambio > 0 ? "▲ +" : "▼ "}${euros(cambio)} respecto a hace 30 días`}
             {" · "}{euros(d.ingresos_anual_cents)} al año
           </div>
+          {d.prueba_potencial_cents > 0 && (
+            <div style={{ display: "inline-block", marginTop: 8, padding: "4px 10px", borderRadius: 999, background: "rgba(134,239,172,0.18)", border: "1px solid rgba(134,239,172,0.45)", fontSize: 13, fontWeight: 700 }}>
+              🌱 +{euros(d.prueba_potencial_cents)} al mes si se quedan {d.prueba_con_cuota === 1 ? "el que está" : `los ${d.prueba_con_cuota} que están`} en prueba → {euros(d.ingresos_mes_cents + d.prueba_potencial_cents)}
+            </div>
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", gap: "4px 22px", fontSize: 13 }}>
           {[["Clientes que pagan", d.pagando], ["En prueba", d.en_prueba], ["Ticket medio", euros(d.ticket_medio_cents)]].map(([k, v]) => (
@@ -6663,6 +6668,8 @@ function CuadroMandoView({ onIrVista }) {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <Kpi titulo="Si se quedan los de prueba" valor={`+${euros(d.prueba_potencial_cents || 0)}`} color={d.prueba_potencial_cents ? COLORS.green : COLORS.text}
+          sub={d.en_prueba ? (d.prueba_con_cuota < d.en_prueba ? `al mes · ${d.en_prueba - d.prueba_con_cuota} en prueba sin cuota puesta` : "al mes más") : "nadie en prueba ahora"} />
         <Kpi titulo="Altas este mes" valor={d.altas_mes} color={COLORS.green} />
         <Kpi titulo="Bajas este mes" valor={d.bajas_mes} color={d.bajas_mes ? COLORS.rust : COLORS.text} />
         <Kpi titulo="Pruebas que pagan" valor={d.conversion_pct === null ? "—" : `${d.conversion_pct} %`} sub="últimos 90 días" />
