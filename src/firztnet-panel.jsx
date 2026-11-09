@@ -3600,7 +3600,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud, clientesSis] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud, clientesSis, informesMes] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
@@ -3611,6 +3611,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         apiGet("/central/ayuda").catch(() => []),
         apiGet("/central/salud").catch(() => null),
         apiGet("/central/clientes").catch(() => []),
+        apiGet("/central/informes").catch(() => null),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3639,6 +3640,9 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       (clientesSis || []).filter((c) => c.estado === "activo" && c.renovacion_vencida).forEach((c) => nuevos.push({
         tipo: "prueba", texto: `💶 ${c.nombre}: renovación vencida`, accion: () => onIrVista("clientes-sistemas"),
       }));
+      // Informes de visitas preparados que esperan tu revisión
+      const informesPendientes = (informesMes?.informes || []).filter((i) => i.estado === "preparado").length;
+      if (informesPendientes) nuevos.push({ tipo: "informe", texto: `📈 ${informesPendientes} informe(s) de visitas de ${nombreMes(informesMes.mes)} esperan tu revisión`, accion: () => onIrVista("informes-mensuales") });
       // Firztnet Central: cada petición de ayuda nueva de tus sistemas, una por una (las urgentes primero).
       // Quedan guardadas para siempre en «Ayuda a clientes»; aquí salen mientras estén sin atender.
       const ayudaNuevas = (ayudas || []).filter((p) => p.estado === "nueva")
@@ -6718,6 +6722,148 @@ function CuadroMandoView({ onIrVista }) {
   );
 }
 
+// -------------------- vista: Informes mensuales (Firztnet Central) --------------------
+// El día 1 se preparan solos los informes de visitas del mes anterior. Aquí los revisas
+// (cómo le llega el correo a cada cliente) y SOLO se envían los que aceptas.
+const ESTADO_INFORME = {
+  preparado: ["Pendiente de tu revisión", COLORS.statusBlue],
+  enviado: ["Enviado", COLORS.green],
+  descartado: ["No se envía", COLORS.textDim],
+  error: ["No se pudo enviar", COLORS.rust],
+};
+
+function InformesMensualesView() {
+  const [d, setD] = useState(null);
+  const [mes, setMes] = useState("");
+  const [marcados, setMarcados] = useState(new Set());
+  const [vista, setVista] = useState(null); // { id, html, asunto, email }
+  const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState("");
+
+  const cargar = useCallback(async (m) => {
+    try {
+      const datos = await apiGet(`/central/informes${m ? `?mes=${m}` : ""}`);
+      setD(datos);
+      if (!m) setMes(datos.mes);
+      setMarcados(new Set(datos.informes.filter((i) => i.estado === "preparado").map((i) => i.id)));
+    } catch (e) { setAviso("No se pudieron cargar los informes."); }
+  }, []);
+  useEffect(() => { cargar(mes); }, [cargar, mes]);
+
+  async function preparar() {
+    setOcupado(true); setAviso("");
+    try {
+      const r = await apiPost("/central/informes/preparar", { mes });
+      setAviso(r.preparados ? `Preparados ${r.preparados} informe(s). Revísalos antes de enviarlos.` : "Ningún cliente con correo y visitas ese mes.");
+      await cargar(mes);
+    } catch (e) { setAviso(e.message); } finally { setOcupado(false); }
+  }
+
+  async function verInforme(i) {
+    try { setVista({ id: i.id, ...(await apiGet(`/central/informes/${i.id}/vista`)) }); } catch (e) { setAviso(e.message); }
+  }
+
+  async function cambiar(i, cambios) {
+    try { await apiPatch(`/central/informes/${i.id}`, cambios); await cargar(mes); } catch (e) { setAviso(e.message); }
+  }
+
+  async function enviar(ids) {
+    if (!ids.length) return;
+    if (!window.confirm(`¿Aceptas y envías ${ids.length} informe(s) por correo a tus clientes?`)) return;
+    setOcupado(true); setAviso("");
+    try {
+      const r = await apiPost("/central/informes/enviar", { ids });
+      setAviso(`✓ Enviados: ${r.enviados}${r.fallos.length ? ` · No se pudieron enviar: ${r.fallos.length} (mira el motivo en cada uno)` : ""}`);
+      setVista(null);
+      await cargar(mes);
+    } catch (e) { setAviso(e.message); } finally { setOcupado(false); }
+  }
+
+  if (!d) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{aviso || "Cargando..."}</div>;
+  const pendientes = d.informes.filter((i) => i.estado === "preparado" || i.estado === "error");
+  const meses = Array.from(new Set([d.mes, ...d.meses])).sort().reverse();
+
+  return (
+    <div>
+      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14, fontSize: 13, color: COLORS.textDim, lineHeight: 1.6 }}>
+        📈 <strong style={{ color: COLORS.text }}>Cómo funciona:</strong> el <strong>día 1 de cada mes</strong> se preparan solos los informes de visitas del mes anterior para tus clientes en prueba o activos que tienen correo y visitas, y te llega un aviso. <strong>No sale ningún correo hasta que tú lo aceptes aquí.</strong>
+        {!d.correo_listo && <div style={{ marginTop: 8, color: COLORS.rust, fontWeight: 700 }}>⚠ Falta configurar el envío de correos (RESEND_API_KEY en Railway). Puedes preparar y revisar los informes, pero todavía no enviarlos.</div>}
+        {d.correo_listo && d.remitente === "onboarding@resend.dev" && <div style={{ marginTop: 8, color: COLORS.statusAmber, fontWeight: 700 }}>⚠ Los correos salen todavía desde la dirección de pruebas de Resend: solo llegan a tu propia cuenta. Para que lleguen a tus clientes hay que verificar firztnet.es en Resend.</div>}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "7px 10px", fontSize: 13, fontFamily: "Inter" }}>
+          {meses.map((m) => <option key={m} value={m}>{nombreMes(m)}</option>)}
+        </select>
+        <button onClick={preparar} disabled={ocupado} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "7px 12px" }}>
+          <RefreshCw size={13} /> {d.informes.length ? "Volver a preparar" : "Preparar ahora"}
+        </button>
+        <div style={{ flex: 1 }} />
+        {pendientes.length > 0 && (
+          <button onClick={() => enviar([...marcados])} disabled={ocupado || !marcados.size || !d.correo_listo} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "9px 14px", opacity: !marcados.size || !d.correo_listo ? 0.5 : 1 }}>
+            <CheckCircle2 size={14} /> Aceptar y enviar los marcados ({marcados.size})
+          </button>
+        )}
+      </div>
+      {aviso && <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: aviso.startsWith("✓") || aviso.startsWith("Preparados") ? COLORS.green : COLORS.rust }}>{aviso}</div>}
+
+      {d.informes.length === 0 && (
+        <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
+          No hay informes de {nombreMes(mes)}. Se preparan solos el día 1; si quieres verlos ya, pulsa «Preparar ahora».
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {d.informes.map((i) => {
+          const [texto, color] = ESTADO_INFORME[i.estado] || ESTADO_INFORME.preparado;
+          const info = SISTEMAS_AYUDA[i.sistema] || { label: i.sistema, color: COLORS.slate };
+          const editable = i.estado === "preparado" || i.estado === "error";
+          return (
+            <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${info.color}`, borderRadius: 12, padding: "10px 14px", opacity: i.estado === "descartado" ? 0.6 : 1 }}>
+              {editable && <input type="checkbox" checked={marcados.has(i.id)} aria-label={`Enviar el informe de ${i.cliente}`}
+                onChange={(e) => setMarcados((prev) => { const n = new Set(prev); if (e.target.checked) n.add(i.id); else n.delete(i.id); return n; })} />}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{i.cliente} <span style={{ fontSize: 11, color: info.color, fontWeight: 700 }}>· {info.label}</span></div>
+                <div style={{ fontSize: 12, color: COLORS.textDim }}>
+                  {editable ? (
+                    <input defaultValue={i.email} onBlur={(e) => e.target.value.trim() !== i.email && cambiar(i, { email: e.target.value.trim() })} aria-label="Correo del cliente"
+                      style={{ border: `1px solid ${COLORS.line}`, borderRadius: 6, padding: "2px 6px", fontSize: 12, fontFamily: "Inter", width: 230 }} />
+                  ) : i.email}
+                  {" · "}{i.visitas} visitas{i.cambio_pct !== null ? ` (${i.cambio_pct > 0 ? "+" : ""}${i.cambio_pct} %)` : ""}
+                </div>
+                {i.error && <div style={{ fontSize: 11.5, color: COLORS.rust }}>{i.error}</div>}
+              </div>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color }}>{texto}{i.enviado ? ` · ${haceCorto(i.enviado)}` : ""}</span>
+              <button onClick={() => verInforme(i)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}><Eye size={13} /> Ver correo</button>
+              {i.estado === "preparado" && <button onClick={() => cambiar(i, { estado: "descartado" })} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}>No enviar</button>}
+              {i.estado === "descartado" && <button onClick={() => cambiar(i, { estado: "preparado" })} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}>Recuperar</button>}
+            </div>
+          );
+        })}
+      </div>
+
+      {vista && (
+        <div role="dialog" aria-modal="true" onClick={() => setVista(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 14, width: "min(680px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 13 }}>
+              <div><strong>Para:</strong> {vista.email}</div>
+              <div><strong>Asunto:</strong> {vista.asunto}</div>
+            </div>
+            <iframe title="Vista del correo" srcDoc={vista.html} sandbox="" style={{ border: 0, width: "100%", height: "65vh" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 12, borderTop: `1px solid ${COLORS.line}` }}>
+              <button onClick={() => setVista(null)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px" }}>Cerrar</button>
+              {d.informes.find((x) => x.id === vista.id && (x.estado === "preparado" || x.estado === "error")) && (
+                <button onClick={() => enviar([vista.id])} disabled={ocupado || !d.correo_listo} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "8px 14px", opacity: d.correo_listo ? 1 : 0.5 }}>
+                  <CheckCircle2 size={14} /> Aceptar y enviar este
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RecordatoriosView() {
   const [recordatorios, setRecordatorios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -9525,6 +9671,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
             { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando", movil: "mas" },
             { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas" },
+            { key: "informes-mensuales", icon: FileText, label: "Informes mensuales", movil: "mas" },
             { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
             { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
@@ -9577,6 +9724,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "recordatorios", icon: Bell, label: "Recordatorios" },
                 { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando" },
                 { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas" },
+                { key: "informes-mensuales", icon: FileText, label: "Informes mensuales" },
                 { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
                 { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
@@ -9661,6 +9809,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "recordatorios" && "Recordatorios"}
                 {vista === "cuadro" && "Cuadro de mando de tu negocio"}
                 {vista === "clientes-sistemas" && "Clientes de tus sistemas"}
+                {vista === "informes-mensuales" && "Informes mensuales de visitas"}
                 {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
                 {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
@@ -9704,6 +9853,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "recordatorios" && <RecordatoriosView />}
           {vista === "cuadro" && <CuadroMandoView onIrVista={setVista} />}
           {vista === "clientes-sistemas" && <ClientesSistemasView />}
+          {vista === "informes-mensuales" && <InformesMensualesView />}
           {vista === "estado-sistemas" && <EstadoSistemasView />}
           {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
