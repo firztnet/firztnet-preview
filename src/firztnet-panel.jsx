@@ -3600,7 +3600,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud, clientesSis, informesMes] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud, clientesSis, informesMes, riesgo, cobros, copias] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
@@ -3612,6 +3612,9 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         apiGet("/central/salud").catch(() => null),
         apiGet("/central/clientes").catch(() => []),
         apiGet("/central/informes").catch(() => null),
+        apiGet("/central/riesgo").catch(() => []),
+        apiGet("/central/cobros").catch(() => []),
+        apiGet("/central/copias").catch(() => []),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3640,6 +3643,12 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       (clientesSis || []).filter((c) => c.estado === "activo" && c.renovacion_vencida).forEach((c) => nuevos.push({
         tipo: "prueba", texto: `💶 ${c.nombre}: renovación vencida`, accion: () => onIrVista("clientes-sistemas"),
       }));
+      const riesgoAlto = (riesgo || []).filter((c) => c.nivel === "alto").length;
+      if ((riesgo || []).length) nuevos.push({ tipo: "riesgo", texto: `⚠️ ${riesgo.length} cliente(s) en riesgo${riesgoAlto ? ` (${riesgoAlto} alto)` : ""}: llámales antes de que se vayan`, accion: () => onIrVista("riesgo") });
+      const cobrosUrgentes = (cobros || []).filter((c) => c.vencida || c.dias <= 3);
+      if (cobrosUrgentes.length) nuevos.push({ tipo: "cobro", texto: `💶 ${cobrosUrgentes.length} cuota(s) vencida(s) o que se renueva(n) en 3 días`, accion: () => onIrVista("cobros") });
+      const copiasMal = (copias || []).filter((c) => c.estado === "atrasada");
+      if (copiasMal.length) nuevos.push({ tipo: "copia", texto: `💾 Copias de seguridad atrasadas: ${copiasMal.map((c) => c.nombre).join(", ")}`, accion: () => onIrVista("estado-sistemas") });
       // Informes de visitas preparados que esperan tu revisión
       const informesPendientes = (informesMes?.informes || []).filter((i) => i.estado === "preparado").length;
       if (informesPendientes) nuevos.push({ tipo: "informe", texto: `📈 ${informesPendientes} informe(s) de visitas de ${nombreMes(informesMes.mes)} esperan tu revisión`, accion: () => onIrVista("informes-mensuales") });
@@ -3661,7 +3670,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         .forEach((c) => nuevos.push({ tipo: "cuota", texto: `Cuota de ${c.mes_actual.nombre.split(" ")[0]} sin cobrar — ${c.cliente?.nombre}`, accion: () => onIrVista("mantenimientos") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
-      const prioridad = { caido: 4, ayuda: 3, prueba: 2, ssl: 1 };
+      const prioridad = { caido: 6, ayuda: 5, copia: 4, cobro: 3, riesgo: 3, prueba: 2, ssl: 1 };
       nuevos.sort((a, b) => (prioridad[b.tipo] || 0) - (prioridad[a.tipo] || 0));
       setItems(nuevos);
     } catch (e) {
@@ -5763,7 +5772,7 @@ function enlaceWhatsapp(telefono, texto) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 
-function TarjetaAyuda({ p, onGuardar }) {
+function TarjetaAyuda({ p, onGuardar, plantillas = [] }) {
   const [respuesta, setRespuesta] = useState(p.respuesta || "");
   const [notas, setNotas] = useState(p.notas || "");
   const [guardando, setGuardando] = useState(false);
@@ -5833,7 +5842,15 @@ function TarjetaAyuda({ p, onGuardar }) {
       </div>
 
       <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
-        Respuesta para el cliente (la ve en su panel)
+        <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>Respuesta para el cliente (la ve en su panel)
+          {plantillas.length > 0 && (
+            <select value="" onChange={(e) => { const t = plantillas.find((x) => String(x.id) === e.target.value); if (t) setRespuesta((r) => (r ? r + "\n" + t.texto : t.texto)); }}
+              style={{ border: "1px solid " + COLORS.line, borderRadius: 6, padding: "3px 6px", fontSize: 12, fontFamily: "Inter", fontWeight: 600, color: COLORS.text }}>
+              <option value="">⚡ Respuesta rápida…</option>
+              {plantillas.map((t) => <option key={t.id} value={t.id}>{t.titulo}</option>)}
+            </select>
+          )}
+        </span>
         <textarea value={respuesta} onChange={(e) => setRespuesta(e.target.value)} rows={2} maxLength={2000} placeholder="Por ejemplo: pasamos esta tarde a las 17:00 a revisar la impresora" style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical", color: COLORS.text }} />
       </label>
       <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
@@ -5853,6 +5870,11 @@ function TarjetaAyuda({ p, onGuardar }) {
 
 function AyudaClientesView() {
   const [peticiones, setPeticiones] = useState([]);
+  const [plantillas, setPlantillas] = useState([]);
+  const [gestionando, setGestionando] = useState(false);
+  const [estad, setEstad] = useState(null);
+  const cargarPlantillas = useCallback(() => apiGet("/central/plantillas-ayuda").then(setPlantillas).catch(() => {}), []);
+  useEffect(() => { cargarPlantillas(); apiGet("/central/ayuda-estadisticas").then(setEstad).catch(() => {}); }, [cargarPlantillas]);
   const [cargando, setCargando] = useState(true);
   const [verTodas, setVerTodas] = useState(false);
   const [filtro, setFiltro] = useState("todos");
@@ -5892,7 +5914,11 @@ function AyudaClientesView() {
         <StatCard label="Nuevas" value={nuevas} icon={LifeBuoy} accent={COLORS.statusBlue} />
         <StatCard label="Urgentes sin resolver" value={urgentes} icon={Flame} accent={COLORS.rust} />
         <StatCard label={verTodas ? "En la lista" : "Abiertas"} value={peticiones.length} icon={MessageSquare} accent={COLORS.amber} />
+        <StatCard label="Respondes de media en" value={estad?.respuesta_media_min == null ? "—" : estad.respuesta_media_min < 60 ? `${estad.respuesta_media_min} min` : `${Math.round(estad.respuesta_media_min / 60)} h`} sub="últimos 90 días" icon={Clock} accent={COLORS.teal} />
+        <StatCard label="Resuelves de media en" value={estad?.resolucion_media_h == null ? "—" : `${String(estad.resolucion_media_h).replace(".", ",")} h`} sub={estad ? `${estad.resueltas} resueltas` : ""} icon={CheckCircle2} accent={COLORS.green} />
       </div>
+      {gestionando ? <GestionPlantillas plantillas={plantillas} onCambio={cargarPlantillas} onCerrar={() => setGestionando(false)} />
+        : <div style={{ marginBottom: 12 }}><button onClick={() => setGestionando(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 12px", fontSize: 12 }}>⚡ Gestionar respuestas rápidas ({plantillas.length})</button></div>}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {["todos", ...sistemas].map((s) => (
@@ -5913,7 +5939,7 @@ function AyudaClientesView() {
             Sin peticiones {verTodas ? "" : "abiertas"}. Aquí llegan las que hacen los locales con el botón «Pedir ayuda» de hostelería y peluquerías, y te avisa también por Telegram.
           </div>
         )}
-        {lista.map((p) => <TarjetaAyuda key={`${p.id}-${p.respuesta_fecha || ""}-${p.estado}`} p={p} onGuardar={guardar} />)}
+        {lista.map((p) => <TarjetaAyuda key={`${p.id}-${p.respuesta_fecha || ""}-${p.estado}`} p={p} onGuardar={guardar} plantillas={plantillas} />)}
       </div>
     </div>
   );
@@ -6102,6 +6128,8 @@ function EstadoSistemasView() {
           </div>
         </>
       )}
+
+      <CopiasSeguridad />
 
       {websClientes.length > 0 && (
         <>
@@ -6642,6 +6670,7 @@ function CuadroMandoView({ onIrVista }) {
         <Kpi titulo="Renovaciones vencidas" valor={d.renovaciones_vencidas} color={d.renovaciones_vencidas ? COLORS.rust : COLORS.text} />
         <Kpi titulo="Ayudas abiertas" valor={d.ayudas_abiertas} sub={d.respuesta_media_min === null ? "" : `respondes en ${d.respuesta_media_min < 60 ? `${d.respuesta_media_min} min` : `${Math.round(d.respuesta_media_min / 60)} h`} de media`} color={d.ayudas_abiertas ? COLORS.statusAmber : COLORS.text} />
         <Kpi titulo="Sistemas y webs" valor={d.salud.caidos ? `${d.salud.caidos} caído${d.salud.caidos > 1 ? "s" : ""}` : "Todo bien"} sub={`${d.salud.total} vigilados`} color={d.salud.caidos ? COLORS.rust : COLORS.green} />
+        <div onClick={() => onIrVista?.("riesgo")} style={{ cursor: "pointer" }}><Kpi titulo="Clientes en riesgo" valor={d.en_riesgo ?? 0} color={d.en_riesgo ? COLORS.rust : COLORS.green} sub="pulsa para verlos" /></div>
         <Kpi titulo="Visitas a webs de clientes" valor={d.visitas_webs_mes.toLocaleString("es-ES")} sub="este mes" />
       </div>
 
@@ -6862,6 +6891,194 @@ function InformesMensualesView() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// -------------------- vista: Clientes en riesgo (Firztnet Central) --------------------
+// Quién podrías perder y por qué, para llamarle antes de que se vaya.
+function RiesgoView() {
+  const [lista, setLista] = useState(null);
+  const cargar = useCallback(async () => { try { setLista(await apiGet("/central/riesgo")); } catch (e) { setLista([]); } }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function contactado(c, dias) {
+    try { await apiPost(`/central/riesgo/${c.id}/contactado`, { dias }); cargar(); window.dispatchEvent(new Event("fn:notificaciones-actualizar")); } catch (e) { alert(e.message); }
+  }
+
+  if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+  const altos = lista.filter((c) => c.nivel === "alto").length;
+  const enJuego = lista.reduce((s, c) => s + c.ingreso_mes_cents, 0);
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
+        <StatCard label="Clientes en riesgo" value={lista.length} icon={TriangleAlert} accent={COLORS.statusAmber} />
+        <StatCard label="Riesgo alto" value={altos} icon={Flame} accent={COLORS.rust} />
+        <StatCard label="Ingresos al mes en juego" value={euros(enJuego)} icon={Banknote} accent={COLORS.violet} />
+      </div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 12 }}>
+        Sale aquí quien lleva días sin usar el sistema, no ha cobrado nada este mes, tiene la renovación vencida, pierde visitas o pide ayuda a menudo. Llámale, y pulsa «Ya le he llamado»: dejará de salir unos días.
+      </div>
+      {lista.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>Ningún cliente en riesgo ahora mismo. 🎉</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {lista.map((c) => {
+          const info = SISTEMAS_AYUDA[c.sistema] || { label: c.sistema, color: COLORS.slate };
+          const wa = enlaceWhatsapp(c.contacto_telefono, `Hola ${(c.contacto_nombre || "").split(/[ ,]/)[0]}, te escribimos de Firztnet para ver qué tal te va con el sistema. ¿Necesitas algo?`);
+          return (
+            <div key={c.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${c.nivel === "alto" ? COLORS.rust : COLORS.statusAmber}`, borderRadius: 12, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>{c.nombre}</span>{" "}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: info.color }}>· {info.label}</span>{" "}
+                  <span style={{ fontSize: 10.5, fontWeight: 800, color: "#FFFFFF", background: c.nivel === "alto" ? COLORS.rust : COLORS.statusAmber, borderRadius: 999, padding: "2px 8px", textTransform: "uppercase" }}>Riesgo {c.nivel}</span>
+                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{c.contacto_nombre || "—"}{c.contacto_telefono ? ` · ${c.contacto_telefono}` : ""}{c.ingreso_mes_cents ? ` · te paga ${euros(c.ingreso_mes_cents)} al mes` : ""}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-start" }}>
+                  {c.contacto_telefono && <a href={`tel:${c.contacto_telefono}`} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>📞 Llamar</a>}
+                  {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>WhatsApp</a>}
+                  <button onClick={() => contactado(c, 14)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><Check size={13} /> Ya le he llamado</button>
+                </div>
+              </div>
+              <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13 }}>{c.motivos.map((m) => <li key={m}>{m}</li>)}</ul>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Cobros (Firztnet Central) --------------------
+// Las cuotas que se renuevan en los próximos 30 días y las vencidas, con el recordatorio preparado.
+function CobrosView() {
+  const [lista, setLista] = useState(null);
+  const [aviso, setAviso] = useState("");
+  const cargar = useCallback(async () => { try { setLista(await apiGet("/central/cobros")); } catch (e) { setLista([]); } }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function porCorreo(c) {
+    if (!window.confirm(`¿Enviar el recordatorio de cobro por correo a ${c.contacto_email}?`)) return;
+    try { await apiPost(`/central/cobros/${c.id}/correo`, {}); setAviso(`✓ Recordatorio enviado a ${c.contacto_email}`); } catch (e) { setAviso(e.message); }
+  }
+  async function registrar(c) {
+    const valor = window.prompt(`¿Cuánto te ha pagado ${c.nombre}? (€)`, c.importe_cents ? String(c.importe_cents / 100).replace(".", ",") : "");
+    if (valor === null) return;
+    const metodo = window.prompt("¿Cómo ha pagado? (Bizum, transferencia, efectivo…)", "Bizum") || "";
+    try { await apiPost(`/central/cobros/${c.id}/registrar`, { importe: valor, metodo }); setAviso(`✓ Cobro apuntado en «Ventas»: ${c.nombre}. Recuerda cambiar la fecha de renovación en su sistema.`); } catch (e) { setAviso(e.message); }
+  }
+
+  if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+  const vencidas = lista.filter((c) => c.vencida);
+  const total = lista.reduce((s, c) => s + c.importe_cents, 0);
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
+        <StatCard label="Por cobrar (30 días)" value={euros(total)} icon={Banknote} accent={COLORS.green} />
+        <StatCard label="Renovaciones" value={lista.length} icon={Calendar} accent={COLORS.amber} />
+        <StatCard label="Vencidas" value={vencidas.length} icon={Flame} accent={COLORS.rust} />
+      </div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 12 }}>Cada mañana a las 9:00 te llega un Telegram con las cuotas que se renuevan en 3 días o ya vencidas. Aquí tienes el mensaje preparado para cada cliente: por WhatsApp o por correo (solo sale cuando pulsas).</div>
+      {aviso && <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: aviso.startsWith("✓") ? COLORS.green : COLORS.rust }}>{aviso}</div>}
+      {lista.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>Ninguna renovación en los próximos 30 días. (Solo salen los clientes activos con fecha de renovación en su sistema.)</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {lista.map((c) => {
+          const info = SISTEMAS_AYUDA[c.sistema] || { label: c.sistema, color: COLORS.slate };
+          return (
+            <div key={c.id} style={{ background: COLORS.surface, border: `1px solid ${c.vencida ? "#FCA5A5" : COLORS.line}`, borderLeft: `4px solid ${info.color}`, borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <strong>{c.nombre}</strong> <span style={{ fontSize: 11, color: info.color, fontWeight: 700 }}>· {info.label}</span>
+                  <div style={{ fontSize: 12.5, color: c.vencida || c.dias <= 3 ? COLORS.rust : COLORS.textDim, fontWeight: c.vencida || c.dias <= 3 ? 700 : 400 }}>
+                    {c.vencida ? `Vencida el ${fechaCorta(c.renueva)}` : c.dias === 0 ? "Se renueva hoy" : `Se renueva el ${fechaCorta(c.renueva)} (en ${c.dias} día${c.dias > 1 ? "s" : ""})`}
+                    {c.importe_cents ? ` · ${euros(c.importe_cents)}` : " · sin cuota apuntada"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {c.whatsapp && <a href={c.whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>Recordar por WhatsApp</a>}
+                  {c.contacto_email && <button onClick={() => porCorreo(c)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 11.5 }}>✉️ Por correo</button>}
+                  <button onClick={() => registrar(c)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><CheckCircle2 size={13} /> Apuntar cobro</button>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.textDim, background: COLORS.surfaceRaised, borderRadius: 8, padding: "6px 9px", marginTop: 8 }}>{c.texto}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- Copias de seguridad vigiladas (dentro de «Estado de sistemas») --------------------
+const ESTADO_COPIA = {
+  ok: ["Al día", "#16A34A"], atrasada: ["Atrasada", "#DC2626"], sin_copias: ["Sin copias automáticas", "#D97706"], desconocido: ["Sin datos todavía", "#64748B"],
+};
+function CopiasSeguridad() {
+  const [lista, setLista] = useState(null);
+  useEffect(() => { apiGet("/central/copias").then(setLista).catch(() => setLista([])); }, []);
+  if (!lista) return null;
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>💾 Copias de seguridad</div>
+      <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>Cada sistema dice cuándo hizo su última copia. Si alguno lleva más de un día sin copia, te llega un Telegram por la mañana.</div>
+      {lista.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Los datos llegan con la próxima lista de clientes de cada sistema (cada 10 minutos).</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
+        {lista.map((c) => {
+          const [texto, color] = ESTADO_COPIA[c.estado] || ESTADO_COPIA.desconocido;
+          return (
+            <div key={c.sistema} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: "8px 10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}><strong style={{ fontSize: 13 }}>{c.nombre}</strong><span style={{ fontSize: 11.5, fontWeight: 800, color }}>{texto}</span></div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{c.ultima ? `Última: ${haceCorto(c.ultima)}` : c.detalle || "—"}</div>
+              {c.clientes_sin_copia?.length > 0 && <div style={{ fontSize: 11.5, color: COLORS.rust }}>Sin copia reciente: {c.clientes_sin_copia.join(", ")}</div>}
+              {c.estado === "sin_copias" && <div style={{ fontSize: 11, color: COLORS.textDim }}>{c.detalle}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- Respuestas rápidas (dentro de «Ayuda a clientes») --------------------
+function GestionPlantillas({ plantillas, onCambio, onCerrar }) {
+  const [nueva, setNueva] = useState({ titulo: "", texto: "" });
+  const [error, setError] = useState("");
+  async function guardar(p, cambios) {
+    try { await apiPatch(`/central/plantillas-ayuda/${p.id}`, cambios); onCambio(); } catch (e) { setError(e.message); }
+  }
+  async function borrar(p) {
+    if (!window.confirm(`¿Borrar la respuesta rápida «${p.titulo}»?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/central/plantillas-ayuda/${p.id}`, { method: "DELETE", headers: cabecerasAuth() });
+      manejar401(res);
+      onCambio();
+    } catch (e) { setError(e.message); }
+  }
+  async function crear(e) {
+    e.preventDefault();
+    try { await apiPost("/central/plantillas-ayuda", nueva); setNueva({ titulo: "", texto: "" }); onCambio(); } catch (err) { setError(err.message); }
+  }
+  const campo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "7px 9px", fontSize: 13, fontFamily: "Inter", width: "100%", boxSizing: "border-box" };
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <strong>⚡ Respuestas rápidas</strong>
+        <button onClick={onCerrar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "5px 10px", fontSize: 12 }}>Cerrar</button>
+      </div>
+      {error && <div style={{ color: COLORS.rust, fontSize: 12.5, marginBottom: 8 }}>{error}</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {plantillas.map((p) => (
+          <div key={p.id} style={{ display: "grid", gridTemplateColumns: "180px 1fr auto", gap: 8, alignItems: "start" }}>
+            <input defaultValue={p.titulo} onBlur={(e) => e.target.value !== p.titulo && guardar(p, { titulo: e.target.value })} style={campo} aria-label="Título" />
+            <textarea defaultValue={p.texto} rows={2} onBlur={(e) => e.target.value !== p.texto && guardar(p, { texto: e.target.value })} style={{ ...campo, resize: "vertical" }} aria-label="Texto" />
+            <button onClick={() => borrar(p)} title="Borrar" style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.rust, padding: 6 }}><Trash2 size={15} /></button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={crear} style={{ display: "grid", gridTemplateColumns: "180px 1fr auto", gap: 8, marginTop: 12, alignItems: "start" }}>
+        <input value={nueva.titulo} onChange={(e) => setNueva({ ...nueva, titulo: e.target.value })} placeholder="Título (p. ej. «Datáfono»)" maxLength={80} style={campo} />
+        <textarea value={nueva.texto} onChange={(e) => setNueva({ ...nueva, texto: e.target.value })} placeholder="Texto de la respuesta" rows={2} maxLength={2000} style={{ ...campo, resize: "vertical" }} />
+        <button type="submit" style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 12px" }}><Plus size={14} /> Añadir</button>
+      </form>
     </div>
   );
 }
@@ -9674,6 +9891,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando", movil: "mas" },
             { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas" },
             { key: "informes-mensuales", icon: FileText, label: "Informes mensuales", movil: "mas" },
+            { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo", movil: "mas" },
+            { key: "cobros", icon: Banknote, label: "Cobros", movil: "mas" },
             { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
             { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
@@ -9727,6 +9946,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando" },
                 { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas" },
                 { key: "informes-mensuales", icon: FileText, label: "Informes mensuales" },
+                { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo" },
+                { key: "cobros", icon: Banknote, label: "Cobros" },
                 { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
                 { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
@@ -9812,6 +10033,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "cuadro" && "Cuadro de mando de tu negocio"}
                 {vista === "clientes-sistemas" && "Clientes de tus sistemas"}
                 {vista === "informes-mensuales" && "Informes mensuales de visitas"}
+                {vista === "riesgo" && "Clientes que podrías perder"}
+                {vista === "cobros" && "Cobros de cuotas"}
                 {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
                 {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
@@ -9856,6 +10079,8 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "cuadro" && <CuadroMandoView onIrVista={setVista} />}
           {vista === "clientes-sistemas" && <ClientesSistemasView />}
           {vista === "informes-mensuales" && <InformesMensualesView />}
+          {vista === "riesgo" && <RiesgoView />}
+          {vista === "cobros" && <CobrosView />}
           {vista === "estado-sistemas" && <EstadoSistemasView />}
           {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
