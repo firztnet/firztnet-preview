@@ -6,6 +6,7 @@ import {
   PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play
 } from "lucide-react";
 import { createPortal } from "react-dom";
+import InicioTaller, { FondoInicio, temaGuardado } from "./inicio-taller.jsx";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
 } from "recharts";
@@ -9411,14 +9412,15 @@ function FirztnetPanel({ onCerrarSesion }) {
     const DIAS_RETRASO = 5; // más de 5 días sin moverse, sin estar entregada/no reparable, cuenta como retrasada
 
     const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
-    const retrasadas = activas.filter((r) => {
+    const retrasadasLista = activas.filter((r) => {
       if (r.urgente) return true;
       // Visita in situ con fecha: solo cuenta como retrasada si ese día ya pasó
       if (fechaVisita(r)) return diasNaturalesDesde(fechaVisita(r)) >= 1;
       if (!r.fecha_recepcion) return false;
       const dias = (HOY - new Date(r.fecha_recepcion)) / (1000 * 60 * 60 * 24);
       return dias > DIAS_RETRASO;
-    }).length;
+    });
+    const retrasadas = retrasadasLista.length;
 
     // Tiempo medio: reparaciones entregadas en los últimos 30 días (así no se queda vacío a principio de mes)
     const hace30Dias = HOY.getTime() - 30 * 24 * 60 * 60 * 1000;
@@ -9433,7 +9435,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       tiempoMedioDias = sumaDias / completadasEsteMes.length;
     }
 
-    return { retrasadas, tiempoMedioDias };
+    return { retrasadas, retrasadasLista, tiempoMedioDias };
   }, [reparaciones]);
 
   const [numClientes, setNumClientes] = useState(null); // tarjeta "Clientes" (sin los eliminados por RGPD)
@@ -9507,6 +9509,8 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [menuAbierto]);
 
   const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
+  const [temaInicio, setTemaInicio] = useState(temaGuardado);
+  const cambiarTemaInicio = (t) => { setTemaInicio(t); try { localStorage.setItem("fz-tema-inicio", t); } catch { /* sin almacenamiento */ } };
   useEffect(() => {
     if (vista !== "reparaciones") return;
     apiGet("/repuestos").then((lista) => setStockBajoTarjeta(lista.filter((r) => r.stock_bajo).length)).catch(() => {});
@@ -9632,11 +9636,12 @@ function FirztnetPanel({ onCerrarSesion }) {
   }
 
   return (
-    <div style={{
+    <div className="fz-raiz" data-tema={vista === "reparaciones" ? temaInicio : undefined} style={{
       minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif",
       background: `radial-gradient(circle at 15% 20%, ${COLORS.amber}4D, transparent 65%), radial-gradient(circle at 85% 15%, ${COLORS.violet}4D, transparent 65%), radial-gradient(circle at 50% 95%, ${COLORS.green}45, transparent 65%), ${COLORS.bg}`,
     }}>
       <link rel="stylesheet" href={FONTS_URL} />
+      {vista === "reparaciones" && <FondoInicio />}
       <style>{`
         @keyframes fnPuntoActivo {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.green}55; }
@@ -10017,7 +10022,8 @@ function FirztnetPanel({ onCerrarSesion }) {
               <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
             </div>
           </div>
-          <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
+          <div>
+          {vista !== "reparaciones" && (
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
@@ -10051,12 +10057,8 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
               )}
             </div>
-            {vista === "reparaciones" && (
-              <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
-              </div>
-            )}
           </div>
+          )}
 
           {errorCarga && (
             <div style={{ background: "#FEF2F2", border: `1px solid ${COLORS.rust}`, color: "#991B1B", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
@@ -10094,71 +10096,37 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-            <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
-            <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
-            <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
-            <StatCard alta label="Clientes" value={numClientes ?? "—"} sub="sin contar los eliminados" icon={Users} accent={COLORS.statusAmber} onClick={() => setVista("clientes")} />
-            <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
-            <StatCard
-              alta
-              label="Mantenimientos"
-              value={resumenMant ? resumenMant.activos : "—"}
-              sub={!resumenMant ? "contratos activos"
-                : resumenMant.sinCobrar > 0 ? `${resumenMant.sinCobrar} ${resumenMant.sinCobrar === 1 ? "cuota" : "cuotas"} del mes sin cobrar`
-                : resumenMant.activos > 0 ? "cuotas del mes cobradas"
-                : resumenMant.pendientes > 0 ? `${resumenMant.pendientes} por confirmar` : "sin contratos"}
-              icon={CalendarCheck}
-              accent={COLORS.violet}
-              onClick={() => setVista("mantenimientos")}
+            <InicioTaller
+              nombre={nombreUsuarioDelToken()}
+              tema={temaInicio}
+              onTema={cambiarTemaInicio}
+              reparaciones={reparaciones}
+              etapas={stagesFor(vistaTrabajo)}
+              vistaTrabajo={vistaTrabajo}
+              selectorTrabajo={<SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />}
+              reporteMensual={reporteMensual}
+              reporteDiario={reporteDiario}
+              tendencia={tendencia}
+              retrasadasLista={metricasEficiencia.retrasadasLista}
+              tiempoMedioDias={metricasEficiencia.tiempoMedioDias}
+              numClientes={numClientes}
+              resumenMant={resumenMant}
+              stockBajo={stockBajoTarjeta}
+              cargando={cargando}
+              onNueva={() => setMostrarNueva(true)}
+              onBuscar={() => { setVista("buscar"); setMenuAbierto(false); }}
+              onIrVista={setVista}
+              onAbrir={(t) => setSelected(t)}
+              onEtapa={(key) => { setFiltroEstado(key); setVista("buscar"); }}
             />
-            <StatCard
-              alta
-              label="Sistemas"
-              value=""
-              sub="sistemas.firztnet.es"
-              icon={LayoutGrid}
-              accent={COLORS.pink}
-              onClick={() => window.open("https://sistemas.firztnet.es", "_blank", "noopener")}
-            />
-            <StatCard
-              alta
-              label="Este mes"
-              value={textoBalanceMes}
-              sub={`Ingresos ${fmtEur(reporteMensual.ingresos)} · Gastos ${fmtEur(reporteMensual.gastos)}`}
-              icon={FileBarChart}
-              accent={COLORS.slate}
-              tamValor={tamDinero(textoBalanceMes)}
-              onClick={() => setVista("reportes")}
-            />
-            <StatCard
-              alta
-              label="Stock"
-              value={stockBajoTarjeta ?? "—"}
-              sub={stockBajoTarjeta === null ? "comprobando…" : stockBajoTarjeta === 0 ? "todo en orden" : stockBajoTarjeta === 1 ? "repuesto con stock bajo" : "repuestos con stock bajo"}
-              icon={Package}
-              accent={COLORS.brown}
-              onClick={() => setVista("inventario")}
-            />
-            <StatCard
-              alta
-              label="Nueva reparación"
-              clase="fn-tarjeta-nueva"
-              value="+"
-              sub="registrar un equipo"
-              icon={Plus}
-              accent={COLORS.fuchsia}
-              onClick={() => setMostrarNueva(true)}
-            />
-          </div>
           )}
           </div>
 
           {vista === "reparaciones" && (
           <>
-          <div style={{ height: 22 }} />
+          <div style={{ height: 4 }} />
           {/* Las tablas ocupan todo el ancho; los avisos van debajo (antes iban en una columna a la derecha y estrechaban las tablas) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="fz-tablas" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ minWidth: 0 }}>
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
 
