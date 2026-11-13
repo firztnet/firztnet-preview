@@ -3,10 +3,9 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, Car, Gauge
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import InicioTaller, { FondoInicio, temaGuardado } from "./inicio-taller.jsx";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
 } from "recharts";
@@ -15,7 +14,7 @@ import {
 // Cambia esto por la URL donde corra tu backend Flask
 // (en local, con `python run.py`, es http://localhost:5000)
 // ---------------------------------------------------------------------
-const API_BASE = import.meta.env.VITE_API_BASE || "https://firztnet-backend-production.up.railway.app/api";
+const API_BASE = "https://firztnet-backend-production.up.railway.app/api";
 // Dirección del panel que reciben los clientes en los enlaces (seguimiento, firma del presupuesto...)
 const PANEL_URL = "https://reparaciones.firztnet.es";
 
@@ -76,32 +75,7 @@ const COLORS = {
   slate: "#334155",
   brown: "#92400E",
   fuchsia: "#C026D3",
-  // Avisos (fondo suave + letra) que cambian con el tema
-  tintRojo: "#FEF2F2", tintRojoTx: "#991B1B",
-  tintAmbar: "#FFFBEB", tintAmbarTx: "#78350F",
-  tintVerde: "#F0FDF4", tintVerdeTx: "#166534",
-  tintAzul: "#EFF6FF", tintAzulTx: "#1E40AF",
 };
-
-// Temas del panel (se eligen en la pantalla principal). «Día» es el panel claro de siempre.
-// Los colores se cambian en COLORS antes de pintar, así todo el panel cambia a la vez.
-const OSCURO_BASE = {
-  tintRojo: "#3A1619", tintRojoTx: "#FCA5A5", tintAmbar: "#352A10", tintAmbarTx: "#FCD34D",
-  tintVerde: "#0F2E20", tintVerdeTx: "#86EFAC", tintAzul: "#14284A", tintAzulTx: "#93C5FD",
-  slate: "#64748B", brown: "#B45309", rust: "#F87171", green: "#34D399", statusBlue: "#60A5FA", statusAmber: "#FBBF24", violet: "#A78BFA",
-};
-const PALETAS = {
-  dia: { ...COLORS },
-  noche: { ...OSCURO_BASE, bg: "#0B1222", surface: "#111A2E", surfaceRaised: "#18233B", line: "#26324A", text: "#E6EDF7", textDim: "#94A3B8",
-    amber: "#3B82F6", amberDim: "#22D3EE", teal: "#22D3EE", menuBg: "#0F1830", menuTexto: "#BFDBFE", menuActivoBg: "#1E2E52", menuHoverBg: "#17233F", menuBorde: "#26324A", sidebarActiveBg: "#1E2E52" },
-  aurora: { ...OSCURO_BASE, bg: "#0E0A1F", surface: "#191334", surfaceRaised: "#211A42", line: "#342A5C", text: "#F1EDFF", textDim: "#A99FCB",
-    amber: "#8B5CF6", amberDim: "#2DD4BF", teal: "#2DD4BF", menuBg: "#150F2C", menuTexto: "#DDD6FE", menuActivoBg: "#2A1F55", menuHoverBg: "#201846", menuBorde: "#342A5C", sidebarActiveBg: "#2A1F55" },
-  grafito: { ...OSCURO_BASE, bg: "#0C0C0E", surface: "#18181B", surfaceRaised: "#202024", line: "#2F2F35", text: "#F4F4F5", textDim: "#A1A1AA",
-    amber: "#EA580C", amberDim: "#FB923C", teal: "#2DD4BF", menuBg: "#131315", menuTexto: "#FED7AA", menuActivoBg: "#2A1D14", menuHoverBg: "#1F1F23", menuBorde: "#2F2F35", sidebarActiveBg: "#2A1D14" },
-};
-function aplicarPaleta(tema) {
-  Object.assign(COLORS, PALETAS.dia, PALETAS[tema] || {});
-}
 
 const STAGES_TALLER = [
   { key: "recibido", label: "Recibido", accent: COLORS.violet },
@@ -937,7 +911,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                 style={{ borderTop: `1px solid ${COLORS.line}`, cursor: "pointer" }}
               >
                 <td style={{ padding: "10px 8px 10px 12px", borderLeft: `4px solid ${stage.accent}` }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, background: COLORS.surfaceRaised, color: COLORS.text, fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 8, background: "#EEF2F8", color: COLORS.text, fontWeight: 800, fontSize: 13, whiteSpace: "nowrap" }}>
                     {t.urgente && <Flame size={12} color={COLORS.rust} />}#{numero}
                   </span>
                 </td>
@@ -952,7 +926,7 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                 </td>
                 <td style={{ padding: "10px 8px", overflow: "hidden" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceRaised, color: COLORS.amber }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E8EEF8", color: COLORS.sidebarBg }}>
                       <User size={15} />
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -993,13 +967,13 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
       </table>
     </div>
     {quedanMas && (
-      <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, pointerEvents: "none", background: `linear-gradient(to bottom, transparent, ${COLORS.surface})` }} />
+      <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 26, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.95))" }} />
     )}
     </div>
   );
 }
 
-const estiloBloqueOrdenes = () => ({ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" });
+const estiloBloqueOrdenes = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" };
 
 function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   const hoy = new Date().toDateString();
@@ -1013,14 +987,14 @@ function TablaOrdenesActivas({ reparaciones, onAbrir, onHover, onCambio }) {
   if (filas.length === 0) return null;
 
   return (
-    <div style={{ ...estiloBloqueOrdenes(), marginBottom: 20 }}>
+    <div style={{ ...estiloBloqueOrdenes, marginBottom: 20 }}>
       <CabeceraBloqueOrdenes
         icono={Calendar}
         titulo="Tablero de órdenes - Pendientes / En curso"
         subtitulo="Aquí puedes ver las órdenes activas y su estado actual."
         total={filas.length}
         iconoContador={Clock}
-        fondo={`linear-gradient(90deg, ${COLORS.tintAzul}, ${COLORS.surface})`}
+        fondo="linear-gradient(90deg, #EFF6FF, #F8FAFF)"
       />
       <TablaOrdenes filas={filas} etapasDe={(t) => stagesFor(t.tipo_trabajo)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio="" />
     </div>
@@ -1047,18 +1021,18 @@ function TablaTableroCompleto({ reparaciones, tipoTrabajo, onAbrir, onHover, onC
   const filas = verEliminados ? ordenadas : ordenadas.filter((t) => !esClienteEliminado(t.cliente));
 
   return (
-    <div style={estiloBloqueOrdenes()}>
+    <div style={estiloBloqueOrdenes}>
       <CabeceraBloqueOrdenes
         icono={Check}
         titulo={titulo}
         subtitulo={subtitulo}
         total={filas.length}
         iconoContador={Layers}
-        fondo={`linear-gradient(90deg, ${COLORS.tintVerde}, ${COLORS.surface})`}
+        fondo="linear-gradient(90deg, #ECFDF5, #F6FEFA)"
       />
       <TablaOrdenes filas={cargando ? [] : filas} etapasDe={(t) => (mezclado ? stagesFor(t.tipo_trabajo) : etapas)} onAbrir={onAbrir} onHover={onHover} onCambio={onCambio} mensajeVacio={cargando ? "Cargando..." : mensajeVacio} />
       {!cargando && deEliminados.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: COLORS.surfaceRaised, fontSize: 12, color: COLORS.textDim }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 16px", borderTop: `1px solid ${COLORS.line}`, background: "#F8FAFC", fontSize: 12, color: COLORS.textDim }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <UserX size={14} />
             {verEliminados
@@ -1105,7 +1079,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
         <ChevronDown size={14} style={{ transform: abierto ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
       </button>
       {abierto && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, minWidth: 240, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 40, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, minWidth: 240, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 10, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 40, overflow: "hidden" }}>
           {opciones.map((o) => (
             <button
               key={o.key}
@@ -1175,7 +1149,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, trend, destacada, onC
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          background: COLORS.surface, border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150,
+          background: "#FFFFFF", border: `2px solid ${accent}`, borderRadius: 14, padding: alta ? "14px 16px" : "16px 18px", flex: 1, minWidth: 150,
           position: "relative", overflow: "hidden", cursor: onClick ? "pointer" : "default",
           ...(alta ? { minHeight: 104, display: "flex", flexDirection: "column", justifyContent: "space-between" } : {}),
           boxShadow: activa ? `0 0 0 3px ${accent}40` : hover ? `0 6px 16px -4px ${accent}60` : "none",
@@ -2192,11 +2166,11 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
         )}
 
         {t.tipo_trabajo === "domicilio" && t.estado_actual === "contratado" && t.categoria && CATEGORIAS_DOMICILIO.some((c) => c.key === t.categoria) && (
-          <div style={{ marginTop: 10, background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+          <div style={{ marginTop: 10, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
             <div style={{ fontSize: 11.5, color: COLORS.statusAmber, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <Wrench size={12} /> Antes de salir, ¿llevas esto?
             </div>
-            <div style={{ fontSize: 12, color: COLORS.tintAmbarTx, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: "#78350F", lineHeight: 1.6 }}>
               {CATEGORIAS_DOMICILIO.find((c) => c.key === t.categoria)?.herramientas.join(" · ")}
             </div>
           </div>
@@ -2715,7 +2689,7 @@ function TicketModal({ t, onClose, onEstadoActualizado, onDatosCambiados }) {
         {avisosPendientes.length > 0 && (
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             {avisosPendientes.map((aviso, i) => (
-              <div key={i} style={{ background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
+              <div key={i} style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12 }}>
                 <div style={{ fontSize: 11.5, color: COLORS.green, fontWeight: 600, marginBottom: 4 }}>{aviso.nombre || "Aviso listo para enviar"}</div>
                 <div style={{ fontSize: 12.5, color: COLORS.text, marginBottom: 8 }}>{aviso.texto}</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -3011,7 +2985,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
         <label style={{ fontSize: 12, color: COLORS.textDim, position: "relative", display: "block" }}>Cliente
           <input style={inputStyle} value={form.nombreCliente} onChange={set("nombreCliente")} placeholder="Nombre y apellidos" autoComplete="off" />
           {sugerencias.length > 0 && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 8, marginTop: 2, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 160, overflowY: "auto" }}>
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 8, marginTop: 2, zIndex: 5, boxShadow: "0 6px 16px rgba(0,0,0,0.1)", maxHeight: 160, overflowY: "auto" }}>
               {sugerencias.map((c) => (
                 <button
                   key={c.id}
@@ -3032,9 +3006,9 @@ function NuevaReparacionModal({ onClose, onCreada }) {
           </div>
         )}
         {alertaCliente && (
-          <div style={{ marginTop: 8, background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 8, padding: 10 }}>
+          <div style={{ marginTop: 8, background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: 10 }}>
             {alertaCliente.map((texto, i) => (
-              <div key={i} style={{ fontSize: 11.5, color: COLORS.tintAmbarTx, display: "flex", gap: 6, marginBottom: i === alertaCliente.length - 1 ? 0 : 4 }}>
+              <div key={i} style={{ fontSize: 11.5, color: "#78350F", display: "flex", gap: 6, marginBottom: i === alertaCliente.length - 1 ? 0 : 4 }}>
                 <TriangleAlert size={13} color={COLORS.statusAmber} style={{ flexShrink: 0, marginTop: 1 }} />
                 <span>{texto}</span>
               </div>
@@ -3109,7 +3083,7 @@ function NuevaReparacionModal({ onClose, onCreada }) {
           </button>
         )}
         {sugerenciasFallos && (
-          <div style={{ fontSize: 11.5, background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 8, padding: 10, marginBottom: 4 }}>
+          <div style={{ fontSize: 11.5, background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 8, padding: 10, marginBottom: 4 }}>
             {sugerenciasFallos.sugerencias.length === 0 ? (
               <span style={{ color: COLORS.textDim }}>Sin casos parecidos todavía.</span>
             ) : (
@@ -3392,7 +3366,7 @@ function ClientesView() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceRaised, color: COLORS.textDim }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#E2E8F0", color: COLORS.textDim }}>
                       <UserX size={15} />
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -3482,17 +3456,17 @@ function ClientesView() {
               {detalle.resumen && (detalle.resumen.sin_cobrar?.length > 0 || detalle.resumen.en_garantia?.length > 0) && (
                 <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                   {detalle.resumen.sin_cobrar?.length > 0 && (
-                    <div style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <TriangleAlert size={14} color={COLORS.rust} style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div style={{ fontSize: 12, color: COLORS.tintRojoTx }}>
+                      <div style={{ fontSize: 12, color: "#991B1B" }}>
                         <strong>{detalle.resumen.sin_cobrar.length}</strong> reparación{detalle.resumen.sin_cobrar.length === 1 ? "" : "es"} entregada{detalle.resumen.sin_cobrar.length === 1 ? "" : "s"} sin cobrar: {detalle.resumen.sin_cobrar.map((r) => `#${r.numero_orden}`).join(", ")}
                       </div>
                     </div>
                   )}
                   {detalle.resumen.en_garantia?.length > 0 && (
-                    <div style={{ background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 9, padding: 10, display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <ShieldCheck size={14} color={COLORS.green} style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div style={{ fontSize: 12, color: COLORS.tintVerdeTx }}>
+                      <div style={{ fontSize: 12, color: "#166534" }}>
                         <strong>{detalle.resumen.en_garantia.length}</strong> equipo{detalle.resumen.en_garantia.length === 1 ? "" : "s"} en garantía: {detalle.resumen.en_garantia.map((r) => `${r.equipo} (hasta ${fechaLarga(r.fecha_fin_garantia)})`).join("; ")}
                       </div>
                     </div>
@@ -3626,7 +3600,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, ayudas, salud, clientesSis, informesMes, riesgo, cobros, copias] = await Promise.all([
+      const [repuestos, todasReparaciones, abandonados, garantias, solicitudes, novedadesWeb, contratosMant, avisosFlota] = await Promise.all([
         apiGet("/repuestos").catch(() => []),
         apiGet("/reparaciones").catch(() => []),
         apiGet("/reportes/abandonados?dias=30").catch(() => []),
@@ -3634,13 +3608,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         apiGet("/solicitudes").catch(() => []),
         apiGet("/estadisticas/novedades").catch(() => null),
         apiGet("/mantenimientos/contratos").catch(() => []),
-        apiGet("/central/ayuda").catch(() => []),
-        apiGet("/central/salud").catch(() => null),
-        apiGet("/central/clientes").catch(() => []),
-        apiGet("/central/informes").catch(() => null),
-        apiGet("/central/riesgo").catch(() => []),
-        apiGet("/central/cobros").catch(() => []),
-        apiGet("/central/copias").catch(() => []),
+        apiGet("/flota/avisos").catch(() => []),
       ]);
       const nuevos = [];
       const stockBajo = repuestos.filter((r) => r.stock_bajo);
@@ -3650,54 +3618,15 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       abandonados.forEach((a) => nuevos.push({ tipo: "abandono", texto: `${a.cliente?.nombre}: equipo sin recoger hace ${a.dias_abandonado} días`, accion: () => { const rep = todasReparaciones.find((r) => r.id === a.id); if (rep) onAbrirTicket(rep); } }));
       const porCaducar = garantias.filter((g) => g.dias_restantes <= 15);
       if (porCaducar.length > 0) nuevos.push({ tipo: "garantia", texto: `${porCaducar.length} garantía(s) a punto de caducar`, accion: () => onIrVista("garantias") });
-      // Firztnet Central (fase 2): sistemas caídos y candados HTTPS a punto de caducar
-      (salud?.sistemas || []).filter((x) => x.activo && x.estado === "caido").forEach((x) => nuevos.push({
-        tipo: "caido",
-        texto: `🔴 ${x.nombre} NO RESPONDE desde ${new Date(x.caido_desde).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · ${x.error || ""}`,
-        accion: () => onIrVista("estado-sistemas"),
-      }));
-      (salud?.sistemas || []).filter((x) => x.activo && x.ssl_dias !== null && x.ssl_dias <= 14).forEach((x) => nuevos.push({
-        tipo: "ssl", texto: `🔒 El candado HTTPS de ${x.nombre} caduca en ${x.ssl_dias} día(s)`, accion: () => onIrVista("estado-sistemas"),
-      }));
-      // Firztnet Central (fase 3): pruebas que terminan y renovaciones vencidas de tus clientes
-      (clientesSis || []).filter((c) => c.estado === "prueba" && c.dias !== null && c.dias <= 3).forEach((c) => nuevos.push({
-        tipo: "prueba", texto: `⏳ La prueba de ${c.nombre} termina ${c.dias === 0 ? "hoy" : c.dias === 1 ? "mañana" : `en ${c.dias} días`}`, accion: () => onIrVista("clientes-sistemas"),
-      }));
-      (clientesSis || []).filter((c) => c.estado === "prueba_vencida").forEach((c) => nuevos.push({
-        tipo: "prueba", texto: `⌛ ${c.nombre}: la prueba ya terminó y no puede entrar`, accion: () => onIrVista("clientes-sistemas"),
-      }));
-      (clientesSis || []).filter((c) => c.estado === "activo" && c.renovacion_vencida).forEach((c) => nuevos.push({
-        tipo: "prueba", texto: `💶 ${c.nombre}: renovación vencida`, accion: () => onIrVista("clientes-sistemas"),
-      }));
-      const riesgoAlto = (riesgo || []).filter((c) => c.nivel === "alto").length;
-      if ((riesgo || []).length) nuevos.push({ tipo: "riesgo", texto: `⚠️ ${riesgo.length} cliente(s) en riesgo${riesgoAlto ? ` (${riesgoAlto} alto)` : ""}: llámales antes de que se vayan`, accion: () => onIrVista("riesgo") });
-      const cobrosUrgentes = (cobros || []).filter((c) => c.vencida || c.dias <= 3);
-      if (cobrosUrgentes.length) nuevos.push({ tipo: "cobro", texto: `💶 ${cobrosUrgentes.length} cuota(s) vencida(s) o que se renueva(n) en 3 días`, accion: () => onIrVista("cobros") });
-      const copiasMal = (copias || []).filter((c) => c.estado === "atrasada");
-      if (copiasMal.length) nuevos.push({ tipo: "copia", texto: `💾 Copias de seguridad atrasadas: ${copiasMal.map((c) => c.nombre).join(", ")}`, accion: () => onIrVista("estado-sistemas") });
-      // Informes de visitas preparados que esperan tu revisión
-      const informesPendientes = (informesMes?.informes || []).filter((i) => i.estado === "preparado").length;
-      if (informesPendientes) nuevos.push({ tipo: "informe", texto: `📈 ${informesPendientes} informe(s) de visitas de ${nombreMes(informesMes.mes)} esperan tu revisión`, accion: () => onIrVista("informes-mensuales") });
-      // Firztnet Central: cada petición de ayuda nueva de tus sistemas, una por una (las urgentes primero).
-      // Quedan guardadas para siempre en «Ayuda a clientes»; aquí salen mientras estén sin atender.
-      const ayudaNuevas = (ayudas || []).filter((p) => p.estado === "nueva")
-        .sort((a, b) => Number(b.urgente) - Number(a.urgente) || String(b.fecha).localeCompare(String(a.fecha)));
-      const NOMBRE_SIS = { hosteleria: "Hostelería", peluquerias: "Peluquerías", reformas: "Reformas", logistica: "Logística", reciclaje: "Reciclaje" };
-      ayudaNuevas.slice(0, 8).forEach((p) => nuevos.push({
-        tipo: "ayuda",
-        texto: `${p.urgente ? "🚨 URGENTE · " : "🛟 "}${p.negocio} (${NOMBRE_SIS[p.sistema] || p.sistema}) pide ayuda: ${(p.mensaje || "").slice(0, 70)}${(p.mensaje || "").length > 70 ? "…" : ""} · ${p.referencia}`,
-        accion: () => onIrVista("ayuda"),
-      }));
-      if (ayudaNuevas.length > 8) nuevos.push({ tipo: "ayuda", texto: `…y ${ayudaNuevas.length - 8} petición(es) de ayuda más`, accion: () => onIrVista("ayuda") });
       const solicitudesPendientes = solicitudes.filter((s) => !s.atendida);
       if (solicitudesPendientes.length > 0) nuevos.push({ tipo: "solicitud", texto: `${solicitudesPendientes.length} solicitud(es) de servicio sin atender`, accion: () => onIrVista("solicitudes") });
       // Mantenimientos: ya has ido este mes pero la cuota sigue sin cobrar
       (contratosMant || []).filter((c) => c.estado === "activo" && c.mes_actual && c.mes_actual.num_visitas > 0 && !c.mes_actual.cuota_pagada)
         .forEach((c) => nuevos.push({ tipo: "cuota", texto: `Cuota de ${c.mes_actual.nombre.split(" ")[0]} sin cobrar — ${c.cliente?.nombre}`, accion: () => onIrVista("mantenimientos") }));
+      // Flota: ITV, seguro o mantenimiento vencidos o a 30 días / 1.000 km
+      (avisosFlota || []).forEach((a) => nuevos.push({ tipo: "flota", texto: `${a.texto} — ${a.matricula}`, accion: () => onIrVista("flota") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
-      const prioridad = { caido: 6, ayuda: 5, copia: 4, cobro: 3, riesgo: 3, prueba: 2, ssl: 1 };
-      nuevos.sort((a, b) => (prioridad[b.tipo] || 0) - (prioridad[a.tipo] || 0));
       setItems(nuevos);
     } catch (e) {
       /* silencioso */
@@ -3736,7 +3665,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         )}
       </button>
       {abierta && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: "#FFFFFF", border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
           <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 12.5, fontWeight: 700, color: COLORS.text }}>Notificaciones</div>
           {items.length === 0 ? (
             <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>Todo al día — sin avisos pendientes.</div>
@@ -3792,9 +3721,9 @@ function AlertaStockBajo({ onIrInventario }) {
     <button
       type="button"
       onClick={onIrInventario}
-      style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 14 }}
+      style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%", marginBottom: 14 }}
     >
-      <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
         <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
       </div>
     </button>
@@ -3819,13 +3748,13 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, alignItems: "start", marginBottom: 14 }}>
       {rechazados.length > 0 && (
-        <div style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <TriangleAlert size={14} /> {rechazados.length} presupuesto{rechazados.length === 1 ? "" : "s"} rechazado{rechazados.length === 1 ? "" : "s"}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {rechazados.map((r) => (
-              <button key={r.id} onClick={() => onAbrir(r)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FECACA", background: COLORS.surface, color: COLORS.tintRojoTx, cursor: "pointer" }}>
+              <button key={r.id} onClick={() => onAbrir(r)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FECACA", background: "#FFFFFF", color: "#991B1B", cursor: "pointer" }}>
                 {r.cliente?.nombre} · #{r.numero_orden}
               </button>
             ))}
@@ -3833,8 +3762,8 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         </div>
       )}
       {abandonados.length > 0 && (
-        <div style={{ background: COLORS.tintAmbar, border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintAmbarTx, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#78350F", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <Bell size={14} /> {abandonados.length} equipo{abandonados.length === 1 ? "" : "s"} listo{abandonados.length === 1 ? "" : "s"} sin recoger hace 30+ días
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -3842,7 +3771,7 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
               <button
                 key={a.id}
                 onClick={() => { const rep = reparaciones.find((r) => r.id === a.id); if (rep) onAbrir(rep); }}
-                style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FDE68A", background: COLORS.surface, color: COLORS.tintAmbarTx, cursor: "pointer" }}
+                style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 999, border: "1px solid #FDE68A", background: "#FFFFFF", color: "#78350F", cursor: "pointer" }}
               >
                 {a.cliente?.nombre} · {a.dias_abandonado} días
               </button>
@@ -3854,7 +3783,7 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         <button
           type="button"
           onClick={onIrGarantias}
-          style={{ background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
         >
           <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.statusBlue, display: "flex", alignItems: "center", gap: 6 }}>
             <ShieldCheck size={14} /> {garantiasPorCaducar.length} garantía{garantiasPorCaducar.length === 1 ? "" : "s"} a punto de caducar (15 días o menos): {garantiasPorCaducar.map((g) => g.cliente?.nombre).join(", ")}
@@ -3865,9 +3794,9 @@ function PanelAlertas({ reparaciones, onAbrir, onIrInventario, onIrGarantias, oc
         <button
           type="button"
           onClick={onIrInventario}
-          style={{ background: COLORS.tintRojo, border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 9, padding: 12, cursor: "pointer", textAlign: "left", width: "100%" }}
         >
-          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tintRojoTx, display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "flex", alignItems: "center", gap: 6 }}>
             <Package size={14} /> {stockBajo.length} repuesto{stockBajo.length === 1 ? "" : "s"} con stock bajo: {stockBajo.map((r) => r.nombre).join(", ")}
           </div>
         </button>
@@ -5054,7 +4983,7 @@ function RmaView() {
         </div>
         {errorSerie && <div style={{ fontSize: 12, color: COLORS.rust, marginTop: 8 }}>{errorSerie}</div>}
         {resultadoSerie && (
-          <div style={{ marginTop: 10, background: COLORS.tintVerde, border: "1px solid #86EFAC", borderRadius: 8, padding: 12 }}>
+          <div style={{ marginTop: 10, background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{resultadoSerie.repuesto?.nombre}</div>
             <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 4 }}>
               Proveedor: <strong>{resultadoSerie.proveedor_compra?.nombre || "—"}</strong> · Factura: <strong>{resultadoSerie.numero_factura_compra || "—"}</strong> · Comprado: <strong>{resultadoSerie.fecha_compra ? fechaLarga(resultadoSerie.fecha_compra) : "—"}</strong>
@@ -5756,1362 +5685,6 @@ function SolicitudesView({ onCrearReparacion }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Ayuda a clientes (Firztnet Central) --------------------
-// Los locales que usan tus otros sistemas (hostelería, peluquerías...) piden ayuda desde su
-// panel con «Pedir ayuda». Aquí las ves, cambias el estado y les respondes: tu respuesta
-// les aparece en su panel. Las notas internas solo las ves tú.
-const SISTEMAS_AYUDA = {
-  hosteleria: { label: "Hostelería", color: "#D97706" },
-  peluquerias: { label: "Peluquerías", color: "#C2457A" },
-  reformas: { label: "Reformas", color: "#1E3A5F" },
-  logistica: { label: "Logística", color: "#2563EB" },
-  reciclaje: { label: "Reciclaje", color: "#EA580C" },
-};
-const TIPOS_AYUDA = {
-  impresora: "🖨️ No imprime", datafono: "💳 Datáfono", aparato: "📱 Aparato o pantalla",
-  acceso: "🔑 No puede entrar", internet: "📶 Internet", otro: "💬 Otra cosa",
-};
-const ESTADOS_AYUDA = [
-  { key: "nueva", label: "Nueva", color: COLORS.statusBlue },
-  { key: "en_curso", label: "En marcha", color: COLORS.statusAmber },
-  { key: "resuelta", label: "Resuelta", color: COLORS.green },
-];
-
-function hace(iso) {
-  if (!iso) return "";
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 1) return "ahora mismo";
-  if (min < 60) return `hace ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `hace ${h} h`;
-  return new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-function enlaceWhatsapp(telefono, texto) {
-  const digitos = (telefono || "").replace(/\D/g, "");
-  if (digitos.length < 9) return null;
-  const numero = digitos.length === 9 ? `34${digitos}` : digitos;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
-}
-
-function TarjetaAyuda({ p, onGuardar, plantillas = [] }) {
-  const [respuesta, setRespuesta] = useState(p.respuesta || "");
-  const [notas, setNotas] = useState(p.notas || "");
-  const [guardando, setGuardando] = useState(false);
-  const [aviso, setAviso] = useState("");
-  const sistema = SISTEMAS_AYUDA[p.sistema] || { label: p.sistema, color: COLORS.slate };
-  const estado = ESTADOS_AYUDA.find((e) => e.key === p.estado) || ESTADOS_AYUDA[0];
-  const cambios = respuesta !== (p.respuesta || "") || notas !== (p.notas || "");
-  const whatsapp = enlaceWhatsapp(p.telefono, `Hola, te escribimos de Firztnet por tu petición ${p.referencia}: `);
-
-  async function guardar(extra = {}) {
-    setGuardando(true);
-    setAviso("");
-    try {
-      await onGuardar(p.id, { respuesta, notas, ...extra });
-      setAviso("Guardado");
-      setTimeout(() => setAviso(""), 2000);
-    } catch (e) {
-      setAviso(`No se pudo guardar: ${e.message}`);
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  return (
-    <div style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${p.urgente && p.estado !== "resuelta" ? COLORS.rust : estado.color}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{p.negocio}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: sistema.color, border: `1px solid ${sistema.color}`, borderRadius: 999, padding: "2px 8px" }}>{sistema.label}</span>
-            {p.urgente && p.estado !== "resuelta" && (
-              <span style={{ fontSize: 10, fontWeight: 800, color: "#FFFFFF", background: COLORS.rust, borderRadius: 999, padding: "2px 8px", textTransform: "uppercase", letterSpacing: 0.4 }}>Urgente</span>
-            )}
-            <span style={{ fontSize: 11, color: COLORS.textDim }}>{p.referencia} · {hace(p.fecha)}</span>
-          </div>
-          <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 3 }}>
-            {p.persona || "—"}{p.puesto ? ` · ${p.puesto}` : ""}{p.empresa ? ` · ${p.empresa}` : ""}
-          </div>
-          {p.direccion_web && <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{p.direccion_web}</div>}
-        </div>
-        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceRaised, borderRadius: 999, padding: 3 }}>
-          {ESTADOS_AYUDA.map((e) => (
-            <button
-              key={e.key}
-              onClick={() => guardar({ estado: e.key })}
-              disabled={guardando}
-              style={{ border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "Inter", background: p.estado === e.key ? e.color : "transparent", color: p.estado === e.key ? "#FFFFFF" : COLORS.textDim }}
-            >
-              {e.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 13.5, color: COLORS.text, background: COLORS.surfaceRaised, borderRadius: 10, padding: "10px 12px" }}>
-        <div style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.textDim, marginBottom: 4 }}>{TIPOS_AYUDA[p.tipo] || p.tipo}{p.pagina ? ` · pantalla «${p.pagina}»` : ""}</div>
-        {p.mensaje}
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {p.telefono && (
-          <a href={`tel:${p.telefono}`} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", textDecoration: "none", padding: "7px 12px", fontSize: 12 }}>📞 Llamar · {p.telefono}</a>
-        )}
-        {whatsapp && (
-          <a href={whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "7px 12px", fontSize: 12 }}>WhatsApp</a>
-        )}
-      </div>
-
-      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
-        <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>Respuesta para el cliente (la ve en su panel)
-          {plantillas.length > 0 && (
-            <select value="" onChange={(e) => { const t = plantillas.find((x) => String(x.id) === e.target.value); if (t) setRespuesta((r) => (r ? r + "\n" + t.texto : t.texto)); }}
-              style={{ border: "1px solid " + COLORS.line, borderRadius: 6, padding: "3px 6px", fontSize: 12, fontFamily: "Inter", fontWeight: 600, color: COLORS.text }}>
-              <option value="">⚡ Respuesta rápida…</option>
-              {plantillas.map((t) => <option key={t.id} value={t.id}>{t.titulo}</option>)}
-            </select>
-          )}
-        </span>
-        <textarea value={respuesta} onChange={(e) => setRespuesta(e.target.value)} rows={2} maxLength={2000} placeholder="Por ejemplo: pasamos esta tarde a las 17:00 a revisar la impresora" style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical", color: COLORS.text }} />
-      </label>
-      <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, fontWeight: 700, color: COLORS.textDim }}>
-        Notas internas (solo las ves tú)
-        <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={1} maxLength={2000} placeholder="Qué era, qué cambiaste, piezas..." style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical", color: COLORS.text }} />
-      </label>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={() => guardar()} disabled={guardando || !cambios} style={{ ...btnStyle(cambios ? COLORS.amber : COLORS.surfaceRaised, cambios ? "#FFFFFF" : COLORS.textDim), flex: "none", padding: "8px 14px", opacity: guardando ? 0.7 : 1 }}>
-          {guardando ? "Guardando..." : "Guardar respuesta y notas"}
-        </button>
-        {p.respuesta_fecha && <span style={{ fontSize: 11.5, color: COLORS.textDim }}>Respondida {hace(p.respuesta_fecha)}</span>}
-        {aviso && <span style={{ fontSize: 12, fontWeight: 600, color: aviso.startsWith("No") ? COLORS.rust : COLORS.green }}>{aviso}</span>}
-      </div>
-    </div>
-  );
-}
-
-function AyudaClientesView() {
-  const [peticiones, setPeticiones] = useState([]);
-  const [plantillas, setPlantillas] = useState([]);
-  const [gestionando, setGestionando] = useState(false);
-  const [estad, setEstad] = useState(null);
-  const cargarPlantillas = useCallback(() => apiGet("/central/plantillas-ayuda").then(setPlantillas).catch(() => {}), []);
-  useEffect(() => { cargarPlantillas(); apiGet("/central/ayuda-estadisticas").then(setEstad).catch(() => {}); }, [cargarPlantillas]);
-  const [cargando, setCargando] = useState(true);
-  const [verTodas, setVerTodas] = useState(false);
-  const [filtro, setFiltro] = useState("todos");
-  const [error, setError] = useState("");
-
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    setError("");
-    try {
-      setPeticiones(await apiGet(`/central/ayuda${verTodas ? "?todas=true" : ""}`));
-    } catch (e) {
-      setError("No se pudieron cargar las peticiones de ayuda.");
-    } finally {
-      setCargando(false);
-    }
-  }, [verTodas]);
-
-  useEffect(() => {
-    cargar();
-    const t = setInterval(cargar, 60000);
-    return () => clearInterval(t);
-  }, [cargar]);
-
-  async function guardar(id, cambios) {
-    const actualizada = await apiPatch(`/central/ayuda/${id}`, cambios);
-    setPeticiones((prev) => prev.map((p) => (p.id === id ? actualizada : p)).filter((p) => verTodas || p.estado !== "resuelta"));
-  }
-
-  const sistemas = [...new Set(peticiones.map((p) => p.sistema))];
-  const lista = peticiones.filter((p) => filtro === "todos" || p.sistema === filtro);
-  const nuevas = peticiones.filter((p) => p.estado === "nueva").length;
-  const urgentes = peticiones.filter((p) => p.urgente && p.estado !== "resuelta").length;
-
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Nuevas" value={nuevas} icon={LifeBuoy} accent={COLORS.statusBlue} />
-        <StatCard label="Urgentes sin resolver" value={urgentes} icon={Flame} accent={COLORS.rust} />
-        <StatCard label={verTodas ? "En la lista" : "Abiertas"} value={peticiones.length} icon={MessageSquare} accent={COLORS.amber} />
-        <StatCard label="Respondes de media en" value={estad?.respuesta_media_min == null ? "—" : estad.respuesta_media_min < 60 ? `${estad.respuesta_media_min} min` : `${Math.round(estad.respuesta_media_min / 60)} h`} sub="últimos 90 días" icon={Clock} accent={COLORS.teal} />
-        <StatCard label="Resuelves de media en" value={estad?.resolucion_media_h == null ? "—" : `${String(estad.resolucion_media_h).replace(".", ",")} h`} sub={estad ? `${estad.resueltas} resueltas` : ""} icon={CheckCircle2} accent={COLORS.green} />
-      </div>
-      {gestionando ? <GestionPlantillas plantillas={plantillas} onCambio={cargarPlantillas} onCerrar={() => setGestionando(false)} />
-        : <div style={{ marginBottom: 12 }}><button onClick={() => setGestionando(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 12px", fontSize: 12 }}>⚡ Gestionar respuestas rápidas ({plantillas.length})</button></div>}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["todos", ...sistemas].map((s) => (
-            <button key={s} onClick={() => setFiltro(s)} style={{ ...btnStyle(filtro === s ? COLORS.amber : "transparent", filtro === s ? "#FFFFFF" : COLORS.textDim, filtro === s ? null : COLORS.line), flex: "none", padding: "6px 12px", fontSize: 12 }}>
-              {s === "todos" ? "Todos los sistemas" : SISTEMAS_AYUDA[s]?.label || s}
-            </button>
-          ))}
-        </div>
-        <button onClick={() => setVerTodas((v) => !v)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px", fontSize: 12.5 }}>
-          {verTodas ? "Ver solo abiertas" : "Ver todas (incluye resueltas)"}
-        </button>
-      </div>
-      {error && <div role="alert" style={{ marginBottom: 12, fontSize: 12.5, color: COLORS.rust }}>{error}</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {cargando && peticiones.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
-        {!cargando && lista.length === 0 && (
-          <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
-            Sin peticiones {verTodas ? "" : "abiertas"}. Aquí llegan las que hacen los locales con el botón «Pedir ayuda» de hostelería y peluquerías, y te avisa también por Telegram.
-          </div>
-        )}
-        {lista.map((p) => <TarjetaAyuda key={`${p.id}-${p.respuesta_fecha || ""}-${p.estado}`} p={p} onGuardar={guardar} plantillas={plantillas} />)}
-      </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Estado de los sistemas (Firztnet Central, fase 2) --------------------
-// Reparaciones abre cada 2 minutos tus sistemas y webs y anota si responden. Si uno se cae,
-// te avisa por Telegram y en la campana; aquí ves el semáforo, el historial y lo que tardan.
-const ESTADO_SALUD = {
-  ok: { label: "Funciona", color: "#16A34A", fondo: "#DCFCE7" },
-  lento: { label: "Lento", color: "#D97706", fondo: "#FEF3C7" },
-  caido: { label: "Caído", color: "#DC2626", fondo: "#FEE2E2" },
-  desconocido: { label: "Comprobando…", color: "#64748B", fondo: "#F1F5F9" },
-  pausado: { label: "En pausa", color: "#94A3B8", fondo: "#F1F5F9" },
-};
-
-function haceCorto(iso) {
-  if (!iso) return "nunca";
-  const seg = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seg < 60) return "hace un momento";
-  const min = Math.round(seg / 60);
-  if (min < 60) return `hace ${min} min`;
-  const h = Math.round(min / 60);
-  return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
-}
-const horaCorta = (iso) => new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const duracionTexto = (min) => (min < 60 ? `${min} min` : min < 1440 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ""}` : `${Math.floor(min / 1440)} d ${Math.floor((min % 1440) / 60)} h`);
-
-function TarjetaSistema({ s, onPausar, onBorrar }) {
-  const e = ESTADO_SALUD[s.estado] || ESTADO_SALUD.desconocido;
-  const sslMal = s.ssl_dias !== null && s.ssl_dias <= 14;
-  return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${s.estado === "caido" ? "#FCA5A5" : COLORS.line}`, borderRadius: 14, padding: 14, display: "flex", flexDirection: "column", gap: 10, boxShadow: s.estado === "caido" ? "0 10px 24px -12px rgba(220,38,38,0.45)" : "none", opacity: s.activo ? 1 : 0.65 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span className={s.estado === "ok" ? "fn-punto-activo" : undefined} style={{ width: 12, height: 12, borderRadius: "50%", background: e.color, flexShrink: 0, boxShadow: `0 0 0 4px ${e.fondo}` }} />
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: COLORS.text, display: "flex", alignItems: "center", gap: 6 }}>
-            {s.tipo === "web" ? <Globe size={14} color={COLORS.textDim} /> : <Server size={14} color={COLORS.textDim} />}
-            {s.nombre}
-          </div>
-          <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: COLORS.textDim, textDecoration: "none", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.url.replace(/^https?:\/\//, "")}</a>
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 800, color: e.color, background: e.fondo, borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>{e.label}</span>
-      </div>
-      {s.estado === "caido" && (
-        <div style={{ fontSize: 12, color: COLORS.tintRojoTx, background: COLORS.tintRojo, borderRadius: 8, padding: "7px 10px" }}>
-          Caído desde {horaCorta(s.caido_desde)} · {s.error}
-        </div>
-      )}
-      {s.estado !== "caido" && s.error && s.activo && (
-        <div style={{ fontSize: 11.5, color: COLORS.textDim }}>Último intento falló ({s.error}); se vuelve a probar en 2 min.</div>
-      )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-        {[
-          ["Responde en", !s.ms ? "—" : s.ms < 1000 ? `${s.ms} ms` : `${(s.ms / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} s`],
-          ["30 días", `${s.disponibilidad_30d.toLocaleString("es-ES")} %`],
-          ["Candado", s.ssl_dias === null ? "—" : `${s.ssl_dias} días`],
-        ].map(([k, v], i) => (
-          <div key={k} style={{ background: COLORS.surfaceRaised, borderRadius: 8, padding: "6px 8px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap" }}>{k}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: i === 2 && sslMal ? COLORS.rust : i === 1 && s.disponibilidad_30d < 99 ? COLORS.statusAmber : COLORS.text }}>{v}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ fontSize: 11, color: COLORS.textDim }}>Comprobado {haceCorto(s.ultima_comprobacion)}</span>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => onPausar(s)} title={s.activo ? "Dejar de vigilar por ahora" : "Volver a vigilar"} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "5px 9px", fontSize: 11 }}>
-            {s.activo ? <><Pause size={12} /> Pausar</> : <><Play size={12} /> Vigilar</>}
-          </button>
-          <button onClick={() => onBorrar(s)} title="Quitar de la lista" style={{ ...btnStyle("transparent", COLORS.rust, COLORS.line), flex: "none", padding: "5px 9px", fontSize: 11 }}>
-            <Trash2 size={12} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EstadoSistemasView() {
-  const [datos, setDatos] = useState(null);
-  const [comprobando, setComprobando] = useState(false);
-  const [error, setError] = useState("");
-  const [nuevo, setNuevo] = useState({ nombre: "", url: "https://", tipo: "sistema" });
-  const [anadiendo, setAnadiendo] = useState(false);
-
-  const cargar = useCallback(async () => {
-    try {
-      setDatos(await apiGet("/central/salud"));
-      setError("");
-    } catch (e) {
-      setError("No se pudo cargar el estado de los sistemas.");
-    }
-  }, []);
-
-  useEffect(() => {
-    cargar();
-    const t = setInterval(cargar, 30000);
-    return () => clearInterval(t);
-  }, [cargar]);
-
-  async function comprobarAhora() {
-    setComprobando(true);
-    try {
-      setDatos(await apiPost("/central/salud/comprobar", {}));
-      window.dispatchEvent(new Event("fn:notificaciones-actualizar"));
-    } catch (e) {
-      setError(`No se pudo comprobar: ${e.message}`);
-    } finally {
-      setComprobando(false);
-    }
-  }
-
-  async function pausar(s) {
-    try {
-      await apiPatch(`/central/salud/sistemas/${s.id}`, { activo: !s.activo });
-      cargar();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function borrar(s) {
-    if (!window.confirm(`¿Quitar «${s.nombre}» de la vigilancia? Se borra también su historial de caídas.`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/central/salud/sistemas/${s.id}`, { method: "DELETE", headers: cabecerasAuth() });
-      manejar401(res);
-      cargar();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function anadir(ev) {
-    ev.preventDefault();
-    setAnadiendo(true);
-    try {
-      await apiPost("/central/salud/sistemas", nuevo);
-      setNuevo({ nombre: "", url: "https://", tipo: "sistema" });
-      await comprobarAhora();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setAnadiendo(false);
-    }
-  }
-
-  if (!datos) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{error || "Cargando..."}</div>;
-
-  const activos = datos.sistemas.filter((s) => s.activo);
-  const caidos = activos.filter((s) => s.estado === "caido");
-  const lentos = activos.filter((s) => s.estado === "lento");
-  const sistemas = datos.sistemas.filter((s) => s.tipo !== "web" && s.origen !== "auto");
-  const webs = datos.sistemas.filter((s) => s.tipo === "web" && s.origen !== "auto");
-  const websClientes = datos.sistemas.filter((s) => s.origen === "auto");
-  const caidasClientes = websClientes.filter((s) => s.activo && s.estado === "caido").length;
-  const inputEstilo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", color: COLORS.text, background: COLORS.surface };
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16, padding: "16px 18px", borderRadius: 14, color: "#FFFFFF", background: caidos.length ? "linear-gradient(135deg, #EF4444, #B91C1C)" : lentos.length ? "linear-gradient(135deg, #F59E0B, #D97706)" : "linear-gradient(135deg, #22C55E, #15803D)" }}>
-        <Activity size={30} />
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>
-            {caidos.length ? `${caidos.length} sistema${caidos.length > 1 ? "s" : ""} caído${caidos.length > 1 ? "s" : ""}: ${caidos.map((s) => s.nombre).join(", ")}`
-              : lentos.length ? `Todo responde, pero ${lentos.map((s) => s.nombre).join(", ")} va${lentos.length > 1 ? "n" : ""} lento`
-                : `Todo funciona · ${activos.length} de ${activos.length}`}
-          </div>
-          <div style={{ fontSize: 12.5, opacity: 0.9 }}>Se comprueba solo cada {datos.intervalo_min} minutos. Si algo se cae, te llega un Telegram y un aviso en la campana.</div>
-        </div>
-        <button onClick={comprobarAhora} disabled={comprobando} style={{ ...btnStyle("rgba(255,255,255,0.18)", "#FFFFFF", "rgba(255,255,255,0.5)"), flex: "none", padding: "9px 14px" }}>
-          <RefreshCw size={14} className={comprobando ? "fn-girando" : undefined} /> {comprobando ? "Comprobando..." : "Comprobar ahora"}
-        </button>
-      </div>
-      {error && <div role="alert" style={{ marginBottom: 12, fontSize: 12.5, color: COLORS.rust }}>{error}</div>}
-
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 10px" }}>Sistemas</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
-        {sistemas.map((s) => <TarjetaSistema key={s.id} s={s} onPausar={pausar} onBorrar={borrar} />)}
-      </div>
-      {webs.length > 0 && (
-        <>
-          <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 10px" }}>Webs</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 18 }}>
-            {webs.map((s) => <TarjetaSistema key={s.id} s={s} onPausar={pausar} onBorrar={borrar} />)}
-          </div>
-        </>
-      )}
-
-      <CopiasSeguridad />
-
-      {websClientes.length > 0 && (
-        <>
-          <h3 style={{ fontSize: 13, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.5, margin: "4px 0 4px" }}>
-            Webs de tus clientes · {websClientes.length}{caidasClientes ? <span style={{ color: COLORS.rust }}> · {caidasClientes} caída{caidasClientes > 1 ? "s" : ""}</span> : null}
-          </h3>
-          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>Se añaden y se quitan solas con tus clientes en prueba o activos. Se comprueban cada {datos.intervalo_auto_min || 5} minutos; si caen varias de la misma plataforma a la vez, te llega un solo aviso.</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 8, marginBottom: 18 }}>
-            {websClientes.map((s) => {
-              const e = ESTADO_SALUD[s.estado] || ESTADO_SALUD.desconocido;
-              const plataforma = SISTEMAS_AYUDA[s.sistema_cliente]?.label || s.sistema_cliente;
-              return (
-                <div key={s.id} title={s.error || ""} style={{ display: "flex", alignItems: "center", gap: 8, background: COLORS.surface, border: `1px solid ${s.estado === "caido" ? "#FCA5A5" : COLORS.line}`, borderRadius: 10, padding: "8px 10px", opacity: s.activo ? 1 : 0.6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: e.color, flexShrink: 0 }} />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.nombre}</div>
-                    <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: COLORS.textDim, textDecoration: "none" }}>{plataforma} · {s.estado === "caido" ? `caída desde ${horaCorta(s.caido_desde)}` : s.ms ? `${s.ms} ms` : e.label}</a>
-                  </div>
-                  <button onClick={() => pausar(s)} title={s.activo ? "Dejar de vigilar por ahora" : "Volver a vigilar"} style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.textDim, padding: 4 }}>
-                    {s.activo ? <Pause size={13} /> : <Play size={13} />}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
-        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>Historial de caídas</div>
-          {datos.incidencias.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ninguna caída registrada. 🎉</div>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {datos.incidencias.map((i) => (
-              <div key={i.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "7px 10px", borderRadius: 8, background: i.abierta ? "#FEF2F2" : COLORS.surfaceRaised }}>
-                <span style={{ minWidth: 0 }}><strong style={{ color: i.abierta ? COLORS.rust : COLORS.text }}>{i.sistema}</strong> <span style={{ color: COLORS.textDim }}>· {horaCorta(i.inicio)} · {i.motivo}</span></span>
-                <span style={{ fontWeight: 700, whiteSpace: "nowrap", color: i.abierta ? COLORS.rust : COLORS.textDim }}>{i.abierta ? "Sigue caído" : duracionTexto(i.minutos)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <form onSubmit={anadir} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Vigilar otra dirección</div>
-          <div style={{ fontSize: 12, color: COLORS.textDim }}>Un sistema nuevo, la web de un cliente… Se comprueba igual que los demás.</div>
-          <input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Nombre (por ejemplo: Punto de venta)" maxLength={80} required style={inputEstilo} />
-          <input value={nuevo.url} onChange={(e) => setNuevo({ ...nuevo, url: e.target.value })} placeholder="https://..." maxLength={300} required style={inputEstilo} />
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} style={{ ...inputEstilo, flex: 1 }}>
-              <option value="sistema">Sistema de gestión</option>
-              <option value="web">Web</option>
-            </select>
-            <button type="submit" disabled={anadiendo} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 14px" }}>
-              <Plus size={14} /> {anadiendo ? "Añadiendo..." : "Añadir"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Clientes de sistemas (Firztnet Central, fase 3) --------------------
-// La ficha única de cada cliente de tus plataformas (hostelería, peluquerías...): estado, prueba o
-// renovación, contacto, uso del sistema, aparatos y sus peticiones de ayuda. Llega solo cada 10 minutos.
-const ESTADO_LOCAL = {
-  prueba: { label: "En prueba", color: "#2563EB", fondo: "#DBEAFE" },
-  activo: { label: "Activo", color: "#15803D", fondo: "#DCFCE7" },
-  suspendido: { label: "Suspendido", color: "#B91C1C", fondo: "#FEE2E2" },
-  prueba_vencida: { label: "Prueba terminada", color: "#B45309", fondo: "#FEF3C7" },
-  baja: { label: "De baja", color: "#64748B", fondo: "#F1F5F9" },
-};
-const TIPO_APARATO = { mostrador: "🧾 TPV / recepción", comandero: "📱 Móvil", cocina: "👨‍🍳 Cocina" };
-const euros = (c) => ((c || 0) / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
-const fechaCorta = (iso) => (iso ? new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }) : "—");
-
-function textoPlazo(l) {
-  if (l.estado === "prueba" && l.dias !== null) return l.dias === 0 ? "Termina hoy" : l.dias === 1 ? "Termina mañana" : `Quedan ${l.dias} días`;
-  if (l.estado === "prueba_vencida") return `Terminó el ${fechaCorta(l.prueba_hasta)}`;
-  if (l.estado === "activo" && l.renueva) return l.renovacion_vencida ? `Renovación vencida (${fechaCorta(l.renueva)})` : `Renueva el ${fechaCorta(l.renueva)}`;
-  if (l.estado === "suspendido") return l.motivo_suspension || "Suspendido";
-  return "";
-}
-
-// -------------------- Informe mensual de visitas (Firztnet Central, fase 4) --------------------
-// Dentro de la ficha de cada cliente: cuánta gente ha entrado en su web este mes, desde dónde y
-// con qué aparato, y cuántas reservas ha recibido por internet. Se imprime (o guarda en PDF) con
-// tu marca, o se le manda un resumen por WhatsApp o correo.
-const nombreMes = (mes) => new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-const escHtml = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
-function textoCambio(inf) {
-  if (inf.cambio_pct === null) return inf.visitas ? "primer mes con datos" : "";
-  if (inf.cambio_pct === 0) return "igual que el mes anterior";
-  return `${inf.cambio_pct > 0 ? "+" : ""}${inf.cambio_pct} % que el mes anterior`;
-}
-
-function resumenTexto(inf) {
-  const lineas = [
-    `Hola ${inf.local.contacto_nombre || ""}, te mandamos el resumen de la web de ${inf.local.nombre} de ${nombreMes(inf.mes)}:`,
-    `• ${inf.visitas} visitas (${textoCambio(inf) || "sin comparación"})`,
-  ];
-  if (inf.movil_pct !== null) lineas.push(`• ${inf.movil_pct} % desde el móvil`);
-  if (inf.origenes.length) lineas.push(`• Llegan sobre todo por: ${inf.origenes.slice(0, 3).map((o) => `${o.nombre} (${o.pct} %)`).join(", ")}`);
-  if (inf.mejor_dia_semana) lineas.push(`• El día con más visitas suele ser el ${inf.mejor_dia_semana}`);
-  if (inf.reservas_tipo) lineas.push(`• ${inf.reservas_web} ${inf.reservas_tipo} hechas por internet`);
-  lineas.push("", "Un saludo, Firztnet");
-  return lineas.join("\n");
-}
-
-function imprimirInforme(inf) {
-  const max = Math.max(1, ...inf.por_dia.map((d) => d.visitas));
-  const ancho = 640, alto = 160, paso = ancho / inf.por_dia.length;
-  const barras = inf.por_dia.map((d, i) => {
-    const h = Math.round((d.visitas / max) * (alto - 20));
-    return `<rect x="${(i * paso + 1).toFixed(1)}" y="${alto - h}" width="${Math.max(2, paso - 3).toFixed(1)}" height="${h}" rx="2" fill="#2563EB"/>`
-      + (i % 5 === 0 ? `<text x="${(i * paso + paso / 2).toFixed(1)}" y="${alto + 14}" font-size="10" text-anchor="middle" fill="#64748B">${Number(d.fecha.slice(8))}</text>` : "");
-  }).join("");
-  const origenes = inf.origenes.map((o) => `<tr><td>${escHtml(o.nombre)}</td><td class="n">${o.visitas}</td><td class="bar"><span style="width:${o.pct}%"></span></td><td class="n">${o.pct} %</td></tr>`).join("");
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de visitas · ${escHtml(inf.local.nombre)} · ${escHtml(nombreMes(inf.mes))}</title>
-<style>
-  @page { size: A4; margin: 16mm; }
-  * { box-sizing: border-box; }
-  body { font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: #0F172A; margin: 0; padding: 24px; }
-  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #2563EB; padding-bottom: 12px; margin-bottom: 20px; }
-  .marca { font-size: 22px; font-weight: 800; letter-spacing: 0.04em; } .marca span { color: #F59E0B; }
-  h1 { font-size: 24px; margin: 0 0 4px; } .sub { color: #64748B; font-size: 13px; }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-  .kpi { border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px; } .kpi b { display: block; font-size: 24px; } .kpi small { color: #64748B; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-  h2 { font-size: 15px; margin: 22px 0 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; } td { padding: 6px 4px; border-bottom: 1px solid #F1F5F9; }
-  td.n { text-align: right; width: 60px; font-weight: 700; } td.bar { width: 40%; } td.bar span { display: block; height: 10px; border-radius: 6px; background: #2563EB; }
-  .nota { margin-top: 26px; padding: 12px 14px; background: #EFF6FF; border-radius: 10px; font-size: 12.5px; color: #1E3A8A; }
-  footer { margin-top: 28px; font-size: 11px; color: #94A3B8; text-align: center; }
-</style></head><body>
-<header><div><h1>Informe de visitas de tu web</h1><div class="sub">${escHtml(inf.local.nombre)} · ${escHtml(inf.local.direccion_web || "")} · ${escHtml(nombreMes(inf.mes))}</div></div>
-<div class="marca">FIRZT<span>NET</span></div></header>
-<div class="kpis">
-  <div class="kpi"><small>Visitas</small><b>${inf.visitas}</b><span class="sub">${escHtml(textoCambio(inf))}</span></div>
-  <div class="kpi"><small>Media al día</small><b>${String(inf.media_diaria).replace(".", ",")}</b></div>
-  <div class="kpi"><small>Desde el móvil</small><b>${inf.movil_pct ?? "—"}${inf.movil_pct !== null ? " %" : ""}</b></div>
-  ${inf.reservas_tipo ? `<div class="kpi"><small>${escHtml(inf.reservas_tipo)} por internet</small><b>${inf.reservas_web}</b><span class="sub">mes anterior: ${inf.reservas_web_mes_anterior}</span></div>` : `<div class="kpi"><small>Mejor día</small><b>${inf.mejor_dia_semana ? escHtml(inf.mejor_dia_semana) : "—"}</b></div>`}
-</div>
-<h2>Visitas cada día</h2>
-<svg viewBox="0 0 ${ancho} ${alto + 20}" width="100%" role="img" aria-label="Visitas por día">${barras}</svg>
-<h2>Cómo llegan a tu web</h2>
-<table>${origenes || '<tr><td>Todavía no hay visitas este mes.</td></tr>'}</table>
-${inf.mejor_dia ? `<div class="nota">📈 El día con más visitas fue el <b>${new Date(`${inf.mejor_dia.fecha}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</b> (${inf.mejor_dia.visitas} visitas), y el día de la semana que más gente entra suele ser el <b>${escHtml(inf.mejor_dia_semana)}</b>: buen día para publicar en redes o lanzar una oferta.</div>` : ""}
-<footer>Informe preparado por Firztnet · contacto@firztnet.es · Las visitas se cuentan sin cookies ni datos personales de tus clientes.</footer>
-<script>window.onload = () => setTimeout(() => window.print(), 300);</script>
-</body></html>`;
-  const w = window.open("", "_blank");
-  if (!w) { alert("El navegador ha bloqueado la ventana. Permite las ventanas emergentes para imprimir el informe."); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-}
-
-function InformeVisitas({ local }) {
-  const [inf, setInf] = useState(null);
-  const [mes, setMes] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    apiGet(`/central/clientes/${local.id}/informe${mes ? `?mes=${mes}` : ""}`)
-      .then((d) => { setInf(d); if (!mes) setMes(d.mes); })
-      .catch(() => setError("No se pudo cargar el informe."));
-  }, [local.id, mes]);
-
-  if (error) return <div style={{ fontSize: 12.5, color: COLORS.rust }}>{error}</div>;
-  if (!inf) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando el informe...</div>;
-  const whatsapp = enlaceWhatsapp(local.contacto_telefono, resumenTexto(inf));
-  const correo = local.contacto_email ? `mailto:${local.contacto_email}?subject=${encodeURIComponent(`Visitas de tu web · ${nombreMes(inf.mes)}`)}&body=${encodeURIComponent(resumenTexto(inf))}` : null;
-  const meses = inf.meses.length ? inf.meses : [inf.mes];
-
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, fontFamily: "Inter", textTransform: "capitalize" }}>
-          {meses.map((m) => <option key={m} value={m}>{nombreMes(m)}</option>)}
-        </select>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <button onClick={() => imprimirInforme(inf)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><Printer size={13} /> Imprimir o guardar PDF</button>
-          {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>Enviar resumen por WhatsApp</a>}
-          {correo && <a href={correo} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>✉️ Por correo</a>}
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginBottom: 10 }}>
-        {[
-          ["Visitas", inf.visitas, textoCambio(inf), inf.cambio_pct !== null && inf.cambio_pct < 0 ? COLORS.rust : COLORS.green],
-          ["Media al día", String(inf.media_diaria).replace(".", ","), "", null],
-          ["Desde el móvil", inf.movil_pct === null ? "—" : `${inf.movil_pct} %`, "", null],
-          ...(inf.reservas_tipo ? [[`${inf.reservas_tipo} por internet`, inf.reservas_web, `mes anterior: ${inf.reservas_web_mes_anterior}`, null]] : []),
-        ].map(([k, v, sub, color]) => (
-          <div key={k} style={{ background: COLORS.surface, borderRadius: 8, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{v}</div>
-            {sub && <div style={{ fontSize: 11, color: color || COLORS.textDim, fontWeight: color ? 700 : 400 }}>{sub}</div>}
-          </div>
-        ))}
-      </div>
-      {inf.visitas === 0 ? (
-        <div style={{ fontSize: 12.5, color: COLORS.textDim, padding: "8px 0" }}>Todavía no hay visitas contadas este mes. Se empiezan a contar desde que se activó el contador.</div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
-          <div style={{ background: COLORS.surface, borderRadius: 8, padding: 10, height: 190 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 4 }}>Visitas cada día</div>
-            <ResponsiveContainer width="100%" height={155}>
-              <BarChart data={inf.por_dia.map((d) => ({ dia: Number(d.fecha.slice(8)), visitas: d.visitas }))}>
-                <XAxis dataKey="dia" tick={{ fontSize: 10 }} interval={4} />
-                <YAxis tick={{ fontSize: 10 }} width={28} allowDecimals={false} />
-                <Tooltip formatter={(v) => [v, "Visitas"]} labelFormatter={(d) => `Día ${d}`} />
-                <Bar dataKey="visitas" fill={COLORS.amber} radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ background: COLORS.surface, borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textDim, marginBottom: 6 }}>Cómo llegan</div>
-            {inf.origenes.map((o) => (
-              <div key={o.origen} style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span>{o.nombre}</span><strong>{o.visitas} · {o.pct} %</strong></div>
-                <div style={{ height: 6, borderRadius: 4, background: COLORS.surfaceRaised }}><div style={{ width: `${o.pct}%`, height: "100%", borderRadius: 4, background: COLORS.amber }} /></div>
-              </div>
-            ))}
-            {inf.mejor_dia_semana && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 8 }}>📈 El día que más entran suele ser el <strong>{inf.mejor_dia_semana}</strong>.</div>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CuotaCliente({ f, onGuardada }) {
-  const [valor, setValor] = useState(f.cuota_manual_cents === null || f.cuota_manual_cents === undefined ? "" : String(f.cuota_manual_cents / 100).replace(".", ","));
-  const [aviso, setAviso] = useState("");
-  async function guardar() {
-    const texto = valor.trim().replace(",", ".");
-    const cents = texto === "" ? null : Math.round(Number(texto) * 100);
-    if (cents !== null && (!Number.isFinite(cents) || cents < 0)) { setAviso("Escribe un importe, por ejemplo 39 o 39,90"); return; }
-    try {
-      onGuardada(await apiPatch(`/central/clientes/${f.id}`, { cuota_manual_cents: cents }));
-      setAviso("Guardado");
-      setTimeout(() => setAviso(""), 2000);
-    } catch (e) { setAviso(e.message); }
-  }
-  return (
-    <div style={{ background: COLORS.surface, borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>Cuánto te paga al mes</div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-        <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder={f.ingreso_mes_cents ? String(f.ingreso_mes_cents / 100).replace(".", ",") : "0"} style={{ width: 90, border: `1px solid ${COLORS.line}`, borderRadius: 6, padding: "5px 8px", fontSize: 13, fontFamily: "Inter" }} />
-        <span style={{ fontSize: 13 }}>€</span>
-        <button onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "5px 10px", fontSize: 11.5 }}>Guardar</button>
-        {aviso && <span style={{ fontSize: 11.5, color: aviso === "Guardado" ? COLORS.green : COLORS.rust }}>{aviso}</span>}
-      </div>
-      <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 4 }}>
-        {f.cuota_manual_cents !== null && f.cuota_manual_cents !== undefined ? "Puesto por ti." : f.ingreso_mes_cents ? `Según su sistema: ${euros(f.ingreso_mes_cents)} al mes. Escríbelo solo si es distinto.` : "Su sistema no lo indica: escríbelo para que cuente en tus ingresos."}
-      </div>
-    </div>
-  );
-}
-
-function FichaCliente({ id, onCerrar }) {
-  const [f, setF] = useState(null);
-  const [notas, setNotas] = useState("");
-  const [guardado, setGuardado] = useState("");
-
-  useEffect(() => {
-    apiGet(`/central/clientes/${id}`).then((d) => { setF(d); setNotas(d.notas || ""); }).catch(() => setGuardado("No se pudo cargar la ficha"));
-  }, [id]);
-
-  async function guardarNotas() {
-    try {
-      const d = await apiPatch(`/central/clientes/${id}`, { notas });
-      setF(d);
-      setGuardado("Notas guardadas");
-      setTimeout(() => setGuardado(""), 2000);
-    } catch (e) {
-      setGuardado(`No se pudo guardar: ${e.message}`);
-    }
-  }
-
-  if (!f) return <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim }}>{guardado || "Cargando la ficha..."}</div>;
-  const e = ESTADO_LOCAL[f.estado] || ESTADO_LOCAL.baja;
-  const sistema = SISTEMAS_AYUDA[f.sistema] || { label: f.sistema, color: COLORS.slate };
-  const whatsapp = enlaceWhatsapp(f.contacto_telefono, `Hola ${f.contacto_nombre || ""}, te escribimos de Firztnet: `);
-  const caja = { background: COLORS.surfaceRaised, borderRadius: 10, padding: 12 };
-  const titulo = { fontSize: 11.5, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 8 };
-
-  return (
-    <div style={{ borderTop: `1px solid ${COLORS.line}`, marginTop: 12, paddingTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-      <div style={caja}>
-        <div style={titulo}>Contacto</div>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.text }}>{f.contacto_nombre || "—"}</div>
-        <div style={{ fontSize: 12.5, color: COLORS.textDim, marginTop: 2 }}>{f.contacto_email || "Sin correo"}</div>
-        <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{f.contacto_telefono || "Sin teléfono"}</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-          {f.contacto_telefono && <a href={`tel:${f.contacto_telefono}`} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>📞 Llamar</a>}
-          {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>WhatsApp</a>}
-          {f.contacto_email && <a href={`mailto:${f.contacto_email}`} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>✉️ Correo</a>}
-          {f.direccion_web && <a href={`https://${f.direccion_web}`} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>🌐 Su web</a>}
-        </div>
-      </div>
-      <div style={caja}>
-        <div style={titulo}>Contrato</div>
-        <CuotaCliente f={f} onGuardada={(d) => setF(d)} />
-        <div style={{ fontSize: 12.5, color: COLORS.text, lineHeight: 1.7 }}>
-          <div>Sistema: <strong style={{ color: sistema.color }}>{sistema.label}</strong></div>
-          <div>Estado: <strong style={{ color: e.color }}>{e.label}</strong>{textoPlazo(f) ? ` · ${textoPlazo(f)}` : ""}</div>
-          <div>Alta: <strong>{fechaCorta(f.alta)}</strong></div>
-          {f.prueba_hasta && <div>Prueba hasta: <strong>{fechaCorta(f.prueba_hasta)}</strong></div>}
-          {f.renueva && <div>Renovación: <strong>{fechaCorta(f.renueva)}</strong></div>}
-          <div>Negocios: <strong>{(f.negocios || []).map((n) => n.nombre).join(", ") || "—"}</strong></div>
-        </div>
-      </div>
-      <div style={caja}>
-        <div style={titulo}>Uso este mes</div>
-        {f.uso ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {[
-              ...(f.uso.ventas_mes_cents !== undefined ? [["Ventas", euros(f.uso.ventas_mes_cents)], ["Tickets", f.uso.tickets_mes], [f.sistema === "peluquerias" ? "Citas" : "Personal", f.sistema === "peluquerias" ? f.uso.citas_mes : f.uso.personal]] : []),
-              ...(f.uso.paquetes_mes !== undefined ? [["Paquetes este mes", f.uso.paquetes_mes], ["Repartidores", f.uso.repartidores], ["Solicitudes por la web", f.uso.solicitudes_web_mes]] : []),
-              ...(f.uso.obras_activas !== undefined ? [["Obras en curso", f.uso.obras_activas], ["Presupuestos este mes", f.uso.presupuestos_mes], ["Solicitudes por la web", f.uso.solicitudes_web_mes], ["Operarios", f.uso.empleados]] : []),
-              ...(f.uso.cuota_cents !== undefined ? [["Cuota", f.uso.cuota_cents ? `${euros(f.uso.cuota_cents)} ${f.uso.periodo || ""}` : "Sin cuota"]] : []),
-              ...(f.uso.ultimo_pago !== undefined ? [["Último pago", f.uso.ultimo_pago ? `${euros(f.uso.ultimo_pago.importe_cents)} · ${fechaCorta(f.uso.ultimo_pago.fecha)}` : "—"]] : []),
-              ...(f.visitas_mes !== undefined ? [["Visitas web", f.visitas_mes]] : []),
-              ["Último uso", f.ultimo_uso ? haceCorto(f.ultimo_uso) : "nunca"],
-            ].map(([k, v]) => (
-              <div key={k} style={{ background: COLORS.surface, borderRadius: 8, padding: "6px 8px" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>{k}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: COLORS.text }}>{v}</div>
-              </div>
-            ))}
-          </div>
-        ) : <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Sin datos de uso todavía.</div>}
-        {f.uso?.tiene_web === false && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 8 }}>Esta empresa no tiene la web activada.</div>}
-        {f.uso?.titular_sin_estrenar && <div style={{ fontSize: 12, color: COLORS.statusAmber, fontWeight: 700, marginTop: 8 }}>⚠ El titular todavía no ha entrado nunca con su clave.</div>}
-      </div>
-      <div style={caja}>
-        <div style={titulo}>Aparatos ({f.aparatos.length})</div>
-        {f.aparatos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ningún aparato autorizado todavía.</div>}
-        {f.aparatos.map((a, i) => {
-          const viejo = !a.ultima_conexion || Date.now() - new Date(a.ultima_conexion).getTime() > 7 * 86400000;
-          return (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, padding: "5px 0", borderBottom: i < f.aparatos.length - 1 ? `1px solid ${COLORS.line}` : "none" }}>
-              <span>{TIPO_APARATO[a.tipo] || a.tipo} · <strong>{a.nombre || "Sin nombre"}</strong>{f.negocios?.length > 1 ? <span style={{ color: COLORS.textDim }}> · {a.negocio}</span> : null}</span>
-              <span style={{ whiteSpace: "nowrap", color: viejo ? COLORS.statusAmber : COLORS.textDim, fontWeight: viejo ? 700 : 400 }}>{a.ultima_conexion ? haceCorto(a.ultima_conexion) : "nunca"}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ ...caja, gridColumn: "1 / -1" }}>
-        <div style={titulo}>Informe de visitas de su web</div>
-        <InformeVisitas local={f} />
-      </div>
-      <div style={{ ...caja, gridColumn: "1 / -1" }}>
-        <div style={titulo}>Peticiones de ayuda ({f.ayudas.length})</div>
-        {f.ayudas.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Nunca ha pedido ayuda.</div>}
-        {f.ayudas.slice(0, 15).map((p) => {
-          const est = ESTADOS_AYUDA.find((x) => x.key === p.estado) || ESTADOS_AYUDA[0];
-          return (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${COLORS.line}` }}>
-              <span style={{ minWidth: 0 }}><strong>{p.referencia}</strong> · {TIPOS_AYUDA[p.tipo] || p.tipo} · {p.mensaje.slice(0, 90)}{p.mensaje.length > 90 ? "…" : ""} <span style={{ color: COLORS.textDim }}>· {horaCorta(p.fecha)}</span></span>
-              <span style={{ fontWeight: 700, color: est.color, whiteSpace: "nowrap" }}>{est.label}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ ...caja, gridColumn: "1 / -1" }}>
-        <div style={titulo}>Tus notas sobre este cliente (solo las ves tú)</div>
-        <textarea value={notas} onChange={(ev) => setNotas(ev.target.value)} rows={3} maxLength={4000} placeholder="Qué tiene instalado, cuánto paga, acuerdos, cosas a tener en cuenta..." style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "Inter", resize: "vertical" }} />
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
-          <button onClick={guardarNotas} disabled={notas === (f.notas || "")} style={{ ...btnStyle(notas === (f.notas || "") ? COLORS.surface : COLORS.amber, notas === (f.notas || "") ? COLORS.textDim : "#FFFFFF", COLORS.line), flex: "none", padding: "7px 12px" }}>Guardar notas</button>
-          <button onClick={onCerrar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "7px 12px" }}>Cerrar ficha</button>
-          {guardado && <span style={{ fontSize: 12, color: guardado.startsWith("No") ? COLORS.rust : COLORS.green, fontWeight: 600 }}>{guardado}</span>}
-        </div>
-        <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>Datos actualizados {haceCorto(f.sincronizado)}. Llegan solos de su plataforma cada 10 minutos.</div>
-      </div>
-    </div>
-  );
-}
-
-function ClientesSistemasView() {
-  const [lista, setLista] = useState(null);
-  const [filtro, setFiltro] = useState("todos");
-  const [buscar, setBuscar] = useState("");
-  const [abierta, setAbierta] = useState(null);
-
-  const cargar = useCallback(async () => {
-    try { setLista(await apiGet("/central/clientes")); } catch (e) { setLista([]); }
-  }, []);
-  useEffect(() => { cargar(); const t = setInterval(cargar, 120000); return () => clearInterval(t); }, [cargar]);
-
-  if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
-  const vivos = lista.filter((l) => l.estado !== "baja");
-  const cuenta = (fn) => vivos.filter(fn).length;
-  const filtros = [
-    ["todos", "Todos", vivos.length],
-    ["activo", "Activos", cuenta((l) => l.estado === "activo")],
-    ["prueba", "En prueba", cuenta((l) => l.estado === "prueba")],
-    ["atencion", "Necesitan atención", cuenta((l) => (l.estado === "prueba" && l.dias !== null && l.dias <= 3) || l.estado === "prueba_vencida" || l.renovacion_vencida || l.ayudas_abiertas > 0)],
-    ["suspendido", "Suspendidos", cuenta((l) => l.estado === "suspendido")],
-    ["baja", "De baja", lista.length - vivos.length],
-  ];
-  const t = buscar.trim().toLowerCase();
-  const visibles = lista.filter((l) => {
-    if (t && !`${l.nombre} ${l.contacto_nombre || ""} ${l.contacto_email || ""} ${l.contacto_telefono || ""} ${l.slug}`.toLowerCase().includes(t)) return false;
-    if (filtro === "todos") return l.estado !== "baja";
-    if (filtro === "atencion") return l.estado !== "baja" && ((l.estado === "prueba" && l.dias !== null && l.dias <= 3) || l.estado === "prueba_vencida" || l.renovacion_vencida || l.ayudas_abiertas > 0);
-    return l.estado === filtro;
-  });
-  const ventasMes = vivos.reduce((s, l) => s + (l.uso?.ventas_mes_cents || 0), 0);
-
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Clientes" value={vivos.length} icon={Users} accent={COLORS.amber} />
-        <StatCard label="Activos" value={cuenta((l) => l.estado === "activo")} icon={CheckCircle2} accent={COLORS.green} />
-        <StatCard label="En prueba" value={cuenta((l) => l.estado === "prueba")} icon={Clock} accent={COLORS.statusBlue} />
-        <StatCard label="Ventas de tus clientes este mes" value={euros(ventasMes)} icon={TrendingUp} accent={COLORS.violet} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {filtros.map(([k, label, n]) => (
-            <button key={k} onClick={() => setFiltro(k)} style={{ ...btnStyle(filtro === k ? COLORS.amber : "transparent", filtro === k ? "#FFFFFF" : COLORS.textDim, filtro === k ? null : COLORS.line), flex: "none", padding: "6px 12px", fontSize: 12 }}>
-              {label} · {n}
-            </button>
-          ))}
-        </div>
-        <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar cliente, contacto, teléfono..." style={{ border: `1px solid ${COLORS.line}`, borderRadius: 999, padding: "8px 14px", fontSize: 13, fontFamily: "Inter", minWidth: 240 }} />
-      </div>
-      {lista.length === 0 && (
-        <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
-          Todavía no ha llegado ningún cliente. Las plataformas de hostelería y peluquerías mandan su lista sola cada 10 minutos.
-        </div>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {visibles.map((l) => {
-          const e = ESTADO_LOCAL[l.estado] || ESTADO_LOCAL.baja;
-          const sistema = SISTEMAS_AYUDA[l.sistema] || { label: l.sistema, color: COLORS.slate };
-          const urgente = (l.estado === "prueba" && l.dias !== null && l.dias <= 3) || l.estado === "prueba_vencida" || l.renovacion_vencida;
-          return (
-            <div key={l.id} style={{ background: COLORS.surface, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}`, borderBottom: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${sistema.color}`, borderRadius: 12, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer" }} onClick={() => setAbierta(abierta === l.id ? null : l.id)}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{l.nombre}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: sistema.color, border: `1px solid ${sistema.color}`, borderRadius: 999, padding: "2px 8px" }}>{sistema.label}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 800, color: e.color, background: e.fondo, borderRadius: 999, padding: "2px 8px" }}>{e.label}</span>
-                    {textoPlazo(l) && <span style={{ fontSize: 11.5, fontWeight: urgente ? 800 : 500, color: urgente ? COLORS.rust : COLORS.textDim }}>{urgente ? "⏳ " : ""}{textoPlazo(l)}</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 3 }}>
-                    {l.contacto_nombre || "—"}{l.contacto_telefono ? ` · ${l.contacto_telefono}` : ""} · {l.direccion_web}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 12, color: COLORS.textDim }}>
-                  {l.visitas_mes !== undefined && <span title="Visitas de su web este mes">👁 <strong style={{ color: COLORS.text }}>{l.visitas_mes}</strong> visitas</span>}
-                  {l.uso && l.uso.ventas_mes_cents !== undefined && <span title="Ventas este mes"><strong style={{ color: COLORS.text }}>{euros(l.uso.ventas_mes_cents)}</strong> este mes</span>}
-                  <span title="Aparatos">🖥 {l.num_aparatos}{l.aparatos_sin_conexion ? <span style={{ color: COLORS.statusAmber, fontWeight: 700 }}> ({l.aparatos_sin_conexion} sin conectar)</span> : ""}</span>
-                  <span title="Peticiones de ayuda abiertas" style={{ color: l.ayudas_abiertas ? COLORS.rust : COLORS.textDim, fontWeight: l.ayudas_abiertas ? 800 : 400 }}>🛟 {l.ayudas_abiertas}</span>
-                  <ChevronDown size={16} style={{ transform: abierta === l.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-                </div>
-              </div>
-              {abierta === l.id && <FichaCliente id={l.id} onCerrar={() => { setAbierta(null); cargar(); }} />}
-            </div>
-          );
-        })}
-        {lista.length > 0 && visibles.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Ningún cliente con ese filtro.</div>}
-      </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Cuadro de mando (Firztnet Central) --------------------
-// Cómo va tu negocio de un vistazo: ingresos fijos al mes, clientes que pagan y en prueba,
-// conversión de pruebas, altas y bajas, lo que vence pronto, la ayuda y la salud de todo.
-const EVENTO_TEXTO = {
-  alta: ["🆕", "Nuevo cliente"], activo: ["✅", "Pasa a cliente que paga"], prueba: ["🧪", "Vuelve a prueba"],
-  prueba_vencida: ["⌛", "Termina la prueba sin pagar"], suspendido: ["⛔", "Suspendido"], baja: ["👋", "Se da de baja"],
-};
-
-function Kpi({ titulo, valor, sub, color, grande }) {
-  return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.4 }}>{titulo}</div>
-      <div style={{ fontSize: grande ? 30 : 24, fontWeight: 800, color: color || COLORS.text, lineHeight: 1.1 }}>{valor}</div>
-      {sub && <div style={{ fontSize: 12, color: COLORS.textDim }}>{sub}</div>}
-    </div>
-  );
-}
-
-function CuadroMandoView({ onIrVista }) {
-  const [d, setD] = useState(null);
-  const [error, setError] = useState("");
-
-  const cargar = useCallback(async () => {
-    try { setD(await apiGet("/central/cuadro")); setError(""); } catch (e) { setError("No se pudo cargar el cuadro de mando."); }
-  }, []);
-  useEffect(() => { cargar(); const t = setInterval(cargar, 120000); return () => clearInterval(t); }, [cargar]);
-
-  if (!d) return <div style={{ fontSize: 12.5, color: error ? COLORS.rust : COLORS.textDim }}>{error || "Cargando..."}</div>;
-
-  const cambio = d.ingresos_hace_30_cents === null ? null : d.ingresos_mes_cents - d.ingresos_hace_30_cents;
-  const historia = d.historia.map((h) => ({ dia: new Date(`${h.fecha}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" }), euros: h.ingresos_mes_cents / 100, pagando: h.pagando }));
-  const caja = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16 };
-  const titulo = { fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 };
-  const maxSistema = Math.max(1, ...d.por_sistema.map((s) => s.ingresos_mes_cents));
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", marginBottom: 16, padding: "20px 22px", borderRadius: 16, color: "#FFFFFF",
-        background: "radial-gradient(500px circle at 0% 0%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(135deg, #1D4ED8, #0F1B3D)" }}>
-        <TrendingUp size={34} />
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: "uppercase", opacity: 0.85 }}>Ingresos fijos al mes</div>
-          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{euros(d.ingresos_mes_cents)}</div>
-          <div style={{ fontSize: 13, opacity: 0.9 }}>
-            {cambio === null ? "Se compara con el mes pasado cuando haya 30 días de datos" : cambio === 0 ? "Igual que hace 30 días" : `${cambio > 0 ? "▲ +" : "▼ "}${euros(cambio)} respecto a hace 30 días`}
-            {" · "}{euros(d.ingresos_anual_cents)} al año
-          </div>
-          {d.prueba_potencial_cents > 0 && (
-            <div style={{ display: "inline-block", marginTop: 8, padding: "4px 10px", borderRadius: 999, background: "rgba(134,239,172,0.18)", border: "1px solid rgba(134,239,172,0.45)", fontSize: 13, fontWeight: 700 }}>
-              🌱 +{euros(d.prueba_potencial_cents)} al mes si se quedan {d.prueba_con_cuota === 1 ? "el que está" : `los ${d.prueba_con_cuota} que están`} en prueba → {euros(d.ingresos_mes_cents + d.prueba_potencial_cents)}
-            </div>
-          )}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, auto)", gap: "4px 22px", fontSize: 13 }}>
-          {[["Clientes que pagan", d.pagando], ["En prueba", d.en_prueba], ["Ticket medio", euros(d.ticket_medio_cents)]].map(([k, v]) => (
-            <div key={k}><div style={{ opacity: 0.8, fontSize: 11.5 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 800 }}>{v}</div></div>
-          ))}
-        </div>
-      </div>
-
-      {d.sin_cuota > 0 && (
-        <div onClick={() => onIrVista?.("clientes-sistemas")} style={{ cursor: "pointer", marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: COLORS.tintAmbar, border: "1px solid #FCD34D", fontSize: 13, color: COLORS.tintAmbarTx }}>
-          💡 {d.sin_cuota} cliente{d.sin_cuota > 1 ? "s" : ""} que paga{d.sin_cuota > 1 ? "n" : ""} no tiene{d.sin_cuota > 1 ? "n" : ""} cuota apuntada, y no cuenta{d.sin_cuota > 1 ? "n" : ""} en tus ingresos. Ábrelos en «Clientes de sistemas» y pon «Cuánto te paga al mes».
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <Kpi titulo="Si se quedan los de prueba" valor={`+${euros(d.prueba_potencial_cents || 0)}`} color={d.prueba_potencial_cents ? COLORS.green : COLORS.text}
-          sub={d.en_prueba ? (d.prueba_con_cuota < d.en_prueba ? `al mes · ${d.en_prueba - d.prueba_con_cuota} en prueba sin cuota puesta` : "al mes más") : "nadie en prueba ahora"} />
-        <Kpi titulo="Altas este mes" valor={d.altas_mes} color={COLORS.green} />
-        <Kpi titulo="Bajas este mes" valor={d.bajas_mes} color={d.bajas_mes ? COLORS.rust : COLORS.text} />
-        <Kpi titulo="Pruebas que pagan" valor={d.conversion_pct === null ? "—" : `${d.conversion_pct} %`} sub="últimos 90 días" />
-        <Kpi titulo="Pruebas que acaban en 7 días" valor={d.pruebas_7_dias} color={d.pruebas_7_dias ? COLORS.statusBlue : COLORS.text} sub="buen momento para llamar" />
-        <Kpi titulo="Renovaciones vencidas" valor={d.renovaciones_vencidas} color={d.renovaciones_vencidas ? COLORS.rust : COLORS.text} />
-        <Kpi titulo="Ayudas abiertas" valor={d.ayudas_abiertas} sub={d.respuesta_media_min === null ? "" : `respondes en ${d.respuesta_media_min < 60 ? `${d.respuesta_media_min} min` : `${Math.round(d.respuesta_media_min / 60)} h`} de media`} color={d.ayudas_abiertas ? COLORS.statusAmber : COLORS.text} />
-        <Kpi titulo="Sistemas y webs" valor={d.salud.caidos ? `${d.salud.caidos} caído${d.salud.caidos > 1 ? "s" : ""}` : "Todo bien"} sub={`${d.salud.total} vigilados`} color={d.salud.caidos ? COLORS.rust : COLORS.green} />
-        <div onClick={() => onIrVista?.("riesgo")} style={{ cursor: "pointer" }}><Kpi titulo="Clientes en riesgo" valor={d.en_riesgo ?? 0} color={d.en_riesgo ? COLORS.rust : COLORS.green} sub="pulsa para verlos" /></div>
-        <Kpi titulo="Visitas a webs de clientes" valor={d.visitas_webs_mes.toLocaleString("es-ES")} sub="este mes" />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <div style={caja}>
-          <div style={titulo}>Evolución de tus ingresos fijos</div>
-          {historia.length < 2 ? (
-            <div style={{ fontSize: 12.5, color: COLORS.textDim, padding: "30px 0", textAlign: "center" }}>La gráfica se va dibujando sola: cada día se guarda una foto de tus ingresos.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={historia}>
-                <defs><linearGradient id="fnIngresos" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.35} /><stop offset="100%" stopColor={COLORS.amber} stopOpacity={0} /></linearGradient></defs>
-                <XAxis dataKey="dia" tick={{ fontSize: 10 }} minTickGap={24} />
-                <YAxis tick={{ fontSize: 10 }} width={44} tickFormatter={(v) => `${v} €`} />
-                <Tooltip formatter={(v, n) => (n === "euros" ? [`${Number(v).toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`, "Ingresos al mes"] : [v, "Clientes que pagan"])} />
-                <Area type="monotone" dataKey="euros" stroke={COLORS.amber} strokeWidth={2.5} fill="url(#fnIngresos)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-        <div style={caja}>
-          <div style={titulo}>Por sistema</div>
-          {d.por_sistema.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Todavía no hay clientes.</div>}
-          {d.por_sistema.map((s) => {
-            const info = SISTEMAS_AYUDA[s.sistema] || { label: s.sistema, color: COLORS.slate };
-            return (
-              <div key={s.sistema} style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
-                  <span><strong style={{ color: info.color }}>{info.label}</strong> <span style={{ color: COLORS.textDim }}>· {s.pagando} pagan · {s.prueba} en prueba</span></span>
-                  <strong>{euros(s.ingresos_mes_cents)}</strong>
-                </div>
-                <div style={{ height: 8, borderRadius: 6, background: COLORS.surfaceRaised, marginTop: 4 }}>
-                  <div style={{ width: `${Math.max(2, (s.ingresos_mes_cents * 100) / maxSistema)}%`, height: "100%", borderRadius: 6, background: info.color }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14 }}>
-        <div style={caja}>
-          <div style={titulo}>Lo que vence en los próximos 14 días</div>
-          {d.proximos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Nada urgente. 👌</div>}
-          {d.proximos.map((p) => {
-            const info = SISTEMAS_AYUDA[p.sistema] || { label: p.sistema, color: COLORS.slate };
-            const wa = enlaceWhatsapp(p.telefono, "Hola, te escribimos de Firztnet: ");
-            const texto = p.tipo === "prueba" ? (p.dias === 0 ? "La prueba termina hoy" : `La prueba termina en ${p.dias} día${p.dias > 1 ? "s" : ""}`)
-              : p.tipo === "vencida" ? "Renovación vencida" : `Renueva en ${p.dias} día${p.dias !== 1 ? "s" : ""}${p.importe_cents ? ` · ${euros(p.importe_cents)}` : ""}`;
-            return (
-              <div key={`${p.id}-${p.tipo}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${COLORS.line}` }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: info.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
-                  <strong>{p.nombre}</strong> <span style={{ color: COLORS.textDim }}>· {info.label}</span>
-                  <div style={{ color: p.tipo === "vencida" || p.dias <= 2 ? COLORS.rust : COLORS.textDim, fontWeight: p.dias <= 2 ? 700 : 400 }}>{texto}</div>
-                </div>
-                {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "5px 9px", fontSize: 11 }}>WhatsApp</a>}
-              </div>
-            );
-          })}
-        </div>
-        <div style={caja}>
-          <div style={titulo}>Últimos movimientos de clientes</div>
-          {d.recientes.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Aquí irán apareciendo las altas, las pruebas que pasan a pagar y las bajas.</div>}
-          {d.recientes.map((e, i) => {
-            const [ico, texto] = EVENTO_TEXTO[e.tipo] || ["•", e.tipo];
-            return (
-              <div key={i} style={{ display: "flex", gap: 10, fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${COLORS.line}` }}>
-                <span>{ico}</span>
-                <span style={{ flex: 1 }}><strong>{e.nombre}</strong> · {texto} <span style={{ color: COLORS.textDim }}>· {SISTEMAS_AYUDA[e.sistema]?.label || e.sistema}</span></span>
-                <span style={{ color: COLORS.textDim, whiteSpace: "nowrap" }}>{haceCorto(e.fecha)}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Informes mensuales (Firztnet Central) --------------------
-// El día 1 se preparan solos los informes de visitas del mes anterior. Aquí los revisas
-// (cómo le llega el correo a cada cliente) y SOLO se envían los que aceptas.
-const ESTADO_INFORME = {
-  preparado: ["Pendiente de tu revisión", COLORS.statusBlue],
-  enviado: ["Enviado", COLORS.green],
-  descartado: ["No se envía", COLORS.textDim],
-  error: ["No se pudo enviar", COLORS.rust],
-};
-
-function InformesMensualesView() {
-  const [d, setD] = useState(null);
-  const [mes, setMes] = useState("");
-  const [marcados, setMarcados] = useState(new Set());
-  const [vista, setVista] = useState(null); // { id, html, asunto, email }
-  const [ocupado, setOcupado] = useState(false);
-  const [aviso, setAviso] = useState("");
-
-  const cargar = useCallback(async (m) => {
-    try {
-      const datos = await apiGet(`/central/informes${m ? `?mes=${m}` : ""}`);
-      setD(datos);
-      if (!m) setMes(datos.mes);
-      setMarcados(new Set(datos.informes.filter((i) => i.estado === "preparado").map((i) => i.id)));
-    } catch (e) { setAviso("No se pudieron cargar los informes."); }
-  }, []);
-  useEffect(() => { cargar(mes); }, [cargar, mes]);
-
-  async function preparar() {
-    setOcupado(true); setAviso("");
-    try {
-      const r = await apiPost("/central/informes/preparar", { mes });
-      setAviso(r.preparados ? `Preparados ${r.preparados} informe(s). Revísalos antes de enviarlos.` : "Ningún cliente con correo y visitas ese mes. (Las visitas se cuentan desde el 8 de noviembre de 2026.)");
-      await cargar(mes);
-    } catch (e) { setAviso(e.message); } finally { setOcupado(false); }
-  }
-
-  async function verInforme(i) {
-    try { setVista({ id: i.id, ...(await apiGet(`/central/informes/${i.id}/vista`)) }); } catch (e) { setAviso(e.message); }
-  }
-
-  async function cambiar(i, cambios) {
-    try { await apiPatch(`/central/informes/${i.id}`, cambios); await cargar(mes); } catch (e) { setAviso(e.message); }
-  }
-
-  async function enviar(ids) {
-    if (!ids.length) return;
-    if (!window.confirm(`¿Aceptas y envías ${ids.length} informe(s) por correo a tus clientes?`)) return;
-    setOcupado(true); setAviso("");
-    try {
-      const r = await apiPost("/central/informes/enviar", { ids });
-      setAviso(`✓ Enviados: ${r.enviados}${r.fallos.length ? ` · No se pudieron enviar: ${r.fallos.length} (mira el motivo en cada uno)` : ""}`);
-      setVista(null);
-      await cargar(mes);
-    } catch (e) { setAviso(e.message); } finally { setOcupado(false); }
-  }
-
-  if (!d) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>{aviso || "Cargando..."}</div>;
-  const pendientes = d.informes.filter((i) => i.estado === "preparado" || i.estado === "error");
-  // Siempre se pueden elegir el mes pasado y el mes en curso (este, para ver cómo va antes de que acabe)
-  const mesActual = new Date().toISOString().slice(0, 7);
-  const meses = Array.from(new Set([mesActual, d.mes, ...d.meses])).sort().reverse();
-
-  return (
-    <div>
-      <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14, fontSize: 13, color: COLORS.textDim, lineHeight: 1.6 }}>
-        📈 <strong style={{ color: COLORS.text }}>Cómo funciona:</strong> el <strong>día 1 de cada mes</strong> se preparan solos los informes de visitas del mes anterior para tus clientes en prueba o activos que tienen correo y visitas, y te llega un aviso. <strong>No sale ningún correo hasta que tú lo aceptes aquí.</strong>
-        {!d.correo_listo && <div style={{ marginTop: 8, color: COLORS.rust, fontWeight: 700 }}>⚠ Falta configurar el envío de correos (RESEND_API_KEY en Railway). Puedes preparar y revisar los informes, pero todavía no enviarlos.</div>}
-        {d.correo_listo && d.remitente === "onboarding@resend.dev" && <div style={{ marginTop: 8, color: COLORS.statusAmber, fontWeight: 700 }}>⚠ Los correos salen todavía desde la dirección de pruebas de Resend: solo llegan a tu propia cuenta. Para que lleguen a tus clientes hay que verificar firztnet.es en Resend.</div>}
-      </div>
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-        <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "7px 10px", fontSize: 13, fontFamily: "Inter" }}>
-          {meses.map((m) => <option key={m} value={m}>{nombreMes(m)}</option>)}
-        </select>
-        <button onClick={preparar} disabled={ocupado} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "7px 12px" }}>
-          <RefreshCw size={13} /> {d.informes.length ? "Volver a preparar" : "Preparar ahora"}
-        </button>
-        <div style={{ flex: 1 }} />
-        {pendientes.length > 0 && (
-          <button onClick={() => enviar([...marcados])} disabled={ocupado || !marcados.size || !d.correo_listo} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "9px 14px", opacity: !marcados.size || !d.correo_listo ? 0.5 : 1 }}>
-            <CheckCircle2 size={14} /> Aceptar y enviar los marcados ({marcados.size})
-          </button>
-        )}
-      </div>
-      {aviso && <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: aviso.startsWith("✓") || aviso.startsWith("Preparados") ? COLORS.green : COLORS.rust }}>{aviso}</div>}
-
-      {d.informes.length === 0 && (
-        <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>
-          No hay informes de {nombreMes(mes)}. Se preparan solos el día 1; si quieres verlos ya, pulsa «Preparar ahora».
-        </div>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {d.informes.map((i) => {
-          const [texto, color] = ESTADO_INFORME[i.estado] || ESTADO_INFORME.preparado;
-          const info = SISTEMAS_AYUDA[i.sistema] || { label: i.sistema, color: COLORS.slate };
-          const editable = i.estado === "preparado" || i.estado === "error";
-          return (
-            <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${info.color}`, borderRadius: 12, padding: "10px 14px", opacity: i.estado === "descartado" ? 0.6 : 1 }}>
-              {editable && <input type="checkbox" checked={marcados.has(i.id)} aria-label={`Enviar el informe de ${i.cliente}`}
-                onChange={(e) => setMarcados((prev) => { const n = new Set(prev); if (e.target.checked) n.add(i.id); else n.delete(i.id); return n; })} />}
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{i.cliente} <span style={{ fontSize: 11, color: info.color, fontWeight: 700 }}>· {info.label}</span></div>
-                <div style={{ fontSize: 12, color: COLORS.textDim }}>
-                  {editable ? (
-                    <input defaultValue={i.email} onBlur={(e) => e.target.value.trim() !== i.email && cambiar(i, { email: e.target.value.trim() })} aria-label="Correo del cliente"
-                      style={{ border: `1px solid ${COLORS.line}`, borderRadius: 6, padding: "2px 6px", fontSize: 12, fontFamily: "Inter", width: 230 }} />
-                  ) : i.email}
-                  {" · "}{i.visitas} visitas{i.cambio_pct !== null ? ` (${i.cambio_pct > 0 ? "+" : ""}${i.cambio_pct} %)` : ""}
-                </div>
-                {i.error && <div style={{ fontSize: 11.5, color: COLORS.rust }}>{i.error}</div>}
-              </div>
-              <span style={{ fontSize: 11.5, fontWeight: 800, color }}>{texto}{i.enviado ? ` · ${haceCorto(i.enviado)}` : ""}</span>
-              <button onClick={() => verInforme(i)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}><Eye size={13} /> Ver correo</button>
-              {i.estado === "preparado" && <button onClick={() => cambiar(i, { estado: "descartado" })} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}>No enviar</button>}
-              {i.estado === "descartado" && <button onClick={() => cambiar(i, { estado: "preparado" })} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 12 }}>Recuperar</button>}
-            </div>
-          );
-        })}
-      </div>
-
-      {vista && (
-        <div role="dialog" aria-modal="true" onClick={() => setVista(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 90, display: "grid", placeItems: "center", padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: COLORS.surface, borderRadius: 14, width: "min(680px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 13 }}>
-              <div><strong>Para:</strong> {vista.email}</div>
-              <div><strong>Asunto:</strong> {vista.asunto}</div>
-            </div>
-            <iframe title="Vista del correo" srcDoc={vista.html} sandbox="" style={{ border: 0, width: "100%", height: "65vh" }} />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 12, borderTop: `1px solid ${COLORS.line}` }}>
-              <button onClick={() => setVista(null)} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px" }}>Cerrar</button>
-              {d.informes.find((x) => x.id === vista.id && (x.estado === "preparado" || x.estado === "error")) && (
-                <button onClick={() => enviar([vista.id])} disabled={ocupado || !d.correo_listo} style={{ ...btnStyle(COLORS.green, "#FFFFFF"), flex: "none", padding: "8px 14px", opacity: d.correo_listo ? 1 : 0.5 }}>
-                  <CheckCircle2 size={14} /> Aceptar y enviar este
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// -------------------- vista: Clientes en riesgo (Firztnet Central) --------------------
-// Quién podrías perder y por qué, para llamarle antes de que se vaya.
-function RiesgoView() {
-  const [lista, setLista] = useState(null);
-  const cargar = useCallback(async () => { try { setLista(await apiGet("/central/riesgo")); } catch (e) { setLista([]); } }, []);
-  useEffect(() => { cargar(); }, [cargar]);
-
-  async function contactado(c, dias) {
-    try { await apiPost(`/central/riesgo/${c.id}/contactado`, { dias }); cargar(); window.dispatchEvent(new Event("fn:notificaciones-actualizar")); } catch (e) { alert(e.message); }
-  }
-
-  if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
-  const altos = lista.filter((c) => c.nivel === "alto").length;
-  const enJuego = lista.reduce((s, c) => s + c.ingreso_mes_cents, 0);
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
-        <StatCard label="Clientes en riesgo" value={lista.length} icon={TriangleAlert} accent={COLORS.statusAmber} />
-        <StatCard label="Riesgo alto" value={altos} icon={Flame} accent={COLORS.rust} />
-        <StatCard label="Ingresos al mes en juego" value={euros(enJuego)} icon={Banknote} accent={COLORS.violet} />
-      </div>
-      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 12 }}>
-        Sale aquí quien lleva días sin usar el sistema, no ha cobrado nada este mes, tiene la renovación vencida, pierde visitas o pide ayuda a menudo. Llámale, y pulsa «Ya le he llamado»: dejará de salir unos días.
-      </div>
-      {lista.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>Ningún cliente en riesgo ahora mismo. 🎉</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {lista.map((c) => {
-          const info = SISTEMAS_AYUDA[c.sistema] || { label: c.sistema, color: COLORS.slate };
-          const wa = enlaceWhatsapp(c.contacto_telefono, `Hola ${(c.contacto_nombre || "").split(/[ ,]/)[0]}, te escribimos de Firztnet para ver qué tal te va con el sistema. ¿Necesitas algo?`);
-          return (
-            <div key={c.id} style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${c.nivel === "alto" ? COLORS.rust : COLORS.statusAmber}`, borderRadius: 12, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                <div>
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{c.nombre}</span>{" "}
-                  <span style={{ fontSize: 11, fontWeight: 700, color: info.color }}>· {info.label}</span>{" "}
-                  <span style={{ fontSize: 10.5, fontWeight: 800, color: "#FFFFFF", background: c.nivel === "alto" ? COLORS.rust : COLORS.statusAmber, borderRadius: 999, padding: "2px 8px", textTransform: "uppercase" }}>Riesgo {c.nivel}</span>
-                  <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{c.contacto_nombre || "—"}{c.contacto_telefono ? ` · ${c.contacto_telefono}` : ""}{c.ingreso_mes_cents ? ` · te paga ${euros(c.ingreso_mes_cents)} al mes` : ""}</div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-start" }}>
-                  {c.contacto_telefono && <a href={`tel:${c.contacto_telefono}`} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>📞 Llamar</a>}
-                  {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>WhatsApp</a>}
-                  <button onClick={() => contactado(c, 14)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><Check size={13} /> Ya le he llamado</button>
-                </div>
-              </div>
-              <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13 }}>{c.motivos.map((m) => <li key={m}>{m}</li>)}</ul>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// -------------------- vista: Cobros (Firztnet Central) --------------------
-// Las cuotas que se renuevan en los próximos 30 días y las vencidas, con el recordatorio preparado.
-function CobrosView() {
-  const [lista, setLista] = useState(null);
-  const [aviso, setAviso] = useState("");
-  const cargar = useCallback(async () => { try { setLista(await apiGet("/central/cobros")); } catch (e) { setLista([]); } }, []);
-  useEffect(() => { cargar(); }, [cargar]);
-
-  async function porCorreo(c) {
-    if (!window.confirm(`¿Enviar el recordatorio de cobro por correo a ${c.contacto_email}?`)) return;
-    try { await apiPost(`/central/cobros/${c.id}/correo`, {}); setAviso(`✓ Recordatorio enviado a ${c.contacto_email}`); } catch (e) { setAviso(e.message); }
-  }
-  async function registrar(c) {
-    const valor = window.prompt(`¿Cuánto te ha pagado ${c.nombre}? (€)`, c.importe_cents ? String(c.importe_cents / 100).replace(".", ",") : "");
-    if (valor === null) return;
-    const metodo = window.prompt("¿Cómo ha pagado? (Bizum, transferencia, efectivo…)", "Bizum") || "";
-    try { await apiPost(`/central/cobros/${c.id}/registrar`, { importe: valor, metodo }); setAviso(`✓ Cobro apuntado en «Ventas»: ${c.nombre}. Recuerda cambiar la fecha de renovación en su sistema.`); } catch (e) { setAviso(e.message); }
-  }
-
-  if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
-  const vencidas = lista.filter((c) => c.vencida);
-  const total = lista.reduce((s, c) => s + c.importe_cents, 0);
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
-        <StatCard label="Por cobrar (30 días)" value={euros(total)} icon={Banknote} accent={COLORS.green} />
-        <StatCard label="Renovaciones" value={lista.length} icon={Calendar} accent={COLORS.amber} />
-        <StatCard label="Vencidas" value={vencidas.length} icon={Flame} accent={COLORS.rust} />
-      </div>
-      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 12 }}>Cada mañana a las 9:00 te llega un Telegram con las cuotas que se renuevan en 3 días o ya vencidas. Aquí tienes el mensaje preparado para cada cliente: por WhatsApp o por correo (solo sale cuando pulsas).</div>
-      {aviso && <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: aviso.startsWith("✓") ? COLORS.green : COLORS.rust }}>{aviso}</div>}
-      {lista.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>Ninguna renovación en los próximos 30 días. (Solo salen los clientes activos con fecha de renovación en su sistema.)</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {lista.map((c) => {
-          const info = SISTEMAS_AYUDA[c.sistema] || { label: c.sistema, color: COLORS.slate };
-          return (
-            <div key={c.id} style={{ background: COLORS.surface, border: `1px solid ${c.vencida ? "#FCA5A5" : COLORS.line}`, borderLeft: `4px solid ${info.color}`, borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <div>
-                  <strong>{c.nombre}</strong> <span style={{ fontSize: 11, color: info.color, fontWeight: 700 }}>· {info.label}</span>
-                  <div style={{ fontSize: 12.5, color: c.vencida || c.dias <= 3 ? COLORS.rust : COLORS.textDim, fontWeight: c.vencida || c.dias <= 3 ? 700 : 400 }}>
-                    {c.vencida ? `Vencida el ${fechaCorta(c.renueva)}` : c.dias === 0 ? "Se renueva hoy" : `Se renueva el ${fechaCorta(c.renueva)} (en ${c.dias} día${c.dias > 1 ? "s" : ""})`}
-                    {c.importe_cents ? ` · ${euros(c.importe_cents)}` : " · sin cuota apuntada"}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {c.whatsapp && <a href={c.whatsapp} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle("#16A34A", "#FFFFFF"), flex: "none", textDecoration: "none", padding: "6px 10px", fontSize: 11.5 }}>Recordar por WhatsApp</a>}
-                  {c.contacto_email && <button onClick={() => porCorreo(c)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "6px 10px", fontSize: 11.5 }}>✉️ Por correo</button>}
-                  <button onClick={() => registrar(c)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "6px 10px", fontSize: 11.5 }}><CheckCircle2 size={13} /> Apuntar cobro</button>
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: COLORS.textDim, background: COLORS.surfaceRaised, borderRadius: 8, padding: "6px 9px", marginTop: 8 }}>{c.texto}</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// -------------------- Copias de seguridad vigiladas (dentro de «Estado de sistemas») --------------------
-const ESTADO_COPIA = {
-  ok: ["Al día", "#16A34A"], atrasada: ["Atrasada", "#DC2626"], sin_copias: ["Sin copias automáticas", "#D97706"], desconocido: ["Sin datos todavía", "#64748B"],
-};
-function CopiasSeguridad() {
-  const [lista, setLista] = useState(null);
-  useEffect(() => { apiGet("/central/copias").then(setLista).catch(() => setLista([])); }, []);
-  if (!lista) return null;
-  return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>💾 Copias de seguridad</div>
-      <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 10 }}>Cada sistema dice cuándo hizo su última copia. Si alguno lleva más de un día sin copia, te llega un Telegram por la mañana.</div>
-      {lista.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Los datos llegan con la próxima lista de clientes de cada sistema (cada 10 minutos).</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
-        {lista.map((c) => {
-          const [texto, color] = ESTADO_COPIA[c.estado] || ESTADO_COPIA.desconocido;
-          return (
-            <div key={c.sistema} style={{ border: `1px solid ${COLORS.line}`, borderRadius: 10, padding: "8px 10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 6 }}><strong style={{ fontSize: 13 }}>{c.nombre}</strong><span style={{ fontSize: 11.5, fontWeight: 800, color }}>{texto}</span></div>
-              <div style={{ fontSize: 11.5, color: COLORS.textDim }}>{c.ultima ? `Última: ${haceCorto(c.ultima)}` : c.detalle || "—"}</div>
-              {c.clientes_sin_copia?.length > 0 && <div style={{ fontSize: 11.5, color: COLORS.rust }}>Sin copia reciente: {c.clientes_sin_copia.join(", ")}</div>}
-              {c.estado === "sin_copias" && <div style={{ fontSize: 11, color: COLORS.textDim }}>{c.detalle}</div>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// -------------------- Respuestas rápidas (dentro de «Ayuda a clientes») --------------------
-function GestionPlantillas({ plantillas, onCambio, onCerrar }) {
-  const [nueva, setNueva] = useState({ titulo: "", texto: "" });
-  const [error, setError] = useState("");
-  async function guardar(p, cambios) {
-    try { await apiPatch(`/central/plantillas-ayuda/${p.id}`, cambios); onCambio(); } catch (e) { setError(e.message); }
-  }
-  async function borrar(p) {
-    if (!window.confirm(`¿Borrar la respuesta rápida «${p.titulo}»?`)) return;
-    try {
-      const res = await fetch(`${API_BASE}/central/plantillas-ayuda/${p.id}`, { method: "DELETE", headers: cabecerasAuth() });
-      manejar401(res);
-      onCambio();
-    } catch (e) { setError(e.message); }
-  }
-  async function crear(e) {
-    e.preventDefault();
-    try { await apiPost("/central/plantillas-ayuda", nueva); setNueva({ titulo: "", texto: "" }); onCambio(); } catch (err) { setError(err.message); }
-  }
-  const campo = { border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: "7px 9px", fontSize: 13, fontFamily: "Inter", width: "100%", boxSizing: "border-box" };
-  return (
-    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <strong>⚡ Respuestas rápidas</strong>
-        <button onClick={onCerrar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "5px 10px", fontSize: 12 }}>Cerrar</button>
-      </div>
-      {error && <div style={{ color: COLORS.rust, fontSize: 12.5, marginBottom: 8 }}>{error}</div>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {plantillas.map((p) => (
-          <div key={p.id} style={{ display: "grid", gridTemplateColumns: "180px 1fr auto", gap: 8, alignItems: "start" }}>
-            <input defaultValue={p.titulo} onBlur={(e) => e.target.value !== p.titulo && guardar(p, { titulo: e.target.value })} style={campo} aria-label="Título" />
-            <textarea defaultValue={p.texto} rows={2} onBlur={(e) => e.target.value !== p.texto && guardar(p, { texto: e.target.value })} style={{ ...campo, resize: "vertical" }} aria-label="Texto" />
-            <button onClick={() => borrar(p)} title="Borrar" style={{ border: "none", background: "transparent", cursor: "pointer", color: COLORS.rust, padding: 6 }}><Trash2 size={15} /></button>
-          </div>
-        ))}
-      </div>
-      <form onSubmit={crear} style={{ display: "grid", gridTemplateColumns: "180px 1fr auto", gap: 8, marginTop: 12, alignItems: "start" }}>
-        <input value={nueva.titulo} onChange={(e) => setNueva({ ...nueva, titulo: e.target.value })} placeholder="Título (p. ej. «Datáfono»)" maxLength={80} style={campo} />
-        <textarea value={nueva.texto} onChange={(e) => setNueva({ ...nueva, texto: e.target.value })} placeholder="Texto de la respuesta" rows={2} maxLength={2000} style={{ ...campo, resize: "vertical" }} />
-        <button type="submit" style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 12px" }}><Plus size={14} /> Añadir</button>
-      </form>
     </div>
   );
 }
@@ -7976,6 +6549,605 @@ function VisitaMantenimientoTarjeta({ visita, tareas, onCambio }) {
   );
 }
 
+// ---------------------------------------------------------------------
+// FLOTA: vehículos de la empresa (ITV, seguro, mantenimiento, gastos, combustible).
+// ---------------------------------------------------------------------
+const TIPOS_REGISTRO_FLOTA = [
+  { key: "itv", label: "ITV", color: COLORS.statusBlue },
+  { key: "mantenimiento", label: "Mantenimiento", color: COLORS.green },
+  { key: "combustible", label: "Repostaje", color: COLORS.statusAmber },
+  { key: "reparacion", label: "Reparación", color: COLORS.rust },
+  { key: "seguro", label: "Seguro", color: COLORS.violet },
+  { key: "impuesto", label: "Impuesto", color: COLORS.teal },
+  { key: "otro", label: "Otro gasto", color: COLORS.textDim },
+];
+const TIPO_FLOTA = Object.fromEntries(TIPOS_REGISTRO_FLOTA.map((t) => [t.key, t]));
+const COMBUSTIBLES_FLOTA = [
+  ["", "—"], ["diesel", "Diésel"], ["gasolina", "Gasolina"], ["hibrido", "Híbrido"], ["electrico", "Eléctrico"], ["glp", "GLP"],
+];
+
+function kmTexto(n) {
+  return n == null ? "—" : `${Number(n).toLocaleString("es-ES")} km`;
+}
+function sumarDiasISO(iso, dias) {
+  const [a, m, d] = iso.split("-").map(Number);
+  const f = new Date(a, m - 1, d + dias);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+}
+function sumarMesesISO(iso, meses) {
+  const [a, m, d] = iso.split("-").map(Number);
+  const f = new Date(a, m - 1 + meses, 1);
+  const ultimo = new Date(f.getFullYear(), f.getMonth() + 1, 0).getDate();
+  f.setDate(Math.min(d, ultimo));
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+}
+// Días que faltan hasta una fecha "AAAA-MM-DD" (negativo si ya pasó)
+function diasHasta(iso) {
+  if (!iso) return null;
+  const [a, m, d] = iso.split("-").map(Number);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((new Date(a, m - 1, d) - hoy) / 86400000);
+}
+
+// Matrícula con aspecto de placa española
+function PlacaMatricula({ matricula, grande }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "stretch", border: "1.5px solid #1F2937", borderRadius: 5, overflow: "hidden", background: "#FFFFFF", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: grande ? 17 : 13.5, letterSpacing: 1, lineHeight: 1, flexShrink: 0 }}>
+      <span style={{ background: "#1D4ED8", color: "#FFFFFF", fontSize: grande ? 9 : 7.5, padding: grande ? "3px 4px" : "2px 3px", display: "flex", alignItems: "flex-end", fontFamily: "inherit", letterSpacing: 0 }}>E</span>
+      <span style={{ padding: grande ? "5px 9px" : "4px 7px", color: "#111827" }}>{matricula}</span>
+    </span>
+  );
+}
+
+// Una de las tres "fechas clave" de un vehículo (ITV, seguro, mantenimiento) con su color
+function EstadoFechaFlota({ titulo, fecha, kmFaltan, icono: Icono }) {
+  const dias = diasHasta(fecha);
+  let color = COLORS.green;
+  let texto;
+  if (fecha == null && kmFaltan == null) { color = COLORS.textDim; texto = "Sin fecha"; }
+  else {
+    const vencidoFecha = dias != null && dias < 0;
+    const prontoFecha = dias != null && dias <= 30;
+    const vencidoKm = kmFaltan != null && kmFaltan < 0;
+    const prontoKm = kmFaltan != null && kmFaltan <= 1000;
+    if (vencidoFecha || vencidoKm) color = COLORS.rust;
+    else if (prontoFecha || prontoKm) color = COLORS.statusAmber;
+    const partes = [];
+    if (fecha) partes.push(dias < 0 ? `vencida hace ${-dias} d` : dias === 0 ? "hoy" : `en ${dias} d · ${fechaDia(fecha)}`);
+    if (kmFaltan != null) partes.push(kmFaltan < 0 ? `pasado ${(-kmFaltan).toLocaleString("es-ES")} km` : `faltan ${kmFaltan.toLocaleString("es-ES")} km`);
+    texto = partes.join(" · ");
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, background: `${color}12`, border: `1px solid ${color}40`, borderRadius: 9, padding: "7px 10px", minWidth: 0 }}>
+      <Icono size={15} color={color} style={{ flexShrink: 0 }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: 0.4 }}>{titulo}</div>
+        <div style={{ fontSize: 12, color: COLORS.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</div>
+      </div>
+    </div>
+  );
+}
+
+function FechasClaveFlota({ v, enColumna }) {
+  const kmFaltan = v.proximo_mant_km ? v.proximo_mant_km - (v.km_actuales || 0) : null;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: enColumna ? "1fr" : "repeat(auto-fit, minmax(190px, 1fr))", gap: enColumna ? 6 : 8 }}>
+      <EstadoFechaFlota titulo="ITV" fecha={v.proxima_itv} icono={ShieldCheck} />
+      <EstadoFechaFlota titulo="Seguro" fecha={v.seguro_vence} icono={FileText} />
+      <EstadoFechaFlota titulo="Mantenimiento" fecha={v.proximo_mant_fecha} kmFaltan={kmFaltan} icono={Wrench} />
+    </div>
+  );
+}
+
+function FlotaView({ onCambio }) {
+  const [vehiculos, setVehiculos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [abiertoId, setAbiertoId] = useState(null);
+  const [creando, setCreando] = useState(false);
+
+  const cargar = useCallback(async () => {
+    setCargando(true);
+    setError("");
+    try {
+      setVehiculos(await apiGet("/flota/vehiculos"));
+    } catch (e) {
+      setError(String(e.message).includes("404")
+        ? "El servidor todavía no tiene la sección de flota. Sube primero el backend nuevo."
+        : `No se pudieron cargar los vehículos: ${e.message}`);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  if (abiertoId) {
+    return <FichaVehiculo id={abiertoId} onVolver={() => { setAbiertoId(null); cargar(); }} onCambio={onCambio} />;
+  }
+
+  const enUso = vehiculos.filter((v) => v.activo);
+  const gastoAnio = enUso.reduce((s, v) => s + (v.gasto_anio || 0), 0);
+  const conAvisos = enUso.filter((v) => v.avisos.length > 0).length;
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ fontSize: 13, color: COLORS.textDim }}>
+          {enUso.length} {enUso.length === 1 ? "vehículo" : "vehículos"} · {eurosMant(gastoAnio)} de gasto este año
+          {conAvisos > 0 && <span style={{ color: COLORS.rust, fontWeight: 600 }}> · {conAvisos} con avisos</span>}
+        </div>
+        {!creando && (
+          <button onClick={() => setCreando(true)} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 16px", fontSize: 13 }}>
+            <Plus size={15} /> Añadir vehículo
+          </button>
+        )}
+      </div>
+
+      {creando && (
+        <FormularioVehiculo
+          onCancelar={() => setCreando(false)}
+          onGuardado={(v) => { setCreando(false); onCambio?.(); setAbiertoId(v.id); }}
+        />
+      )}
+
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginBottom: 10 }}>{error}</div>}
+      {cargando && vehiculos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>}
+      {!cargando && !error && vehiculos.length === 0 && !creando && (
+        <div style={{ background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 22, fontSize: 13, color: COLORS.textDim, textAlign: "center" }}>
+          Aún no hay vehículos. Pulsa <b>Añadir vehículo</b> para dar de alta el de la empresa.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+        {vehiculos.map((v) => {
+          const peor = v.avisos.some((a) => a.nivel === "vencido") ? COLORS.rust : v.avisos.length ? COLORS.statusAmber : COLORS.green;
+          return (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => setAbiertoId(v.id)}
+              className="fn-tarjeta-mant"
+              style={{ textAlign: "left", cursor: "pointer", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderLeft: `4px solid ${v.activo ? peor : COLORS.textDim}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 10, opacity: v.activo ? 1 : 0.65, font: "inherit", color: COLORS.text }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <PlacaMatricula matricula={v.matricula} />
+                  <span style={{ fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[v.marca, v.modelo].filter(Boolean).join(" ") || "Vehículo"}</span>
+                </div>
+                {!v.activo && <span style={{ fontSize: 11, color: COLORS.textDim, fontWeight: 600 }}>De baja</span>}
+              </div>
+              <div style={{ display: "flex", gap: 14, fontSize: 12.5, color: COLORS.textDim, flexWrap: "wrap" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Gauge size={14} /> {kmTexto(v.km_actuales)}</span>
+                <span>{eurosMant(v.gasto_anio)} este año</span>
+              </div>
+              {v.activo && <FechasClaveFlota v={v} enColumna />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FormularioVehiculo({ inicial, onCancelar, onGuardado }) {
+  const editando = !!inicial;
+  const [f, setF] = useState({
+    matricula: inicial?.matricula || "",
+    marca: inicial?.marca || "",
+    modelo: inicial?.modelo || "",
+    anio: inicial?.anio ?? "",
+    combustible: inicial?.combustible || "",
+    km_actuales: inicial?.km_actuales ?? "",
+    fecha_matriculacion: inicial?.fecha_matriculacion || "",
+    proxima_itv: inicial?.proxima_itv || "",
+    seguro_compania: inicial?.seguro_compania || "",
+    seguro_poliza: inicial?.seguro_poliza || "",
+    seguro_vence: inicial?.seguro_vence || "",
+    intervalo_mant_km: inicial?.intervalo_mant_km ?? "",
+    intervalo_mant_meses: inicial?.intervalo_mant_meses ?? "",
+    proximo_mant_fecha: inicial?.proximo_mant_fecha || "",
+    proximo_mant_km: inicial?.proximo_mant_km ?? "",
+    notas: inicial?.notas || "",
+    activo: inicial ? inicial.activo : true,
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const cambiar = (campo) => (e) => setF((p) => ({ ...p, [campo]: e.target.value }));
+  const inputStyle = { width: "100%", fontSize: 13, padding: "9px 11px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4, fontFamily: "inherit", background: "#FFFFFF" };
+  const etiqueta = { fontSize: 12, color: COLORS.textDim, fontWeight: 600 };
+  const grupo = { fontSize: 11.5, color: COLORS.textDim, textTransform: "uppercase", letterSpacing: 0.6, gridColumn: "1 / -1", marginTop: 8, paddingTop: 10, borderTop: `1px solid ${COLORS.line}` };
+  const Campo = ({ campo, texto, tipo = "text", ...resto }) => (
+    <div>
+      <label style={etiqueta}>{texto}</label>
+      <input type={tipo} value={f[campo]} onChange={cambiar(campo)} style={inputStyle} {...resto} />
+    </div>
+  );
+
+  async function guardar() {
+    setError("");
+    if (!f.matricula.trim()) { setError("Escribe la matrícula."); return; }
+    setGuardando(true);
+    try {
+      const datos = { ...f };
+      const res = editando ? await apiPatch(`/flota/vehiculos/${inicial.id}`, datos) : await apiPost("/flota/vehiculos", datos);
+      onGuardado(res);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 18, marginBottom: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>{editando ? "Editar vehículo" : "Nuevo vehículo"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
+        {Campo({ campo: "matricula", texto: "Matrícula", placeholder: "1234ABC", maxLength: 15 })}
+        {Campo({ campo: "marca", texto: "Marca", placeholder: "Citroën" })}
+        {Campo({ campo: "modelo", texto: "Modelo", placeholder: "Berlingo" })}
+        {Campo({ campo: "anio", texto: "Año", inputMode: "numeric" })}
+        <div>
+          <label style={etiqueta}>Combustible</label>
+          <select value={f.combustible} onChange={cambiar("combustible")} style={inputStyle}>
+            {COMBUSTIBLES_FLOTA.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </div>
+        {Campo({ campo: "km_actuales", texto: "Kilómetros actuales", inputMode: "numeric" })}
+        {Campo({ campo: "fecha_matriculacion", texto: "Fecha de matriculación", tipo: "date" })}
+
+        <div style={grupo}>ITV y seguro</div>
+        {Campo({ campo: "proxima_itv", texto: "Próxima ITV (la pone la pegatina)", tipo: "date" })}
+        {Campo({ campo: "seguro_compania", texto: "Compañía del seguro" })}
+        {Campo({ campo: "seguro_poliza", texto: "Nº de póliza" })}
+        {Campo({ campo: "seguro_vence", texto: "El seguro vence el", tipo: "date" })}
+
+        <div style={grupo}>Mantenimiento</div>
+        {Campo({ campo: "intervalo_mant_km", texto: "Cada cuántos km (ej. 15000)", inputMode: "numeric" })}
+        {Campo({ campo: "intervalo_mant_meses", texto: "o cada cuántos meses (ej. 12)", inputMode: "numeric" })}
+        {Campo({ campo: "proximo_mant_km", texto: "Próximo mantenimiento a los km", inputMode: "numeric" })}
+        {Campo({ campo: "proximo_mant_fecha", texto: "Próximo mantenimiento (fecha)", tipo: "date" })}
+
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={etiqueta}>Notas (neumáticos, tipo de aceite, llaves...)</label>
+          <textarea value={f.notas} onChange={cambiar("notas")} rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+        </div>
+        {editando && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={f.activo} onChange={(e) => setF((p) => ({ ...p, activo: e.target.checked }))} style={{ width: 16, height: 16 }} />
+            En uso (quítalo si ya no es de la empresa)
+          </label>
+        )}
+      </div>
+      {!editando && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 10 }}>Si pones «cada cuántos km» y no el próximo, se calcula solo desde los km actuales.</div>}
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginTop: 10 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+        <button onClick={onCancelar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "9px 16px" }}>Cancelar</button>
+        <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "9px 18px" }}>
+          {guardando ? "Guardando..." : editando ? "Guardar cambios" : "Añadir vehículo"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FichaVehiculo({ id, onVolver, onCambio }) {
+  const [v, setV] = useState(null);
+  const [error, setError] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [registrando, setRegistrando] = useState(null); // tipo de registro abierto
+  const [filtro, setFiltro] = useState("");
+  const [kmNuevo, setKmNuevo] = useState("");
+  const [guardandoKm, setGuardandoKm] = useState(false);
+
+  const cargar = useCallback(async () => {
+    try { setV(await apiGet(`/flota/vehiculos/${id}`)); }
+    catch (e) { setError(`No se pudo abrir el vehículo: ${e.message}`); }
+  }, [id]);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  async function guardarKm() {
+    const km = parseInt(String(kmNuevo).replace(/\D/g, ""), 10);
+    if (!(km >= 0)) return;
+    if (km < v.km_actuales && !window.confirm(`Pones menos km (${km.toLocaleString("es-ES")}) de los que tenía (${v.km_actuales.toLocaleString("es-ES")}). ¿Seguro?`)) return;
+    setGuardandoKm(true);
+    try { setV(await apiPatch(`/flota/vehiculos/${id}`, { km_actuales: km })); setKmNuevo(""); onCambio?.(); }
+    catch (e) { window.alert(e.message); }
+    finally { setGuardandoKm(false); }
+  }
+
+  async function borrarRegistro(r) {
+    const extra = r.en_caja ? "\n\nSu gasto en Caja se ANULARÁ (queda constancia, no se borra)." : "";
+    if (!window.confirm(`¿Borrar este registro de ${TIPO_FLOTA[r.tipo]?.label || r.tipo} del ${fechaDia(r.fecha)}?${extra}`)) return;
+    try { const res = await borrarEnApi(`/flota/registros/${r.id}`); setV(res.vehiculo); onCambio?.(); }
+    catch (e) { window.alert(e.message); }
+  }
+
+  async function eliminarVehiculo() {
+    if (!window.confirm("¿Borrar este vehículo? Solo es para vehículos añadidos por error. Si ya no es de la empresa, mejor edítalo y quita «En uso».")) return;
+    try { await borrarEnApi(`/flota/vehiculos/${id}`); onCambio?.(); onVolver(); }
+    catch (e) { window.alert(e.message); }
+  }
+
+  const volver = (
+    <button onClick={onVolver} style={{ background: "none", border: "none", color: COLORS.amber, cursor: "pointer", fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 12 }}>
+      ← Todos los vehículos
+    </button>
+  );
+  if (error) return <div>{volver}<div style={{ fontSize: 13, color: COLORS.rust }}>{error}</div></div>;
+  if (!v) return <div>{volver}<div style={{ fontSize: 13, color: COLORS.textDim }}>Cargando...</div></div>;
+
+  const tarjeta = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16 };
+  const registros = filtro ? v.registros.filter((r) => r.tipo === filtro) : v.registros;
+  const tiposConGasto = Object.entries(v.gasto_anio_por_tipo || {}).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div>
+      {volver}
+      {editando ? (
+        <FormularioVehiculo inicial={v} onCancelar={() => setEditando(false)} onGuardado={(nuevo) => { setEditando(false); setV(nuevo); onCambio?.(); }} />
+      ) : (
+        <div style={{ ...tarjeta, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
+              <PlacaMatricula matricula={v.matricula} grande />
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700 }}>{[v.marca, v.modelo].filter(Boolean).join(" ") || "Vehículo"}{!v.activo && <span style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600 }}> · De baja</span>}</div>
+                <div style={{ fontSize: 12.5, color: COLORS.textDim }}>
+                  {[v.anio, COMBUSTIBLES_FLOTA.find(([k]) => k === v.combustible)?.[1], v.seguro_compania && `Seguro: ${v.seguro_compania}${v.seguro_poliza ? ` (${v.seguro_poliza})` : ""}`].filter((x) => x && x !== "—").join(" · ")}
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setEditando(true)} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>
+              <Pencil size={14} /> Editar
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 18, alignItems: "flex-end", margin: "16px 0 14px" }}>
+            <div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, fontWeight: 600 }}>KILÓMETROS</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, fontWeight: 700 }}>{(v.km_actuales || 0).toLocaleString("es-ES")}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input value={kmNuevo} onChange={(e) => setKmNuevo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guardarKm()} inputMode="numeric" placeholder="Km de hoy" aria-label="Kilómetros de hoy" style={{ width: 120, fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}` }} />
+              <button disabled={guardandoKm || !kmNuevo} onClick={guardarKm} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", padding: "8px 12px", fontSize: 12.5 }}>Actualizar km</button>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, color: COLORS.textDim, fontWeight: 600 }}>GASTO ESTE AÑO</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: COLORS.amber }}>{eurosMant(v.gasto_anio)}</div>
+            </div>
+            {v.consumo_medio != null && (
+              <div>
+                <div style={{ fontSize: 11.5, color: COLORS.textDim, fontWeight: 600 }}>CONSUMO MEDIO</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700 }}>{String(v.consumo_medio).replace(".", ",")} <span style={{ fontSize: 12, color: COLORS.textDim }}>l/100 km</span></div>
+              </div>
+            )}
+          </div>
+
+          <FechasClaveFlota v={v} />
+          {(v.intervalo_mant_km || v.intervalo_mant_meses) && (
+            <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 8 }}>
+              Mantenimiento cada {[v.intervalo_mant_km && kmTexto(v.intervalo_mant_km), v.intervalo_mant_meses && `${v.intervalo_mant_meses} meses`].filter(Boolean).join(" o ")} (lo que llegue antes).
+            </div>
+          )}
+          {tiposConGasto.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+              {tiposConGasto.map(([tipo, total]) => (
+                <span key={tipo} style={{ fontSize: 11.5, borderRadius: 999, padding: "3px 9px", background: `${TIPO_FLOTA[tipo]?.color || COLORS.textDim}18`, color: TIPO_FLOTA[tipo]?.color || COLORS.textDim, fontWeight: 600 }}>
+                  {TIPO_FLOTA[tipo]?.label || tipo}: {eurosMant(total)}
+                </span>
+              ))}
+            </div>
+          )}
+          {v.notas && <div style={{ fontSize: 12.5, marginTop: 12, whiteSpace: "pre-wrap", color: COLORS.textDim }}>{v.notas}</div>}
+        </div>
+      )}
+
+      {/* Registrar algo */}
+      <div style={{ ...tarjeta, marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Registrar</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {TIPOS_REGISTRO_FLOTA.map((t) => (
+            <button key={t.key} onClick={() => setRegistrando(registrando === t.key ? null : t.key)}
+              style={{ ...btnStyle(registrando === t.key ? t.color : "transparent", registrando === t.key ? "#FFFFFF" : t.color, t.color), flex: "none", padding: "7px 12px", fontSize: 12.5 }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {registrando && (
+          <FormularioRegistroVehiculo
+            key={registrando}
+            tipo={registrando}
+            vehiculo={v}
+            onCancelar={() => setRegistrando(null)}
+            onGuardado={(nuevo) => { setRegistrando(null); setV(nuevo); onCambio?.(); }}
+          />
+        )}
+      </div>
+
+      {/* Historial */}
+      <div style={tarjeta}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Historial</div>
+          <select value={filtro} onChange={(e) => setFiltro(e.target.value)} aria-label="Filtrar historial" style={{ fontSize: 12.5, padding: "6px 9px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}>
+            <option value="">Todo</option>
+            {TIPOS_REGISTRO_FLOTA.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+          </select>
+        </div>
+        {registros.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Nada registrado todavía.</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {registros.map((r) => {
+            const t = TIPO_FLOTA[r.tipo] || { label: r.tipo, color: COLORS.textDim };
+            const detalles = [
+              r.km != null && kmTexto(r.km),
+              r.litros != null && `${String(r.litros).replace(".", ",")} l`,
+              r.resultado && `Resultado: ${r.resultado}`,
+              r.lugar,
+            ].filter(Boolean).join(" · ");
+            return (
+              <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", borderLeft: `3px solid ${t.color}`, background: COLORS.surfaceRaised, borderRadius: 8, padding: "9px 12px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: t.color }}>{t.label}</span>
+                    <span style={{ fontSize: 12, color: COLORS.textDim }}>{fechaDia(r.fecha)}</span>
+                    {r.en_caja && <span style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.green, background: `${COLORS.green}18`, borderRadius: 999, padding: "1px 7px" }}>En Caja</span>}
+                  </div>
+                  {detalles && <div style={{ fontSize: 12, color: COLORS.textDim, marginTop: 2 }}>{detalles}</div>}
+                  {r.descripcion && <div style={{ fontSize: 12.5, marginTop: 3, whiteSpace: "pre-wrap" }}>{r.descripcion}</div>}
+                </div>
+                {r.coste != null && <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>{eurosMant(r.coste)}</span>}
+                <button onClick={() => borrarRegistro(r)} title="Borrar registro" aria-label="Borrar registro" style={{ background: "none", border: "none", color: COLORS.textDim, cursor: "pointer", padding: 2 }}><Trash2 size={14} /></button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 22, textAlign: "right" }}>
+        <button onClick={eliminarVehiculo} style={{ background: "none", border: "none", color: COLORS.rust, fontSize: 12, cursor: "pointer" }}>
+          Borrar vehículo (solo si se añadió por error)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FormularioRegistroVehiculo({ tipo, vehiculo, onCancelar, onGuardado }) {
+  const hoy = hoyLocalISO();
+  const sugerenciaProxima = () => {
+    if (tipo === "itv") return sumarDiasISO(hoy, 365);
+    if (tipo === "seguro") return sumarDiasISO(hoy, 365);
+    if (tipo === "mantenimiento" && vehiculo.intervalo_mant_meses) return sumarMesesISO(hoy, vehiculo.intervalo_mant_meses);
+    return "";
+  };
+  const [f, setF] = useState({
+    fecha: hoy,
+    km: "",
+    coste: "",
+    litros: "",
+    resultado: "favorable",
+    lugar: "",
+    descripcion: "",
+    proxima_fecha: sugerenciaProxima(),
+    proximo_km: "",
+    seguro_compania: vehiculo.seguro_compania || "",
+    apuntar_en_caja: true,
+    metodo_pago: "tarjeta",
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const cambiar = (campo) => (e) => setF((p) => ({ ...p, [campo]: e.target.value }));
+  const inputStyle = { width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4, fontFamily: "inherit", background: "#FFFFFF" };
+  const etiqueta = { fontSize: 12, color: COLORS.textDim, fontWeight: 600 };
+  const t = TIPO_FLOTA[tipo];
+
+  // ITV desfavorable: hay 2 meses para volver; con resultado favorable, la próxima suele ser en 1 o 2 años
+  function cambiarResultado(e) {
+    const resultado = e.target.value;
+    setF((p) => ({ ...p, resultado, proxima_fecha: resultado === "favorable" ? sumarDiasISO(p.fecha, 365) : sumarMesesISO(p.fecha, 2) }));
+  }
+  // Mantenimiento: al escribir los km, propone el próximo según "cada cuántos km"
+  const kmPropuesto = tipo === "mantenimiento" && vehiculo.intervalo_mant_km
+    ? (parseInt(String(f.km).replace(/\D/g, ""), 10) || vehiculo.km_actuales || 0) + vehiculo.intervalo_mant_km
+    : null;
+
+  async function guardar() {
+    setError("");
+    if (tipo === "combustible" && !f.litros && !f.coste) { setError("Pon al menos los litros o el importe."); return; }
+    setGuardando(true);
+    try {
+      const datos = {
+        tipo,
+        fecha: f.fecha,
+        km: f.km.trim() ? f.km.replace(/\D/g, "") : null,
+        coste: f.coste.trim() ? f.coste : null,
+        litros: tipo === "combustible" && f.litros.trim() ? f.litros : null,
+        resultado: tipo === "itv" ? f.resultado : null,
+        lugar: f.lugar,
+        descripcion: f.descripcion,
+        proxima_fecha: ["itv", "seguro", "mantenimiento"].includes(tipo) ? f.proxima_fecha || null : null,
+        proximo_km: tipo === "mantenimiento" ? (f.proximo_km.trim() ? f.proximo_km.replace(/\D/g, "") : null) : null,
+        seguro_compania: tipo === "seguro" ? f.seguro_compania : undefined,
+        apuntar_en_caja: f.apuntar_en_caja,
+        metodo_pago: f.metodo_pago,
+      };
+      const res = await apiPost(`/flota/vehiculos/${vehiculo.id}/registros`, datos);
+      onGuardado(res.vehiculo);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const lugarTexto = { itv: "Estación ITV", mantenimiento: "Taller", reparacion: "Taller", combustible: "Gasolinera", seguro: "", impuesto: "Ayuntamiento", otro: "Dónde" }[tipo];
+
+  return (
+    <div style={{ marginTop: 14, borderTop: `3px solid ${t.color}`, background: COLORS.surfaceRaised, borderRadius: 10, padding: 14 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: t.color, marginBottom: 10 }}>{t.label}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+        <div><label style={etiqueta}>Fecha</label><input type="date" value={f.fecha} max={hoy} onChange={cambiar("fecha")} style={inputStyle} /></div>
+        {tipo !== "seguro" && tipo !== "impuesto" && (
+          <div><label style={etiqueta}>Km del vehículo</label><input value={f.km} onChange={cambiar("km")} inputMode="numeric" placeholder={String(vehiculo.km_actuales || "")} style={inputStyle} /></div>
+        )}
+        {tipo === "combustible" && (
+          <div><label style={etiqueta}>Litros</label><input value={f.litros} onChange={cambiar("litros")} inputMode="decimal" style={inputStyle} /></div>
+        )}
+        <div><label style={etiqueta}>{tipo === "combustible" ? "Importe (€)" : "Coste (€)"}</label><input value={f.coste} onChange={cambiar("coste")} inputMode="decimal" placeholder="0" style={inputStyle} /></div>
+        {tipo === "itv" && (
+          <div>
+            <label style={etiqueta}>Resultado</label>
+            <select value={f.resultado} onChange={cambiarResultado} style={inputStyle}>
+              <option value="favorable">Favorable</option>
+              <option value="desfavorable">Desfavorable (hay que volver)</option>
+              <option value="negativa">Negativa</option>
+            </select>
+          </div>
+        )}
+        {tipo === "seguro" && (
+          <div><label style={etiqueta}>Compañía</label><input value={f.seguro_compania} onChange={cambiar("seguro_compania")} style={inputStyle} /></div>
+        )}
+        {lugarTexto && <div><label style={etiqueta}>{lugarTexto}</label><input value={f.lugar} onChange={cambiar("lugar")} maxLength={100} style={inputStyle} /></div>}
+        {["itv", "seguro", "mantenimiento"].includes(tipo) && (
+          <div>
+            <label style={etiqueta}>{tipo === "itv" ? "Próxima ITV" : tipo === "seguro" ? "El seguro nuevo vence el" : "Próximo mantenimiento (fecha)"}</label>
+            <input type="date" value={f.proxima_fecha} onChange={cambiar("proxima_fecha")} style={inputStyle} />
+          </div>
+        )}
+        {tipo === "mantenimiento" && (
+          <div>
+            <label style={etiqueta}>Próximo mantenimiento (km)</label>
+            <input value={f.proximo_km} onChange={cambiar("proximo_km")} inputMode="numeric" placeholder={kmPropuesto ? `${kmPropuesto.toLocaleString("es-ES")} (automático)` : ""} style={inputStyle} />
+          </div>
+        )}
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={etiqueta}>{tipo === "mantenimiento" || tipo === "reparacion" ? "Qué se hizo" : "Notas"}</label>
+          <textarea value={f.descripcion} onChange={cambiar("descripcion")} rows={2} placeholder={tipo === "mantenimiento" ? "Aceite, filtros, pastillas de freno..." : ""} style={{ ...inputStyle, resize: "vertical" }} />
+        </div>
+      </div>
+      {tipo === "itv" && <div style={{ fontSize: 11.5, color: COLORS.textDim, marginTop: 8 }}>La fecha de la próxima ITV viene en la pegatina y en el informe. Si es desfavorable, hay 2 meses para volver.</div>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, cursor: "pointer" }}>
+          <input type="checkbox" checked={f.apuntar_en_caja} onChange={(e) => setF((p) => ({ ...p, apuntar_en_caja: e.target.checked }))} style={{ width: 16, height: 16 }} />
+          Apuntar el coste como gasto en Caja
+        </label>
+        {f.apuntar_en_caja && (
+          <select value={f.metodo_pago} onChange={cambiar("metodo_pago")} aria-label="Cómo se pagó" style={{ fontSize: 12.5, padding: "6px 9px", borderRadius: 7, border: `1px solid ${COLORS.line}` }}>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="bizum">Bizum</option>
+          </select>
+        )}
+      </div>
+      {error && <div style={{ fontSize: 12.5, color: COLORS.rust, marginTop: 8 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+        <button onClick={onCancelar} style={{ ...btnStyle("transparent", COLORS.textDim, COLORS.line), flex: "none", padding: "8px 14px" }}>Cancelar</button>
+        <button disabled={guardando} onClick={guardar} style={{ ...btnStyle(t.color, "#FFFFFF"), flex: "none", padding: "8px 16px" }}>{guardando ? "Guardando..." : "Guardar"}</button>
+      </div>
+    </div>
+  );
+}
+
 function PlantillasView() {
   const [plantillas, setPlantillas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -8090,7 +7262,7 @@ function PlantillasView() {
               <div style={{ fontSize: 13, color: COLORS.text, fontWeight: 500 }}>{p.nombre}</div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
                 {p.estado_disparador && (
-                  <span style={{ fontSize: 10.5, color: COLORS.amber, background: COLORS.tintAmbar, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 10.5, color: COLORS.amber, background: "#FFFBEB", padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>
                     Auto: {NOMBRES_ESTADOS_PLANTILLA[p.estado_disparador]}
                   </span>
                 )}
@@ -8342,6 +7514,31 @@ const MANUAL_SECCIONES = [
     ],
   },
   {
+    id: "flota", icono: "🚐", titulo: "Flota (vehículos de la empresa)",
+    bloques: [
+      { t: "p", x: "Para tener controlado el vehículo de la empresa: ITV, seguro, mantenimiento, reparaciones, combustible y lo que cuesta al año." },
+      { t: "pasos", titulo: "Dar de alta un vehículo", x: [
+        "Menú Flota → Añadir vehículo.",
+        "Matrícula, marca, modelo, año, combustible y los km que tiene ahora.",
+        "Próxima ITV (viene en la pegatina) y cuándo vence el seguro.",
+        "Mantenimiento: cada cuántos km y/o cada cuántos meses (lo dice el libro de mantenimiento o tu taller).",
+      ] },
+      { t: "lista", titulo: "En la ficha del vehículo", x: [
+        "Tres avisos de color: ITV, Seguro y Mantenimiento. Verde = bien, naranja = faltan 30 días o 1.000 km o menos, rojo = pasado.",
+        "Actualizar km: escribe los km del cuentakilómetros de vez en cuando para que el aviso del mantenimiento por km sea exacto.",
+        "Registrar: ITV, Mantenimiento, Repostaje, Reparación, Seguro, Impuesto u Otro gasto.",
+        "Al registrar una ITV se pone la fecha de la próxima. Si sale desfavorable, propone volver en 2 meses.",
+        "Al registrar un mantenimiento, el próximo se calcula solo (km + cada cuántos km, fecha + cada cuántos meses). Puedes cambiarlo.",
+        "Al renovar el seguro, pon la nueva fecha de vencimiento y deja de avisar.",
+        "Repostajes con km y litros: calcula el consumo medio (litros cada 100 km).",
+        "Apuntar el coste como gasto en Caja: viene marcado; así los gastos del vehículo cuentan en Caja e Informes.",
+        "Si borras un registro que estaba en Caja, su gasto se anula (no se borra) para que cuadren las cuentas.",
+        "La campanita avisa de la ITV, el seguro y el mantenimiento cuando están cerca o pasados.",
+        "Si el vehículo deja de ser de la empresa, edítalo y quita «En uso»: se guarda su historial y deja de avisar.",
+      ] },
+    ],
+  },
+  {
     id: "caja", icono: "🏦", titulo: "Caja",
     bloques: [
       { t: "p", x: "Todos los cobros y gastos del negocio: los de las reparaciones y los que apuntes a mano (por ejemplo, la compra de material)." },
@@ -8466,7 +7663,7 @@ function BloqueManual({ b }) {
   if (b.t === "p") return <p style={estiloTexto}>{b.x}</p>;
   if (b.t === "nota") {
     return (
-      <div style={{ display: "flex", gap: 8, fontSize: 12.5, lineHeight: 1.55, color: "#1E3A8A", background: COLORS.tintAzul, border: "1px solid #BFDBFE", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
+      <div style={{ display: "flex", gap: 8, fontSize: 12.5, lineHeight: 1.55, color: "#1E3A8A", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
         <span aria-hidden="true">💡</span><span>{b.x}</span>
       </div>
     );
@@ -9437,15 +8634,14 @@ function FirztnetPanel({ onCerrarSesion }) {
     const DIAS_RETRASO = 5; // más de 5 días sin moverse, sin estar entregada/no reparable, cuenta como retrasada
 
     const activas = reparaciones.filter((r) => !["entregado", "no_reparable", "completado"].includes(r.estado_actual));
-    const retrasadasLista = activas.filter((r) => {
+    const retrasadas = activas.filter((r) => {
       if (r.urgente) return true;
       // Visita in situ con fecha: solo cuenta como retrasada si ese día ya pasó
       if (fechaVisita(r)) return diasNaturalesDesde(fechaVisita(r)) >= 1;
       if (!r.fecha_recepcion) return false;
       const dias = (HOY - new Date(r.fecha_recepcion)) / (1000 * 60 * 60 * 24);
       return dias > DIAS_RETRASO;
-    });
-    const retrasadas = retrasadasLista.length;
+    }).length;
 
     // Tiempo medio: reparaciones entregadas en los últimos 30 días (así no se queda vacío a principio de mes)
     const hace30Dias = HOY.getTime() - 30 * 24 * 60 * 60 * 1000;
@@ -9460,7 +8656,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       tiempoMedioDias = sumaDias / completadasEsteMes.length;
     }
 
-    return { retrasadas, retrasadasLista, tiempoMedioDias };
+    return { retrasadas, tiempoMedioDias };
   }, [reparaciones]);
 
   const [numClientes, setNumClientes] = useState(null); // tarjeta "Clientes" (sin los eliminados por RGPD)
@@ -9534,10 +8730,6 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [menuAbierto]);
 
   const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
-  const [temaInicio, setTemaInicio] = useState(temaGuardado);
-  aplicarPaleta(temaInicio);
-  useEffect(() => () => aplicarPaleta("dia"), []); // al salir (p. ej. cerrar sesión), vuelve el claro
-  const cambiarTemaInicio = (t) => { setTemaInicio(t); try { localStorage.setItem("fz-tema-inicio", t); } catch { /* sin almacenamiento */ } };
   useEffect(() => {
     if (vista !== "reparaciones") return;
     apiGet("/repuestos").then((lista) => setStockBajoTarjeta(lista.filter((r) => r.stock_bajo).length)).catch(() => {});
@@ -9663,12 +8855,11 @@ function FirztnetPanel({ onCerrarSesion }) {
   }
 
   return (
-    <div className="fz-raiz" data-tema={temaInicio} style={{ colorScheme: temaInicio === "dia" ? "light" : "dark",
+    <div style={{
       minHeight: "100vh", color: COLORS.text, fontFamily: "Inter, sans-serif",
       background: `radial-gradient(circle at 15% 20%, ${COLORS.amber}4D, transparent 65%), radial-gradient(circle at 85% 15%, ${COLORS.violet}4D, transparent 65%), radial-gradient(circle at 50% 95%, ${COLORS.green}45, transparent 65%), ${COLORS.bg}`,
     }}>
       <link rel="stylesheet" href={FONTS_URL} />
-      <FondoInicio />
       <style>{`
         @keyframes fnPuntoActivo {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.green}55; }
@@ -9677,8 +8868,6 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-punto-activo {
           animation: fnPuntoActivo 2s ease-in-out infinite;
         }
-        @keyframes fnGirando { to { transform: rotate(360deg); } }
-        .fn-girando { animation: fnGirando 0.9s linear infinite; }
         @keyframes fnLogoGlow {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.amber}55; }
           50% { box-shadow: 0 0 16px 3px ${COLORS.amber}66; }
@@ -9903,7 +9092,7 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
       `}</style>
 
-      <div className="fn-shell" key={temaInicio} style={{ display: "flex" }}>
+      <div className="fn-shell" style={{ display: "flex" }}>
         {menuAbierto && (
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
@@ -9915,6 +9104,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
             { key: "clientes", icon: Users, label: "Clientes", movil: "principal" },
             { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos", movil: "mas" },
+            { key: "flota", icon: Car, label: "Flota", movil: "mas" },
             { key: "reportes", icon: FileBarChart, label: "Reportes", movil: "mas" },
             { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
             { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
@@ -9927,13 +9117,6 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
             { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
             { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
-            { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando", movil: "mas" },
-            { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas" },
-            { key: "informes-mensuales", icon: FileText, label: "Informes mensuales", movil: "mas" },
-            { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo", movil: "mas" },
-            { key: "cobros", icon: Banknote, label: "Cobros", movil: "mas" },
-            { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
-            { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
             { key: "ajustes", icon: Settings, label: "Ajustes", movil: "principal" },
           ].map((item) => (
@@ -9971,6 +9154,7 @@ function FirztnetPanel({ onCerrarSesion }) {
               <div style={{ width: 36, height: 4, background: COLORS.menuBorde, borderRadius: 999, margin: "0 auto 16px" }} />
               {[
                 { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos" },
+                { key: "flota", icon: Car, label: "Flota" },
                 { key: "reportes", icon: FileBarChart, label: "Reportes" },
                 { key: "inventario", icon: Package, label: "Inventario" },
                 { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
@@ -9982,13 +9166,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
                 { key: "conocimiento", icon: Search, label: "Base conocimiento" },
                 { key: "recordatorios", icon: Bell, label: "Recordatorios" },
-                { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando" },
-                { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas" },
-                { key: "informes-mensuales", icon: FileText, label: "Informes mensuales" },
-                { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo" },
-                { key: "cobros", icon: Banknote, label: "Cobros" },
-                { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
-                { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
               ].map((item) => (
                 <div
@@ -10049,14 +9226,14 @@ function FirztnetPanel({ onCerrarSesion }) {
               <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
             </div>
           </div>
-          <div>
-          {vista !== "reparaciones" && (
+          <div style={vista === "reparaciones" ? { background: `${COLORS.bg} ${PATRON_CIRCUITO}`, backgroundSize: "200px 200px", borderRadius: 16, padding: "18px 20px", marginBottom: 4 } : undefined}>
           <div className="fn-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
             <div>
               <h1 style={{ fontFamily: "Oswald", fontSize: 24, margin: 0, letterSpacing: 0.3 }}>
                 {vista === "reparaciones" && "Panel de reparaciones"}
                 {vista === "clientes" && "Clientes"}
                 {vista === "mantenimientos" && "Mantenimientos"}
+                {vista === "flota" && "Flota"}
                 {vista === "buscar" && "Buscar órdenes"}
                 {vista === "reportes" && "Reportes"}
                 {vista === "inventario" && "Inventario"}
@@ -10070,13 +9247,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "plantillas" && "Plantillas"}
                 {vista === "conocimiento" && "Base de conocimiento"}
                 {vista === "recordatorios" && "Recordatorios"}
-                {vista === "cuadro" && "Cuadro de mando de tu negocio"}
-                {vista === "clientes-sistemas" && "Clientes de tus sistemas"}
-                {vista === "informes-mensuales" && "Informes mensuales de visitas"}
-                {vista === "riesgo" && "Clientes que podrías perder"}
-                {vista === "cobros" && "Cobros de cuotas"}
-                {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
-                {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
                 {vista === "ajustes" && "Ajustes"}
               </h1>
@@ -10084,17 +9254,22 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <span style={{ color: COLORS.textDim, fontSize: 13 }}>{cargando ? "Cargando..." : `${reparaciones.length} reparaciones cargadas`}</span>
               )}
             </div>
+            {vista === "reparaciones" && (
+              <div className="fn-header-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />
+              </div>
+            )}
           </div>
-          )}
 
           {errorCarga && (
-            <div style={{ background: COLORS.tintRojo, border: `1px solid ${COLORS.rust}`, color: COLORS.tintRojoTx, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
+            <div style={{ background: "#FEF2F2", border: `1px solid ${COLORS.rust}`, color: "#991B1B", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
               {errorCarga}
             </div>
           )}
 
           {vista === "clientes" && <ClientesView />}
           {vista === "mantenimientos" && <MantenimientosView onCambio={cargarTodo} />}
+          {vista === "flota" && <FlotaView onCambio={cargarTodo} />}
           {vista === "reportes" && (
             <ReportesView
               reporteDiario={reporteDiario} reporteMensual={reporteMensual} contador={contador} tendencia={tendencia}
@@ -10112,48 +9287,75 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "plantillas" && <PlantillasView />}
           {vista === "conocimiento" && <ConocimientoView />}
           {vista === "recordatorios" && <RecordatoriosView />}
-          {vista === "cuadro" && <CuadroMandoView onIrVista={setVista} />}
-          {vista === "clientes-sistemas" && <ClientesSistemasView />}
-          {vista === "informes-mensuales" && <InformesMensualesView />}
-          {vista === "riesgo" && <RiesgoView />}
-          {vista === "cobros" && <CobrosView />}
-          {vista === "estado-sistemas" && <EstadoSistemasView />}
-          {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
           {vista === "ajustes" && <AjustesView />}
 
           {vista === "reparaciones" && (
-            <InicioTaller
-              nombre={nombreUsuarioDelToken()}
-              tema={temaInicio}
-              onTema={cambiarTemaInicio}
-              reparaciones={reparaciones}
-              etapas={stagesFor(vistaTrabajo)}
-              vistaTrabajo={vistaTrabajo}
-              selectorTrabajo={<SelectorTipoTrabajo valor={vistaTrabajo} onCambiar={setVistaTrabajo} />}
-              reporteMensual={reporteMensual}
-              reporteDiario={reporteDiario}
-              tendencia={tendencia}
-              retrasadasLista={metricasEficiencia.retrasadasLista}
-              tiempoMedioDias={metricasEficiencia.tiempoMedioDias}
-              numClientes={numClientes}
-              resumenMant={resumenMant}
-              stockBajo={stockBajoTarjeta}
-              cargando={cargando}
-              onNueva={() => setMostrarNueva(true)}
-              onBuscar={() => { setVista("buscar"); setMenuAbierto(false); }}
-              onIrVista={setVista}
-              onAbrir={(t) => setSelected(t)}
-              onEtapa={(key) => { setFiltroEstado(key); setVista("buscar"); }}
+          <div className="fn-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+            <StatCard alta label="Reparaciones totales" value={contador.total} icon={Ticket} accent={COLORS.amber} onClick={() => setFiltroEstadoResumen(null)} activa={filtroEstadoResumen === null} />
+            <StatCard alta label="En curso" value={contador.en_curso} icon={CircleDot} accent={COLORS.teal} onClick={() => setFiltroEstadoResumen((v) => (v === "en_curso" ? null : "en_curso"))} activa={filtroEstadoResumen === "en_curso"} />
+            <StatCard alta label="Entregadas" value={contador.entregadas} icon={ShieldCheck} accent={COLORS.green} onClick={() => setFiltroEstadoResumen((v) => (v === "entregadas" ? null : "entregadas"))} activa={filtroEstadoResumen === "entregadas"} />
+            <StatCard alta label="Clientes" value={numClientes ?? "—"} sub="sin contar los eliminados" icon={Users} accent={COLORS.statusAmber} onClick={() => setVista("clientes")} />
+            <StatCard alta label="Retrasadas / urgentes" value={metricasEficiencia.retrasadas} sub="urgentes o +5 días" icon={Flame} accent={COLORS.rust} />
+            <StatCard
+              alta
+              label="Mantenimientos"
+              value={resumenMant ? resumenMant.activos : "—"}
+              sub={!resumenMant ? "contratos activos"
+                : resumenMant.sinCobrar > 0 ? `${resumenMant.sinCobrar} ${resumenMant.sinCobrar === 1 ? "cuota" : "cuotas"} del mes sin cobrar`
+                : resumenMant.activos > 0 ? "cuotas del mes cobradas"
+                : resumenMant.pendientes > 0 ? `${resumenMant.pendientes} por confirmar` : "sin contratos"}
+              icon={CalendarCheck}
+              accent={COLORS.violet}
+              onClick={() => setVista("mantenimientos")}
             />
+            <StatCard
+              alta
+              label="Sistemas"
+              value=""
+              sub="sistemas.firztnet.es"
+              icon={LayoutGrid}
+              accent={COLORS.pink}
+              onClick={() => window.open("https://sistemas.firztnet.es", "_blank", "noopener")}
+            />
+            <StatCard
+              alta
+              label="Este mes"
+              value={textoBalanceMes}
+              sub={`Ingresos ${fmtEur(reporteMensual.ingresos)} · Gastos ${fmtEur(reporteMensual.gastos)}`}
+              icon={FileBarChart}
+              accent={COLORS.slate}
+              tamValor={tamDinero(textoBalanceMes)}
+              onClick={() => setVista("reportes")}
+            />
+            <StatCard
+              alta
+              label="Stock"
+              value={stockBajoTarjeta ?? "—"}
+              sub={stockBajoTarjeta === null ? "comprobando…" : stockBajoTarjeta === 0 ? "todo en orden" : stockBajoTarjeta === 1 ? "repuesto con stock bajo" : "repuestos con stock bajo"}
+              icon={Package}
+              accent={COLORS.brown}
+              onClick={() => setVista("inventario")}
+            />
+            <StatCard
+              alta
+              label="Nueva reparación"
+              clase="fn-tarjeta-nueva"
+              value="+"
+              sub="registrar un equipo"
+              icon={Plus}
+              accent={COLORS.fuchsia}
+              onClick={() => setMostrarNueva(true)}
+            />
+          </div>
           )}
           </div>
 
           {vista === "reparaciones" && (
           <>
-          <div style={{ height: 4 }} />
+          <div style={{ height: 22 }} />
           {/* Las tablas ocupan todo el ancho; los avisos van debajo (antes iban en una columna a la derecha y estrechaban las tablas) */}
-          <div className="fz-tablas" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ minWidth: 0 }}>
               <TablaOrdenesActivas reparaciones={reparaciones} onAbrir={(t) => setSelected(t)} onHover={handleHoverPreview} onCambio={cargarTodo} />
 
