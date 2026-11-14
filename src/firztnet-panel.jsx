@@ -1129,7 +1129,7 @@ function LogoAnimado() {
     <div
       onMouseEnter={() => setEncima(true)}
       onMouseLeave={() => setEncima(false)}
-      style={{ width: "100%", maxWidth: 240, padding: "6px 0" }}
+      style={{ width: "50%", maxWidth: 120, margin: "0 auto", padding: "6px 0" }}
     >
       <div className="fn-logo-entrada">
         <div
@@ -10883,7 +10883,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
         <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 275, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
-          <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
+          <div className="fn-logo" style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
             <LogoAnimado key={menuAbierto ? "abierto" : "cerrado"} />
           </div>
           {MENU_GRUPOS.map((item, i) => {
