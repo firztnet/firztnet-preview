@@ -24,7 +24,7 @@
 .fz-num{font-family:"JetBrains Mono","IBM Plex Mono",monospace;letter-spacing:-.03em}
 
 .fz-hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px}
-.fz-saludo{padding:24px 26px;position:relative}
+.fz-saludo{padding:24px 26px;position:relative;z-index:3} /* por encima de la tarjeta de ingresos: su desplegable (Taller / In situ) no queda tapado */
 .fz-saludo small{color:var(--tx2);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .fz-saludo h1{margin:6px 0 10px;font-size:36px;line-height:1.08;font-weight:800;letter-spacing:-.025em;color:var(--tx)}
 .fz-saludo h1 em{font-style:normal;background:linear-gradient(90deg,var(--ac),var(--ac2),var(--vio));-webkit-background-clip:text;background-clip:text;color:transparent}

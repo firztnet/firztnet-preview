@@ -1117,7 +1117,7 @@ function SelectorTipoTrabajo({ valor, onCambiar }) {
               key={o.key}
               type="button"
               onClick={() => { onCambiar(o.key); setAbierto(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "10px 14px", background: o.key === valor ? o.color : "#FFFFFF", color: o.key === valor ? "#FFFFFF" : COLORS.text, border: "none", cursor: "pointer", fontSize: 13, fontWeight: o.key === valor ? 600 : 500, textAlign: "left" }}
+              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "10px 14px", background: o.key === valor ? o.color : COLORS.surface, color: o.key === valor ? "#FFFFFF" : COLORS.text, border: "none", cursor: "pointer", fontSize: 13, fontWeight: o.key === valor ? 600 : 500, textAlign: "left" }}
             >
               <o.icon size={15} />
               {o.label}
