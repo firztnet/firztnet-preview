@@ -10345,6 +10345,32 @@ const MENU_GRUPOS = [
 ];
 const grupoDeVista = (v) => MENU_GRUPOS.find((g) => g.pestanas.some(([k]) => k === v));
 
+// Cada sección del menú con su color e icono, para que se distingan de las opciones
+const ESTILO_SECCION = {
+  "Taller": { color: "#3B82F6", icono: Wrench },
+  "Mi empresa": { color: "#10B981", icono: Store },
+  "Firztnet": { color: "#F59E0B", icono: ShieldCheck },
+};
+function TituloSeccionMenu({ seccion, primera, className, compacto }) {
+  const { color, icono: Icono } = ESTILO_SECCION[seccion] || { color: COLORS.textDim, icono: null };
+  return (
+    <div
+      className={className}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        margin: primera ? "0 0 8px" : compacto ? "14px 0 6px" : "20px 0 8px",
+        padding: "7px 10px", borderRadius: 8,
+        background: `${color}1F`, borderLeft: `3px solid ${color}`,
+        color, fontSize: 11.5, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase",
+      }}
+    >
+      {Icono && <Icono size={14} strokeWidth={2.4} />}
+      <span>{seccion}</span>
+      <span aria-hidden="true" style={{ flex: 1, height: 1, background: `${color}55`, marginLeft: 4 }} />
+    </div>
+  );
+}
+
 // Pestañas de la opción en la que estás (solo si tiene más de una pantalla)
 function PestanasGrupo({ vista, onIr }) {
   const g = grupoDeVista(vista);
@@ -10865,11 +10891,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             const nuevaSeccion = i === 0 || MENU_GRUPOS[i - 1].seccion !== item.seccion;
             return (
               <React.Fragment key={item.key}>
-                {nuevaSeccion && (
-                  <div className="fn-seccion-menu" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.textDim, margin: i === 0 ? "0 10px 6px" : "16px 10px 6px" }}>
-                    {item.seccion}
-                  </div>
-                )}
+                {nuevaSeccion && <TituloSeccionMenu className="fn-seccion-menu" seccion={item.seccion} primera={i === 0} />}
                 <div
                   className={`fn-navitem${activo ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
                   onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false); }}
@@ -10910,7 +10932,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 const nuevaSeccion = i === 0 || lista[i - 1].seccion !== item.seccion;
                 return (
                   <React.Fragment key={item.key}>
-                    {nuevaSeccion && <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.textDim, margin: i === 0 ? "0 10px 4px" : "14px 10px 4px" }}>{item.seccion}</div>}
+                    {nuevaSeccion && <TituloSeccionMenu seccion={item.seccion} primera={i === 0} compacto />}
                     <div
                       onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); }}
                       style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.menuTexto, background: activo ? COLORS.menuActivoBg : "transparent", fontWeight: activo ? 700 : 500, fontSize: 14.5 }}
