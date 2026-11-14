@@ -629,23 +629,6 @@ function CeldaWhatsApp({ t, stage }) {
   );
 }
 
-// Columna de factura: solo aparece el botón cuando la reparación está entregada o completada.
-function CeldaFactura({ t, esFinal, onCambio }) {
-  const [dialogo, setDialogo] = useState(false);
-  if (!esFinal) return null;
-  return (
-    <>
-      <button
-        onClick={async (e) => { e.stopPropagation(); if ((await abrirFacturaDe(t)) === "sin_factura") setDialogo(true); }}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", height: 32, borderRadius: 8, border: "none", background: COLORS.amber, color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-      >
-        <FileText size={13} /> Factura
-      </button>
-      {dialogo && <DialogoEmitirFactura t={t} onCerrar={() => setDialogo(false)} onCambio={onCambio} />}
-    </>
-  );
-}
-
 // Borra la orden (después de pedir que se escriba su número, para evitar sustos).
 // El servidor no deja borrar una orden con factura o con cobros, y explica por qué.
 async function eliminarOrdenDe(t, onCambio) {
@@ -888,10 +871,10 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
           <col style={{ width: 84 }} />
           <col style={{ width: "auto" }} />
           <col style={{ width: 78 }} />
-          <col style={{ width: 92 }} />
+          <col style={{ width: 134 }} />
           <col style={{ width: 150 }} />
           <col style={{ width: 116 }} />
-          <col style={{ width: 128 }} />
+          <col style={{ width: 84 }} />
         </colgroup>
         <thead>
           <tr>
@@ -972,8 +955,8 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                   </span>
                 </td>
                 <td style={{ padding: "10px 8px" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: futura || diasVisita === 0 ? COLORS.amber : retrasada ? COLORS.rust : COLORS.textDim, background: futura || diasVisita === 0 ? `${COLORS.amber}14` : retrasada ? `${COLORS.rust}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 10px", whiteSpace: "nowrap" }}>
-                    <Clock size={12} /> {textoDias}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, color: futura || diasVisita === 0 ? COLORS.amber : retrasada ? COLORS.rust : COLORS.textDim, background: futura || diasVisita === 0 ? `${COLORS.amber}14` : retrasada ? `${COLORS.rust}14` : COLORS.surfaceRaised, borderRadius: 999, padding: "5px 10px", whiteSpace: "nowrap", maxWidth: "100%", boxSizing: "border-box", overflow: "hidden", textOverflow: "ellipsis" }} title={textoDias}>
+                    <Clock size={12} style={{ flexShrink: 0 }} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{textoDias}</span>
                   </span>
                 </td>
                 <td style={{ padding: "10px 8px" }}>
@@ -986,11 +969,8 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                   <CeldaWhatsApp t={t} stage={stage} />
                 </td>
                 <td style={{ padding: "10px 8px", position: "sticky", right: 0, zIndex: 1, background: COLORS.surface }}>
-                  {/* Factura (solo si ya está entregada) y el menú ⋮, juntos y siempre a la vista */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    {esFinal && <div style={{ width: 80 }}><CeldaFactura t={t} esFinal={esFinal} onCambio={onCambio} /></div>}
-                    <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onCambio={onCambio} />
-                  </div>
+                  {/* Menú ⋮ (Ver, Editar, WhatsApp, Factura, Etiqueta, Fotos, Eliminar), siempre a la vista */}
+                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onCambio={onCambio} />
                 </td>
               </tr>
             );
