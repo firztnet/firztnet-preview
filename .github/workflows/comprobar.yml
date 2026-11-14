@@ -1,0 +1,15 @@
+# En cada subida, comprueba que no falta nada importante (pantalla principal, temas, Central, Flota).
+# Si falla, GitHub te manda un correo y marca la subida con una cruz roja.
+name: Comprobar que no falta nada
+on:
+  push:
+  pull_request:
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/comprobar-panel.mjs
