@@ -22,6 +22,7 @@ const OBLIGATORIO = {
     ['/central/copias', 'Central: copias de seguridad'],
     ['/central/riesgo', 'Central: clientes en riesgo'],
     ['function FlotaView', 'Flota'],
+    ['function PuntoVentaView', 'Central: punto de venta (tiendas)'],
   ],
   'src/inicio-taller.jsx': [['export', 'Pantalla principal nueva']],
 };

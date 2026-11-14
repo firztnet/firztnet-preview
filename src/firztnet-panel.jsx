@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge, Store
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import InicioTaller, { FondoInicio, temaGuardado } from "./inicio-taller.jsx";
@@ -5773,6 +5773,7 @@ const SISTEMAS_AYUDA = {
   reformas: { label: "Reformas", color: "#1E3A5F" },
   logistica: { label: "Logística", color: "#2563EB" },
   reciclaje: { label: "Reciclaje", color: "#EA580C" },
+  pos: { label: "Punto de venta", color: "#0F766E" },
 };
 const TIPOS_AYUDA = {
   impresora: "🖨️ No imprime", datafono: "💳 Datáfono", aparato: "📱 Aparato o pantalla",
@@ -7036,6 +7037,266 @@ function CobrosView() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: COLORS.textDim, background: COLORS.surfaceRaised, borderRadius: 8, padding: "6px 9px", marginTop: 8 }}>{c.texto}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// -------------------- vista: Punto de venta (Firztnet POS en las tiendas) --------------------
+// Alta de tiendas con su código de activación, cuota o pago único, cobros, ordenadores y copias.
+const ESTADO_TIENDA = {
+  prueba: ["En prueba", "#2563EB"], activa: ["Activa", "#16A34A"], suspendida: ["Suspendida", "#DC2626"], baja: ["De baja", "#64748B"],
+};
+const TIENDA_VACIA = { nombre: "", nif: "", contacto_nombre: "", contacto_telefono: "", contacto_email: "", modo: "cuota", cuota: "", max_equipos: 1, dias_gracia: 7, dias_sin_conexion: 15, notas: "" };
+
+function haceCuanto(iso) {
+  if (!iso) return "nunca";
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 2) return "ahora mismo";
+  if (min < 60) return `hace ${min} min`;
+  if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`;
+  return `hace ${Math.round(min / 1440)} días`;
+}
+
+function FormTienda({ inicial, onGuardar, onCancelar }) {
+  const [f, setF] = useState({ ...TIENDA_VACIA, ...inicial, cuota: inicial?.cuota ? String(inicial.cuota).replace(".", ",") : "" });
+  const [error, setError] = useState("");
+  const inputStyle = { width: "100%", fontSize: 13, padding: "8px 10px", borderRadius: 7, border: `1px solid ${COLORS.line}`, boxSizing: "border-box", marginTop: 4, fontFamily: "inherit" };
+  const campo = (k, label, props = {}) => (
+    <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600 }}>{label}
+      <input style={inputStyle} value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} {...props} />
+    </label>
+  );
+  return (
+    <form onSubmit={async (e) => { e.preventDefault(); setError(""); try { await onGuardar(f); } catch (err) { setError(err.message); } }}
+      style={{ background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 14, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+        {campo("nombre", "Nombre de la tienda *", { required: true })}
+        {campo("nif", "NIF")}
+        {campo("contacto_nombre", "Persona de contacto")}
+        {campo("contacto_telefono", "Teléfono")}
+        {campo("contacto_email", "Correo", { type: "email" })}
+        <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600 }}>Cómo paga
+          <select style={inputStyle} value={f.modo} onChange={(e) => setF({ ...f, modo: e.target.value })}>
+            <option value="cuota">Cuota mensual</option>
+            <option value="unico">Pago único</option>
+          </select>
+        </label>
+        {campo("cuota", f.modo === "cuota" ? "Cuota al mes (€)" : "Precio pagado (€)", { inputMode: "decimal" })}
+        {campo("max_equipos", "Ordenadores con el programa", { type: "number", min: 1, max: 20 })}
+        {f.modo === "cuota" && campo("dias_gracia", "Días de margen si no paga", { type: "number", min: 0, max: 60 })}
+        {f.modo === "cuota" && campo("dias_sin_conexion", "Días máximo sin internet", { type: "number", min: 3, max: 90 })}
+      </div>
+      <label style={{ fontSize: 12, color: COLORS.textDim, fontWeight: 600, display: "block", marginTop: 10 }}>Notas
+        <textarea style={{ ...inputStyle, minHeight: 50 }} value={f.notas ?? ""} onChange={(e) => setF({ ...f, notas: e.target.value })} />
+      </label>
+      {error && <div style={{ color: COLORS.rust, fontSize: 12.5, fontWeight: 600, marginTop: 8 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button type="submit" style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none" }}>Guardar</button>
+        <button type="button" onClick={onCancelar} style={{ ...btnStyle("transparent", COLORS.text, COLORS.line), flex: "none" }}>Cancelar</button>
+      </div>
+    </form>
+  );
+}
+
+function PuntoVentaView() {
+  const [tiendas, setTiendas] = useState(null);
+  const [config, setConfig] = useState(null);
+  const [nueva, setNueva] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [abierta, setAbierta] = useState(null);
+  const [detalle, setDetalle] = useState(null);
+  const [aviso, setAviso] = useState("");
+  const [codigo, setCodigo] = useState(null);
+  const [licencia, setLicencia] = useState(null);
+
+  const cargar = useCallback(async () => {
+    try { setTiendas(await apiGet("/central/pos/tiendas")); } catch (e) { setTiendas([]); }
+  }, []);
+  useEffect(() => { cargar(); apiGet("/central/pos/estado").then(setConfig).catch(() => setConfig(null)); }, [cargar]);
+  useEffect(() => { if (abierta) apiGet(`/central/pos/tiendas/${abierta}`).then(setDetalle).catch(() => setDetalle(null)); else setDetalle(null); }, [abierta, tiendas]);
+
+  async function crear(f) {
+    const r = await apiPost("/central/pos/tiendas", f);
+    setNueva(false);
+    setCodigo({ nombre: r.nombre, codigo: r.codigo });
+    await cargar();
+  }
+  async function guardar(t, f) {
+    await apiPatch(`/central/pos/tiendas/${t.id}`, f);
+    setEditando(null);
+    setAviso(`✓ Guardado: ${f.nombre}`);
+    await cargar();
+  }
+  async function nuevoCodigo(t) {
+    if (!window.confirm(`¿Crear un código nuevo para ${t.nombre}? El anterior deja de valer (los ordenadores ya activados siguen funcionando).`)) return;
+    try { const r = await apiPost(`/central/pos/tiendas/${t.id}/codigo`, {}); setCodigo({ nombre: t.nombre, codigo: r.codigo }); } catch (e) { setAviso(e.message); }
+  }
+  async function pago(t) {
+    const meses = t.modo === "cuota" ? window.prompt(`¿Cuántos meses te ha pagado ${t.nombre}?`, "1") : "1";
+    if (meses === null) return;
+    const importe = window.prompt("¿Cuánto en total? (€)", String((t.cuota || 0) * (Number(meses) || 1)).replace(".", ","));
+    if (importe === null) return;
+    const metodo = window.prompt("¿Cómo ha pagado? (Bizum, transferencia, efectivo…)", "Bizum") || "";
+    try {
+      const r = await apiPost(`/central/pos/tiendas/${t.id}/pago`, { meses, importe, metodo });
+      setAviso(`✓ Pago apuntado en «Ventas»${r.pagado_hasta ? `. Pagado hasta el ${fechaCorta(r.pagado_hasta)}` : ""}. La tienda lo recibe en su próxima conexión.`);
+      await cargar();
+    } catch (e) { setAviso(e.message); }
+  }
+  async function cambiarEstado(t, estado) {
+    const textos = { suspendida: `¿Suspender ${t.nombre}? En su próxima conexión dejará de poder vender (podrá consultar sus datos).`, activa: `¿Reactivar ${t.nombre}?`, baja: `¿Dar de baja ${t.nombre}?` };
+    if (!window.confirm(textos[estado])) return;
+    try { await apiPatch(`/central/pos/tiendas/${t.id}`, { estado }); await cargar(); } catch (e) { setAviso(e.message); }
+  }
+  async function licenciaManual(t) {
+    const id = window.prompt(`Licencia sin internet para ${t.nombre}.\nEscribe el ID del equipo (12 cifras) que sale en su pantalla de activación, pestaña «Sin internet»:`);
+    if (!id) return;
+    try { const r = await apiPost(`/central/pos/tiendas/${t.id}/licencia-manual`, { machine_id: id }); setLicencia({ nombre: t.nombre, texto: r.licencia }); } catch (e) { setAviso(e.message); }
+  }
+  async function desactivar(e) {
+    if (!window.confirm(`¿Desactivar el ordenador «${e.nombre}»? Dejará de informar y tendrá que activarse con un código nuevo.`)) return;
+    try { await apiPost(`/central/pos/equipos/${e.id}/desactivar`, {}); await cargar(); } catch (err) { setAviso(err.message); }
+  }
+  async function descargar(e, nombre) {
+    try {
+      const res = await fetch(`${API_BASE}/central/pos/equipos/${e.id}/copias/${nombre}`, { headers: cabecerasAuth() });
+      manejar401(res);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "No se pudo descargar");
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url; a.download = `pos-${detalle?.slug || "tienda"}-${nombre.slice(0, 15)}.db`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) { setAviso(err.message); }
+  }
+
+  if (!tiendas) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
+  const activas = tiendas.filter((t) => t.estado === "activa");
+  const mensual = activas.filter((t) => t.modo === "cuota").reduce((s, t) => s + (t.cuota || 0), 0);
+  const impagos = tiendas.filter((t) => t.impago);
+  const sinNoticias = tiendas.filter((t) => ["activa", "prueba"].includes(t.estado) && t.equipos.some((e) => e.activo && (e.sin_noticias_horas === null || e.sin_noticias_horas > 24)));
+  const caja = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 14, marginBottom: 12 };
+  const boton = (bg, color, borde) => ({ ...btnStyle(bg, color, borde), flex: "none", padding: "6px 10px", fontSize: 11.5 });
+
+  return (
+    <div>
+      {config && !config.licencias && (
+        <div style={{ ...caja, borderColor: "#FCA5A5", background: "#FEF2F2", color: "#991B1B", fontSize: 13 }}>
+          ⚠️ Falta poner en Railway la variable <strong>POS_CLAVE_PRIVADA</strong> (está en el archivo «PRIVADO-claves-punto-de-venta.txt»). Sin ella las tiendas no se pueden activar.
+        </div>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginBottom: 14 }}>
+        <StatCard label="Tiendas activas" value={activas.length} icon={Store} accent={COLORS.green} />
+        <StatCard label="En prueba" value={tiendas.filter((t) => t.estado === "prueba").length} icon={Calendar} accent={COLORS.amber} />
+        <StatCard label="Cuotas al mes" value={mensual.toLocaleString("es-ES", { style: "currency", currency: "EUR" })} icon={Banknote} accent={COLORS.green} />
+        <StatCard label="Impagos" value={impagos.length} icon={Flame} accent={COLORS.rust} />
+        <StatCard label="Sin noticias +24 h" value={sinNoticias.length} icon={Activity} accent={COLORS.rust} />
+      </div>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 12 }}>
+        Cada tienda funciona en su ordenador aunque no tenga internet. Cuando hay conexión, cada 10 minutos te manda sus ventas del día (solo totales), su versión y su copia de seguridad cifrada, y recoge su licencia. Si un día deja de pagar, en su siguiente conexión deja de poder vender (pero puede consultar sus datos).
+      </div>
+      {aviso && <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: aviso.startsWith("✓") ? COLORS.green : COLORS.rust }}>{aviso}</div>}
+
+      {codigo && (
+        <div style={{ ...caja, borderColor: COLORS.green, textAlign: "center" }}>
+          <div style={{ fontSize: 13, color: COLORS.textDim }}>Código de activación de <strong>{codigo.nombre}</strong></div>
+          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: 4, fontFamily: "monospace", margin: "8px 0", color: COLORS.text }}>{codigo.codigo}</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>Apúntalo ahora: por seguridad no se vuelve a mostrar. En la tienda: pantalla de activación → «Tengo un código».</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => { navigator.clipboard?.writeText(codigo.codigo); setAviso("✓ Código copiado"); }} style={boton(COLORS.amber, "#FFFFFF")}>Copiar</button>
+            <button onClick={() => setCodigo(null)} style={boton("transparent", COLORS.text, COLORS.line)}>Ya lo tengo</button>
+          </div>
+        </div>
+      )}
+      {licencia && (
+        <div style={caja}>
+          <div style={{ fontSize: 13, marginBottom: 6 }}>Licencia sin internet para <strong>{licencia.nombre}</strong>: pégala en su pantalla de activación → «Sin internet».</div>
+          <textarea readOnly value={licencia.texto} style={{ width: "100%", minHeight: 80, fontFamily: "monospace", fontSize: 11, boxSizing: "border-box" }} onFocus={(e) => e.target.select()} />
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button onClick={() => { navigator.clipboard?.writeText(licencia.texto); setAviso("✓ Licencia copiada"); }} style={boton(COLORS.amber, "#FFFFFF")}>Copiar</button>
+            <button onClick={() => setLicencia(null)} style={boton("transparent", COLORS.text, COLORS.line)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {nueva ? <FormTienda onGuardar={crear} onCancelar={() => setNueva(false)} />
+        : <button onClick={() => { setNueva(true); setCodigo(null); }} style={{ ...btnStyle(COLORS.amber, "#FFFFFF"), flex: "none", marginBottom: 12 }}><Plus size={14} /> Nueva tienda</button>}
+
+      {tiendas.length === 0 && <div style={{ fontSize: 13, color: COLORS.textDim, background: COLORS.surface, border: `1px dashed ${COLORS.line}`, borderRadius: 12, padding: 18 }}>Todavía no hay tiendas. Da de alta la primera con «Nueva tienda» y te saldrá su código de activación. Las que empiecen la prueba gratis desde el programa aparecerán aquí solas.</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {tiendas.map((t) => {
+          const [estadoTxt, estadoColor] = ESTADO_TIENDA[t.estado] || ESTADO_TIENDA.baja;
+          const equiposVivos = t.equipos.filter((e) => e.activo);
+          const ventasHoy = equiposVivos.reduce((s, e) => s + (e.datos?.ventas_hoy_cents || 0), 0);
+          if (editando === t.id) return <FormTienda key={t.id} inicial={t} onGuardar={(f) => guardar(t, f)} onCancelar={() => setEditando(null)} />;
+          return (
+            <div key={t.id} style={{ background: COLORS.surface, border: `1px solid ${t.impago ? "#FCA5A5" : COLORS.line}`, borderLeft: `4px solid ${estadoColor}`, borderRadius: 12, padding: "12px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ fontSize: 14.5 }}>{t.nombre}</strong>{" "}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: estadoColor }}>· {estadoTxt}</span>
+                  {t.impago && <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.rust }}> · Cuota vencida</span>}
+                  <div style={{ fontSize: 12.5, color: COLORS.textDim, marginTop: 2 }}>
+                    {t.modo === "cuota" ? `Cuota ${(t.cuota || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}/mes` : "Pago único"}
+                    {t.estado === "prueba" && t.prueba_hasta && ` · prueba hasta el ${fechaCorta(t.prueba_hasta)}`}
+                    {t.modo === "cuota" && t.pagado_hasta && t.estado !== "prueba" && ` · pagado hasta el ${fechaCorta(t.pagado_hasta)}`}
+                    {` · ${equiposVivos.length}/${t.max_equipos} ordenador(es)`}
+                    {equiposVivos.length > 0 && ` · hoy ${euros(ventasHoy)}`}
+                    {t.contacto_telefono && ` · ☎ ${t.contacto_telefono}`}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={() => pago(t)} style={boton(COLORS.amber, "#FFFFFF")}><CheckCircle2 size={13} /> Apuntar pago</button>
+                  <button onClick={() => setAbierta(abierta === t.id ? null : t.id)} style={boton("transparent", COLORS.text, COLORS.line)}>{abierta === t.id ? "Cerrar" : "Ver"}</button>
+                  <button onClick={() => setEditando(t.id)} style={boton("transparent", COLORS.text, COLORS.line)}><Pencil size={12} /> Editar</button>
+                </div>
+              </div>
+              {abierta === t.id && (
+                <div style={{ marginTop: 10, borderTop: `1px solid ${COLORS.line}`, paddingTop: 10 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                    <button onClick={() => nuevoCodigo(t)} style={boton("transparent", COLORS.text, COLORS.line)}>🔑 Código de activación{t.codigo_pista ? ` (…${t.codigo_pista})` : ""}</button>
+                    <button onClick={() => licenciaManual(t)} style={boton("transparent", COLORS.text, COLORS.line)}>📄 Licencia sin internet</button>
+                    {t.estado === "suspendida" || t.estado === "baja"
+                      ? <button onClick={() => cambiarEstado(t, "activa")} style={boton("transparent", COLORS.green, COLORS.green)}>Reactivar</button>
+                      : <button onClick={() => cambiarEstado(t, "suspendida")} style={boton("transparent", COLORS.rust, "#FCA5A5")}>Suspender</button>}
+                  </div>
+                  {t.notas && <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>📝 {t.notas}</div>}
+                  {(detalle?.id === t.id ? detalle.equipos : t.equipos).map((e) => (
+                    <div key={e.id} style={{ background: COLORS.surfaceRaised, borderRadius: 9, padding: "9px 11px", marginBottom: 6, opacity: e.activo ? 1 : 0.55 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontSize: 12.5 }}>
+                          <strong>🖥️ {e.nombre || "Ordenador"}</strong> <span style={{ color: COLORS.textDim }}>· ID {e.machine_id} · versión {e.version || "—"}</span>
+                          {!e.activo && <span style={{ color: COLORS.rust, fontWeight: 700 }}> · desactivado</span>}
+                          <div style={{ color: e.sin_noticias_horas > 24 ? COLORS.rust : COLORS.textDim, fontWeight: e.sin_noticias_horas > 24 ? 700 : 400 }}>
+                            Último parte: {haceCuanto(e.ultimo_parte)} · Copia: {haceCuanto(e.ultima_copia)}
+                            {e.datos?.tickets_hoy !== undefined && ` · hoy ${e.datos.tickets_hoy} tickets, ${euros(e.datos.ventas_hoy_cents)}`}
+                            {e.datos?.productos !== undefined && ` · ${e.datos.productos} productos`}
+                            {e.reloj_atrasado && " · ⚠️ reloj mal puesto"}
+                            {e.datos?.bloqueado && " · ⛔ bloqueado (no puede vender)"}
+                          </div>
+                          {e.datos?.errores?.length > 0 && <div style={{ color: COLORS.rust, fontSize: 11.5, marginTop: 3 }}>Errores: {e.datos.errores.slice(-3).join(" · ")}</div>}
+                        </div>
+                        {e.activo && <button onClick={() => desactivar(e)} style={boton("transparent", COLORS.rust, "#FCA5A5")}>Desactivar</button>}
+                      </div>
+                      {e.copias?.length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                          <span style={{ fontSize: 11.5, color: COLORS.textDim }}>💾 Copias:</span>
+                          {e.copias.slice(0, 7).map((c) => (
+                            <button key={c} onClick={() => descargar(e, c)} style={boton("transparent", COLORS.text, COLORS.line)} title="Descargar el archivo pos.db de ese día">
+                              {`${c.slice(6, 8)}/${c.slice(4, 6)} ${c.slice(9, 11)}:${c.slice(11, 13)}`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {t.equipos.length === 0 && <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Aún no hay ningún ordenador activado. En la tienda: pantalla de activación → «Tengo un código».</div>}
+                </div>
+              )}
             </div>
           );
         })}
@@ -10560,6 +10821,7 @@ function FirztnetPanel({ onCerrarSesion }) {
             { key: "informes-mensuales", icon: FileText, label: "Informes mensuales", movil: "mas" },
             { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo", movil: "mas" },
             { key: "cobros", icon: Banknote, label: "Cobros", movil: "mas" },
+            { key: "punto-venta", icon: Store, label: "Punto de venta", movil: "mas" },
             { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
             { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
             { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
@@ -10616,6 +10878,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 { key: "informes-mensuales", icon: FileText, label: "Informes mensuales" },
                 { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo" },
                 { key: "cobros", icon: Banknote, label: "Cobros" },
+                { key: "punto-venta", icon: Store, label: "Punto de venta" },
                 { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
                 { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
                 { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
@@ -10705,6 +10968,7 @@ function FirztnetPanel({ onCerrarSesion }) {
                 {vista === "informes-mensuales" && "Informes mensuales de visitas"}
                 {vista === "riesgo" && "Clientes que podrías perder"}
                 {vista === "cobros" && "Cobros de cuotas"}
+                {vista === "punto-venta" && "Punto de venta: tus tiendas"}
                 {vista === "estado-sistemas" && "Estado de tus sistemas y webs"}
                 {vista === "ayuda" && "Ayuda a clientes de tus sistemas"}
                 {vista === "solicitudes" && "Solicitudes de servicio"}
@@ -10748,6 +11012,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           {vista === "informes-mensuales" && <InformesMensualesView />}
           {vista === "riesgo" && <RiesgoView />}
           {vista === "cobros" && <CobrosView />}
+          {vista === "punto-venta" && <PuntoVentaView />}
           {vista === "estado-sistemas" && <EstadoSistemasView />}
           {vista === "ayuda" && <AyudaClientesView />}
           {vista === "solicitudes" && <SolicitudesView />}
