@@ -23,7 +23,9 @@
 @keyframes fzEntra{from{opacity:0;transform:translateY(12px)}}
 .fz-num{font-family:"JetBrains Mono","IBM Plex Mono",monospace;letter-spacing:-.03em}
 
-.fz-hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px}
+.fz-hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px} /* bienvenida + «Por dónde va cada equipo» (en lugar de la tarjeta de ingresos, quitada el 14/11/2026) */
+.fz-hero .fz-etapas-arriba{margin:0;display:flex;flex-direction:column}
+.fz-etapas-arriba .fz-etapas{grid-template-columns:repeat(auto-fit,minmax(118px,1fr));flex:1;align-content:center}
 .fz-saludo{padding:24px 26px;position:relative;z-index:3} /* por encima de la tarjeta de ingresos: su desplegable (Taller / In situ) no queda tapado */
 .fz-saludo small{color:var(--tx2);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .fz-saludo h1{margin:6px 0 10px;font-size:36px;line-height:1.08;font-weight:800;letter-spacing:-.025em;color:var(--tx)}

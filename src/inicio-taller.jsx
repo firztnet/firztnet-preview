@@ -30,23 +30,6 @@ const iniciales = (nombre) => (nombre || "?").split(/\s+/).filter(Boolean).slice
 const equipoDe = (r) => [r.equipo, r.marca, r.modelo].filter(Boolean).join(" ") || "Equipo";
 const diasDesde = (fecha) => (fecha ? Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000)) : null);
 
-function Curva({ puntos }) {
-  const vals = puntos.length ? puntos : [0, 0];
-  const max = Math.max(...vals, 1);
-  const paso = 400 / Math.max(vals.length - 1, 1);
-  const xy = vals.map((v, i) => [i * paso, 78 - (v / max) * 64]);
-  const linea = xy.map(([x, y], i) => (i === 0 ? `M${x},${y}` : `L${x},${y}`)).join(" ");
-  const [ux, uy] = xy[xy.length - 1];
-  return (
-    <svg viewBox="0 0 400 84" preserveAspectRatio="none" aria-hidden="true">
-      <defs><linearGradient id="fzCurva" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--ac)" stopOpacity=".45" /><stop offset="1" stopColor="var(--ac)" stopOpacity="0" /></linearGradient></defs>
-      <path d={`${linea} L400,84 L0,84Z`} fill="url(#fzCurva)" />
-      <path d={linea} fill="none" stroke="var(--ac)" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <circle cx={ux} cy={uy} r="4" fill="var(--ac)" />
-    </svg>
-  );
-}
-
 export default function InicioTaller({
   nombre, tema, onTema, reparaciones, etapas, vistaTrabajo, selectorTrabajo,
   reporteMensual, reporteDiario, tendencia, retrasadasLista, tiempoMedioDias, numClientes, resumenMant, stockBajo,
@@ -85,11 +68,6 @@ export default function InicioTaller({
     return <>Hoy tienes {partes.reduce((acc, p, i) => (i ? [...acc, " y ", p] : [p]), [])}.{enTaller ? ` En total, ${enTaller} en el taller.` : ""}</>;
   })();
 
-  const ingresos7 = (tendencia || []).map((d) => Number(d.ingresos) || 0);
-  const ingresosSemana = ingresos7.reduce((a, b) => a + b, 0);
-  const ingresosMes = Number(reporteMensual?.ingresos || 0);
-  const [entero, decimales] = euros(ingresosMes).replace(" €", "").split(",");
-  const nombreMes = ahora.toLocaleDateString("es-ES", { month: "long" });
 
   const kpis = [
     { t: "Retrasadas", v: atencion.length, s: "urgentes o +5 días", c: atencion.length ? "var(--bad)" : "var(--ok)", Icono: Flame, color: atencion.length ? "var(--bad)" : undefined, ir: () => document.getElementById("fz-atencion")?.scrollIntoView({ behavior: "smooth", block: "center" }) },
@@ -120,31 +98,22 @@ export default function InicioTaller({
             </div>
           </div>
         </div>
-        <div className="fz-dinero fz-vidrio fz-entra" style={{ animationDelay: ".06s" }} onClick={() => onIrVista("reportes")} title="Ver reportes">
-          <div className="fz-et"><span>Ingresos de {nombreMes}</span><span className="fz-pastilla">Hoy {Number(reporteDiario?.balance_neto || 0) >= 0 ? "+" : ""}{euros(reporteDiario?.balance_neto)}</span></div>
-          <div className="fz-gr fz-num">{entero}<small>,{decimales} €</small></div>
-          <div className="fz-mini"><span>Gastos <b className="fz-num">{euros(reporteMensual?.gastos)}</b></span>
-            <span>Balance <b className="fz-num" style={{ color: Number(reporteMensual?.balance_neto) >= 0 ? "var(--ok)" : "var(--bad)" }}>{euros(reporteMensual?.balance_neto)}</b></span>
-            <span>Últimos 7 días <b className="fz-num">{euros(ingresosSemana)}</b></span></div>
-          <Curva puntos={ingresos7} />
-        </div>
-      </section>
-
-      <section className="fz-bloque fz-vidrio fz-entra" style={{ animationDelay: ".12s" }}>
-        <div className="fz-cab"><h2>Por dónde va cada equipo</h2><span>{enTaller} {vistaTrabajo === "domicilio" ? "trabajos abiertos" : "en el taller"} · pulsa una etapa para verlos</span></div>
-        <div className="fz-etapas" style={{ "--n": etapasVisibles.length }}>
-          {etapasVisibles.map((e) => {
-            const n = conteo[e.key] || 0;
-            const final = FINALES.includes(e.key);
-            return (
-              <button key={e.key} type="button" className="fz-etapa" style={{ "--c": COLOR_ETAPA[e.key] || "var(--ac)" }} onClick={() => onEtapa(e.key)}>
-                <span className="l">{final ? `${e.label} este mes` : e.label}</span>
-                <span className="n fz-num">{n}</span>
-                <span className="fz-barra" style={{ display: "block" }}><i style={{ width: `${Math.round((n / maxEtapa) * 100)}%` }} /></span>
-              </button>
-            );
-          })}
-        </div>
+        <section className="fz-bloque fz-etapas-arriba fz-vidrio fz-entra" style={{ animationDelay: ".06s" }}>
+          <div className="fz-cab"><h2>Por dónde va cada equipo</h2><span>{enTaller} {vistaTrabajo === "domicilio" ? "trabajos abiertos" : "en el taller"} · pulsa una etapa para verlos</span></div>
+          <div className="fz-etapas" style={{ "--n": etapasVisibles.length }}>
+            {etapasVisibles.map((e) => {
+              const n = conteo[e.key] || 0;
+              const final = FINALES.includes(e.key);
+              return (
+                <button key={e.key} type="button" className="fz-etapa" style={{ "--c": COLOR_ETAPA[e.key] || "var(--ac)" }} onClick={() => onEtapa(e.key)}>
+                  <span className="l">{final ? `${e.label} este mes` : e.label}</span>
+                  <span className="n fz-num">{n}</span>
+                  <span className="fz-barra" style={{ display: "block" }}><i style={{ width: `${Math.round((n / maxEtapa) * 100)}%` }} /></span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </section>
 
       <section className="fz-rejilla">
