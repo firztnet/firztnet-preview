@@ -10327,6 +10327,53 @@ export default function FirztnetApp() {
   return <FirztnetPanel onCerrarSesion={() => { guardarToken(null); setAutenticado(false); }} />;
 }
 
+// -------------------- Menú --------------------
+// 13 opciones en 3 apartados (antes eran 26). Las pantallas parecidas van juntas como pestañas de una
+// misma opción; cada pantalla conserva su nombre interno (vista), así los avisos siguen llevando a su sitio.
+const MENU_GRUPOS = [
+  { seccion: "Taller", key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal",
+    pestanas: [["reparaciones", "Órdenes"], ["solicitudes", "Solicitudes web"], ["garantias", "En garantía"]] },
+  { seccion: "Taller", key: "clientes", icon: Users, label: "Clientes del taller", corto: "Clientes", movil: "principal", pestanas: [["clientes", "Clientes"]] },
+  { seccion: "Taller", key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos", movil: "mas",
+    pestanas: [["mantenimientos", "Contratos"], ["recordatorios", "Recordatorios"]] },
+  { seccion: "Taller", key: "inventario", icon: Package, label: "Inventario", movil: "mas",
+    pestanas: [["inventario", "Piezas"], ["rma", "Devoluciones a proveedor"]] },
+  { seccion: "Taller", key: "informes", icon: FileBarChart, label: "Informes", movil: "mas",
+    pestanas: [["reportes", "Resumen y exportar"], ["rendimiento", "Técnicos"], ["rentabilidad", "Rentabilidad"]] },
+  { seccion: "Taller", key: "recursos", icon: MessageSquare, label: "Recursos", movil: "mas",
+    pestanas: [["plantillas", "Mensajes"], ["conocimiento", "Base de conocimiento"]] },
+  { seccion: "Mi empresa", key: "caja", icon: Banknote, label: "Caja", movil: "principal", pestanas: [["caja", "Caja"]] },
+  { seccion: "Mi empresa", key: "flota", icon: Car, label: "Flota", movil: "mas", pestanas: [["flota", "Flota"]] },
+  { seccion: "Mi empresa", key: "ajustes", icon: Settings, label: "Ajustes", movil: "mas", pestanas: [["ajustes", "Ajustes"]] },
+  { seccion: "Firztnet", key: "negocio", icon: TrendingUp, label: "Negocio", movil: "mas",
+    pestanas: [["cuadro", "Cuadro de mando"], ["cobros", "Cobros"], ["ventas", "Ventas"]] },
+  { seccion: "Firztnet", key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas",
+    pestanas: [["clientes-sistemas", "Todos"], ["riesgo", "En riesgo"], ["punto-venta", "Tiendas (punto de venta)"]] },
+  { seccion: "Firztnet", key: "soporte", icon: LifeBuoy, label: "Soporte", movil: "mas",
+    pestanas: [["ayuda", "Peticiones de ayuda"], ["estado-sistemas", "Estado de sistemas y webs"]] },
+  { seccion: "Firztnet", key: "webs", icon: Globe, label: "Webs", movil: "mas",
+    pestanas: [["visitas-web", "Tus visitas"], ["informes-mensuales", "Informes mensuales"]] },
+];
+const grupoDeVista = (v) => MENU_GRUPOS.find((g) => g.pestanas.some(([k]) => k === v));
+
+// Pestañas de la opción en la que estás (solo si tiene más de una pantalla)
+function PestanasGrupo({ vista, onIr }) {
+  const g = grupoDeVista(vista);
+  if (!g || g.pestanas.length < 2) return null;
+  return (
+    <div className="fn-pestanas-grupo" role="tablist" aria-label={g.label}
+      style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18, paddingBottom: 12, borderBottom: `1px solid ${COLORS.line}` }}>
+      {g.pestanas.map(([k, nombre]) => (
+        <button key={k} type="button" role="tab" aria-selected={vista === k} onClick={() => onIr(k)}
+          style={{ ...btnStyle(vista === k ? COLORS.amber : "transparent", vista === k ? "#FFFFFF" : COLORS.text, vista === k ? COLORS.amber : COLORS.line),
+            flex: "none", padding: "7px 14px", fontSize: 13, borderRadius: 999, fontWeight: vista === k ? 700 : 600 }}>
+          {nombre}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function FirztnetPanel({ onCerrarSesion }) {
   const [reparaciones, setReparaciones] = useState([]);
   const [contador, setContador] = useState({ total: 0, en_curso: 0, entregadas: 0, no_reparables: 0 });
@@ -10580,6 +10627,7 @@ function FirztnetPanel({ onCerrarSesion }) {
       <link rel="stylesheet" href={FONTS_URL} />
       <FondoInicio />
       <style>{`
+        .fn-navitem-corto { display: none; }
         @keyframes fnPuntoActivo {
           0%, 100% { box-shadow: 0 0 0 0 ${COLORS.green}55; }
           50% { box-shadow: 0 0 0 5px ${COLORS.green}00; }
@@ -10792,6 +10840,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             z-index: 40;
           }
           .fn-sidebar .fn-logo { display: none !important; }
+          .fn-sidebar .fn-seccion-menu, .fn-sidebar .fn-navitem-num, .fn-sidebar .fn-navitem-largo:has(+ .fn-navitem-corto) { display: none !important; }
+          .fn-sidebar .fn-navitem-corto { display: inline !important; }
           .fn-sidebar .fn-navitem { flex-direction: column !important; gap: 3px !important; font-size: 11px !important; padding: 8px 10px !important; margin-bottom: 0 !important; min-width: 56px; }
           .fn-sidebar .fn-navitem svg { width: 21px; height: 21px; }
           .fn-shell { flex-direction: column !important; }
@@ -10821,44 +10871,29 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div className="fn-logo" style={{ display: "flex", alignItems: "center", marginBottom: 30, paddingLeft: 4 }}>
             <LogoAnimado key={menuAbierto ? "abierto" : "cerrado"} />
           </div>
-          {[
-            { key: "reparaciones", icon: LayoutGrid, label: "Reparaciones", movil: "principal" },
-            { key: "clientes", icon: Users, label: "Clientes", movil: "principal" },
-            { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos", movil: "mas" },
-            { key: "flota", icon: Car, label: "Flota", movil: "mas" },
-            { key: "reportes", icon: FileBarChart, label: "Reportes", movil: "mas" },
-            { key: "inventario", icon: Package, label: "Inventario", movil: "mas" },
-            { key: "rma", icon: RotateCcw, label: "Garantías RMA", movil: "mas" },
-            { key: "garantias", icon: ShieldCheck, label: "Garantías activas", movil: "mas" },
-            { key: "ventas", icon: TrendingUp, label: "Ventas", movil: "mas" },
-            { key: "visitas-web", icon: Eye, label: "Visitas web", movil: "mas" },
-            { key: "rendimiento", icon: FileBarChart, label: "Rendimiento", movil: "mas" },
-            { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad", movil: "mas" },
-            { key: "caja", icon: Banknote, label: "Caja", movil: "principal" },
-            { key: "plantillas", icon: MessageSquare, label: "Plantillas", movil: "mas" },
-            { key: "conocimiento", icon: Search, label: "Base conocimiento", movil: "mas" },
-            { key: "recordatorios", icon: Bell, label: "Recordatorios", movil: "mas" },
-            { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando", movil: "mas" },
-            { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas" },
-            { key: "informes-mensuales", icon: FileText, label: "Informes mensuales", movil: "mas" },
-            { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo", movil: "mas" },
-            { key: "cobros", icon: Banknote, label: "Cobros", movil: "mas" },
-            { key: "punto-venta", icon: Store, label: "Punto de venta", movil: "mas" },
-            { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas", movil: "mas" },
-            { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes", movil: "mas" },
-            { key: "solicitudes", icon: MessageSquare, label: "Solicitudes", movil: "mas" },
-            { key: "ajustes", icon: Settings, label: "Ajustes", movil: "principal" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={`fn-navitem${vista === item.key ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
-              onClick={() => { setVista(item.key); setMostrarMasMovil(false); setMenuAbierto(false); }}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: vista === item.key ? COLORS.menuActivoBg : "transparent", color: COLORS.menuTexto, fontSize: 14, fontWeight: vista === item.key ? 700 : 500 }}
-            >
-              <item.icon size={16} />
-              {item.label}
-            </div>
-          ))}
+          {MENU_GRUPOS.map((item, i) => {
+            const activo = grupoDeVista(vista)?.key === item.key;
+            const nuevaSeccion = i === 0 || MENU_GRUPOS[i - 1].seccion !== item.seccion;
+            return (
+              <React.Fragment key={item.key}>
+                {nuevaSeccion && (
+                  <div className="fn-seccion-menu" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.textDim, margin: i === 0 ? "0 10px 6px" : "16px 10px 6px" }}>
+                    {item.seccion}
+                  </div>
+                )}
+                <div
+                  className={`fn-navitem${activo ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
+                  onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: activo ? COLORS.menuActivoBg : "transparent", color: COLORS.menuTexto, fontSize: 14, fontWeight: activo ? 700 : 500 }}
+                >
+                  <item.icon size={16} />
+                  <span className="fn-navitem-largo">{item.label}</span>
+                  {item.corto && <span className="fn-navitem-corto">{item.corto}</span>}
+                  {item.pestanas.length > 1 && <span className="fn-navitem-num" style={{ marginLeft: "auto", fontSize: 11, color: COLORS.textDim, background: COLORS.menuHoverBg, borderRadius: 999, padding: "1px 7px" }}>{item.pestanas.length}</span>}
+                </div>
+              </React.Fragment>
+            );
+          })}
           <div
             onClick={() => setMostrarMasMovil((v) => !v)}
             className={`fn-navitem fn-navitem-boton-mas${mostrarMasMovil ? " fn-navitem-active" : ""}`}
@@ -10881,39 +10916,23 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div className="fn-hoja-mas" onClick={() => setMostrarMasMovil(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 55 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.menuBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: COLORS.menuBorde, borderRadius: 999, margin: "0 auto 16px" }} />
-              {[
-                { key: "mantenimientos", icon: CalendarCheck, label: "Mantenimientos" },
-                { key: "flota", icon: Car, label: "Flota" },
-                { key: "reportes", icon: FileBarChart, label: "Reportes" },
-                { key: "inventario", icon: Package, label: "Inventario" },
-                { key: "rma", icon: RotateCcw, label: "Garantías RMA" },
-                { key: "garantias", icon: ShieldCheck, label: "Garantías activas" },
-                { key: "ventas", icon: TrendingUp, label: "Ventas" },
-                { key: "visitas-web", icon: Eye, label: "Visitas web" },
-                { key: "rendimiento", icon: FileBarChart, label: "Rendimiento" },
-                { key: "rentabilidad", icon: FileBarChart, label: "Rentabilidad" },
-                { key: "plantillas", icon: MessageSquare, label: "Plantillas" },
-                { key: "conocimiento", icon: Search, label: "Base conocimiento" },
-                { key: "recordatorios", icon: Bell, label: "Recordatorios" },
-                { key: "cuadro", icon: TrendingUp, label: "Cuadro de mando" },
-                { key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas" },
-                { key: "informes-mensuales", icon: FileText, label: "Informes mensuales" },
-                { key: "riesgo", icon: TriangleAlert, label: "Clientes en riesgo" },
-                { key: "cobros", icon: Banknote, label: "Cobros" },
-                { key: "punto-venta", icon: Store, label: "Punto de venta" },
-                { key: "estado-sistemas", icon: Activity, label: "Estado de sistemas" },
-                { key: "ayuda", icon: LifeBuoy, label: "Ayuda a clientes" },
-                { key: "solicitudes", icon: MessageSquare, label: "Solicitudes" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  onClick={() => { setVista(item.key); setMostrarMasMovil(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.menuTexto, background: vista === item.key ? COLORS.menuActivoBg : "transparent", fontWeight: vista === item.key ? 700 : 500, fontSize: 14.5 }}
-                >
-                  <item.icon size={18} />
-                  {item.label}
-                </div>
-              ))}
+              {MENU_GRUPOS.filter((g) => g.movil === "mas").map((item, i, lista) => {
+                const activo = grupoDeVista(vista)?.key === item.key;
+                const nuevaSeccion = i === 0 || lista[i - 1].seccion !== item.seccion;
+                return (
+                  <React.Fragment key={item.key}>
+                    {nuevaSeccion && <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.textDim, margin: i === 0 ? "0 10px 4px" : "14px 10px 4px" }}>{item.seccion}</div>}
+                    <div
+                      onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 10px", borderRadius: 8, cursor: "pointer", color: COLORS.menuTexto, background: activo ? COLORS.menuActivoBg : "transparent", fontWeight: activo ? 700 : 500, fontSize: 14.5 }}
+                    >
+                      <item.icon size={18} />
+                      {item.label}
+                      {item.pestanas.length > 1 && <span style={{ marginLeft: "auto", fontSize: 11, color: COLORS.textDim }}>{item.pestanas.length}</span>}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         )}
@@ -11002,6 +11021,8 @@ function FirztnetPanel({ onCerrarSesion }) {
             </div>
           </div>
           )}
+
+          <PestanasGrupo vista={vista} onIr={setVista} />
 
           {errorCarga && (
             <div style={{ background: COLORS.tintRojo, border: `1px solid ${COLORS.rust}`, color: COLORS.tintRojoTx, borderRadius: 8, padding: "10px 14px", fontSize: 12.5, marginBottom: 16 }}>
