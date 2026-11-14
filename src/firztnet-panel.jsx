@@ -875,31 +875,30 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
     { texto: "Días", icono: Clock },
     { texto: "Estado", icono: CircleDot },
     { texto: "WhatsApp", icono: MessageSquare },
-    { texto: "", icono: null },
-    { texto: "Acciones", icono: MoreVertical, centrado: true },
+    { texto: "Acciones", icono: MoreVertical, centrado: true, fija: true },
   ];
 
   return (
     <div style={{ position: "relative" }}>
     <div ref={cajaRef} className="fn-sin-barra" onScroll={comprobarSiQuedanMas} style={{ maxHeight: alto, overflow: "auto", overscrollBehaviorY: "auto" }}>
-      <table style={{ width: "100%", minWidth: 1020, borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
+      {/* Cabe entera desde 1024 px de ancho; si aun así no cabe, «Acciones» queda fija a la derecha */}
+      <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}>
         <colgroup>
-          <col style={{ width: 92 }} />
-          <col style={{ width: 92 }} />
+          <col style={{ width: 84 }} />
+          <col style={{ width: 84 }} />
           <col style={{ width: "auto" }} />
-          <col style={{ width: 86 }} />
-          <col style={{ width: 98 }} />
-          <col style={{ width: 172 }} />
+          <col style={{ width: 78 }} />
+          <col style={{ width: 92 }} />
+          <col style={{ width: 150 }} />
+          <col style={{ width: 116 }} />
           <col style={{ width: 128 }} />
-          <col style={{ width: 104 }} />
-          <col style={{ width: 100 }} />
         </colgroup>
         <thead>
           <tr>
             {columnas.map((c, i) => {
               const Icono = c.icono;
               return (
-                <th key={i} style={{ ...estiloTh, paddingLeft: i === 0 ? 16 : 8, textAlign: c.centrado ? "center" : "left" }}>
+                <th key={i} style={{ ...estiloTh, paddingLeft: i === 0 ? 16 : 8, textAlign: c.centrado ? "center" : "left", ...(c.fija ? { position: "sticky", right: 0, zIndex: 2 } : null) }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {Icono && <Icono size={14} color="#FFFFFF" />}{c.texto}
                   </span>
@@ -986,11 +985,12 @@ function TablaOrdenes({ filas, etapasDe, onAbrir, onHover, onCambio, mensajeVaci
                 <td style={{ padding: "10px 8px" }}>
                   <CeldaWhatsApp t={t} stage={stage} />
                 </td>
-                <td style={{ padding: "10px 8px" }}>
-                  <CeldaFactura t={t} esFinal={esFinal} onCambio={onCambio} />
-                </td>
-                <td style={{ padding: "10px 8px" }}>
-                  <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onCambio={onCambio} />
+                <td style={{ padding: "10px 8px", position: "sticky", right: 0, zIndex: 1, background: COLORS.surface }}>
+                  {/* Factura (solo si ya está entregada) y el menú ⋮, juntos y siempre a la vista */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {esFinal && <div style={{ width: 80 }}><CeldaFactura t={t} esFinal={esFinal} onCambio={onCambio} /></div>}
+                    <MenuAccionesOrden t={t} stage={stage} esFinal={esFinal} onAbrir={onAbrir} onCambio={onCambio} />
+                  </div>
                 </td>
               </tr>
             );
