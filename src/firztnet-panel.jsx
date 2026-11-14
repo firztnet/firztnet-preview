@@ -189,6 +189,12 @@ async function apiPost(path, body) {
   if (!res.ok) throw new Error((await res.json()).error || `POST ${path} → ${res.status}`);
   return res.json();
 }
+async function apiDelete(path) {
+  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE", headers: cabecerasAuth() });
+  manejar401(res);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `DELETE ${path} → ${res.status}`);
+  return res.json();
+}
 async function apiPatch(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "PATCH",
@@ -7152,6 +7158,21 @@ function PuntoVentaView() {
     if (!window.confirm(textos[estado])) return;
     try { await apiPatch(`/central/pos/tiendas/${t.id}`, { estado }); await cargar(); } catch (e) { setAviso(e.message); }
   }
+  async function borrar(t) {
+    const vivos = t.equipos.filter((e) => e.activo).length;
+    const texto = `¿Borrar la tienda «${t.nombre}»?\n\n`
+      + "Se borran de tu panel: la tienda, sus ordenadores y sus copias de seguridad guardadas aquí. "
+      + "Los cobros ya apuntados en «Ventas» se quedan.\n\n"
+      + (vivos ? `⚠️ Tiene ${vivos} ordenador(es) activado(s): dejarán de informarte, pero el programa NO se bloquea solo. Si quieres que deje de vender, pulsa «Cancelar» y usa antes «Suspender».\n\n` : "")
+      + "Esto no se puede deshacer.";
+    if (!window.confirm(texto)) return;
+    try {
+      await apiDelete(`/central/pos/tiendas/${t.id}`);
+      setAbierta(null);
+      setAviso(`✓ Tienda borrada: ${t.nombre}`);
+      await cargar();
+    } catch (e) { setAviso(e.message); }
+  }
   async function licenciaManual(t) {
     const id = window.prompt(`Licencia sin internet para ${t.nombre}.\nEscribe el ID del equipo (12 cifras) que sale en su pantalla de activación, pestaña «Sin internet»:`);
     if (!id) return;
@@ -7263,6 +7284,7 @@ function PuntoVentaView() {
                     {t.estado === "suspendida" || t.estado === "baja"
                       ? <button onClick={() => cambiarEstado(t, "activa")} style={boton("transparent", COLORS.green, COLORS.green)}>Reactivar</button>
                       : <button onClick={() => cambiarEstado(t, "suspendida")} style={boton("transparent", COLORS.rust, "#FCA5A5")}>Suspender</button>}
+                    <button onClick={() => borrar(t)} style={{ ...boton(COLORS.rust, "#FFFFFF"), marginLeft: "auto" }}><Trash2 size={12} /> Borrar tienda</button>
                   </div>
                   {t.notas && <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>📝 {t.notas}</div>}
                   {(detalle?.id === t.id ? detalle.equipos : t.equipos).map((e) => (
