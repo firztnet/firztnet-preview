@@ -6742,7 +6742,7 @@ function CuadroMandoView({ onIrVista }) {
             return (
               <div key={s.sistema} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
-                  <span><strong style={{ color: info.color }}>{info.label}</strong> <span style={{ color: COLORS.textDim }}>· {s.pagando} pagan · {s.prueba} en prueba</span></span>
+                  <span><strong style={{ color: info.color }}>{info.label}</strong> <span style={{ color: COLORS.textDim }}>{s.clientes ? `· ${s.pagando} pagan · ${s.prueba} en prueba` : "· sin clientes todavía"}</span></span>
                   <strong>{euros(s.ingresos_mes_cents)}</strong>
                 </div>
                 <div style={{ height: 8, borderRadius: 6, background: COLORS.surfaceRaised, marginTop: 4 }}>
