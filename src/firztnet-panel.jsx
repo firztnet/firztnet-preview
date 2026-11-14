@@ -7004,10 +7004,19 @@ function CobrosView() {
     try { await apiPost(`/central/cobros/${c.id}/correo`, {}); setAviso(`✓ Recordatorio enviado a ${c.contacto_email}`); } catch (e) { setAviso(e.message); }
   }
   async function registrar(c) {
-    const valor = window.prompt(`¿Cuánto te ha pagado ${c.nombre}? (€)`, c.importe_cents ? String(c.importe_cents / 100).replace(".", ",") : "");
+    const cuotas = window.prompt(`¿Cuántas cuotas te ha pagado ${c.nombre}?`, "1");
+    if (cuotas === null) return;
+    const n = Math.max(1, parseInt(cuotas, 10) || 1);
+    const valor = window.prompt(`¿Cuánto te ha pagado en total? (€)`, c.importe_cents ? String((c.importe_cents * n) / 100).replace(".", ",") : "");
     if (valor === null) return;
     const metodo = window.prompt("¿Cómo ha pagado? (Bizum, transferencia, efectivo…)", "Bizum") || "";
-    try { await apiPost(`/central/cobros/${c.id}/registrar`, { importe: valor, metodo }); setAviso(`✓ Cobro apuntado en «Ventas»: ${c.nombre}. Recuerda cambiar la fecha de renovación en su sistema.`); } catch (e) { setAviso(e.message); }
+    try {
+      const r = await apiPost(`/central/cobros/${c.id}/registrar`, { importe: valor, metodo, cuotas: n });
+      setAviso(r.sistema_actualizado
+        ? `✓ Cobro apuntado en «Ventas» y su sistema ya está al día: ${c.nombre} renueva el ${fechaCorta(r.renueva)}.`
+        : `✓ Cobro apuntado en «Ventas»: ${c.nombre}. ${r.motivo || "Su sistema no se ha podido actualizar"}: cambia la fecha de renovación en su panel.`);
+      cargar();
+    } catch (e) { setAviso(e.message); }
   }
 
   if (!lista) return <div style={{ fontSize: 12.5, color: COLORS.textDim }}>Cargando...</div>;
