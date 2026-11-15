@@ -1,7 +1,7 @@
 // Pantalla principal de Reparaciones: saludo, dinero del mes, por dónde va cada equipo,
 // cifras clave y lo que pide atención hoy. Con cuatro temas que se recuerdan en este navegador.
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Flame, Users, CalendarCheck, Package, Clock, LayoutGrid } from "lucide-react";
+import { Plus, Flame, Users, CalendarCheck, Package, Clock, LayoutGrid } from "lucide-react";
 import "./inicio-taller.css";
 
 export const TEMAS_INICIO = [
@@ -100,7 +100,6 @@ export default function InicioTaller({
           <p>{frase}</p>
           <div className="fz-acciones">
             <button type="button" className="fz-btn pri" onClick={onNueva}><Plus size={16} /> Nueva reparación</button>
-            <button type="button" className="fz-btn" onClick={onBuscar}><Search size={15} /> Buscar</button>
             {selectorTrabajo}
           </div>
         </div>
