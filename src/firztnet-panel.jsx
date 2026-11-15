@@ -3,10 +3,10 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge, Store, PanelLeftClose, PanelLeftOpen
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge, Store, PanelLeftClose, PanelLeftOpen, BellRing
 } from "lucide-react";
 import { createPortal } from "react-dom";
-import InicioTaller, { FondoInicio, temaGuardado } from "./inicio-taller.jsx";
+import InicioTaller, { FondoInicio, temaGuardado, TEMAS_INICIO } from "./inicio-taller.jsx";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar
 } from "recharts";
@@ -3715,34 +3715,55 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
     return () => document.removeEventListener("mousedown", alClicarFuera);
   }, []);
 
+  // Cada aviso con su grupo, su icono y si es urgente; el texto sin el emoji del principio (ya lleva icono)
+  const avisos = items.map((it) => {
+    const estilo = ESTILO_AVISO[it.tipo] || ESTILO_AVISO.otro;
+    const urgente = AVISOS_URGENTES.includes(it.tipo) || it.texto.startsWith("🚨");
+    return { ...it, ...estilo, urgente, limpio: it.texto.replace(/^(🚨 URGENTE · |🔴|🔒|⏳|⌛|💶|⚠️|💾|📈|🛟)\s*/u, "") };
+  });
+  const urgentes = avisos.filter((a) => a.urgente).length;
+  const revisar = avisos.length - urgentes;
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setAbierta((v) => !v)}
-        style={{ display: "flex", alignItems: "center", gap: 6, background: items.length > 0 ? "#FEF2F2" : COLORS.surface, border: `1px solid ${items.length > 0 ? "#FECACA" : COLORS.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer", position: "relative" }}
-      >
-        <Bell size={15} color={items.length > 0 ? COLORS.rust : COLORS.textDim} />
-        {items.length > 0 && (
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: COLORS.rust }}>{items.length}</span>
+      <button type="button" className={`fz-avisos${avisos.length ? "" : " fz-avisos-ok"}`} onClick={() => setAbierta((v) => !v)} aria-expanded={abierta} title="Avisos">
+        <span className="fz-avisos-camp">{avisos.length ? <BellRing size={16} /> : <Bell size={16} />}</span>
+        <span className="fz-avisos-txt">
+          <b>{avisos.length ? `${avisos.length} ${avisos.length === 1 ? "aviso" : "avisos"}` : "Sin avisos"}</b>
+          <small>{avisos.length ? "pulsa para verlos" : "todo al día"}</small>
+        </span>
+        {avisos.length > 0 && <span className="fz-avisos-num">{avisos.length}</span>}
+        {avisos.length > 0 && (
+          <span className="fz-avisos-chips">
+            {urgentes > 0 && <i style={{ "--c": COLORS.rust }}>{urgentes} {urgentes === 1 ? "urgente" : "urgentes"}</i>}
+            {revisar > 0 && <i style={{ "--c": "#F59E0B" }}>{revisar} revisar</i>}
+          </span>
         )}
       </button>
       {abierta && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 320, maxHeight: 400, overflowY: "auto", background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 28px -8px rgba(0,0,0,0.18)", zIndex: 70 }}>
-          <div style={{ padding: "12px 14px", borderBottom: `1px solid ${COLORS.line}`, fontSize: 12.5, fontWeight: 700, color: COLORS.text }}>Notificaciones</div>
-          {items.length === 0 ? (
-            <div style={{ padding: 16, fontSize: 12.5, color: COLORS.textDim, textAlign: "center" }}>Todo al día — sin avisos pendientes.</div>
+        <div className="fz-desp fz-desp-avisos" role="menu">
+          <div className="fz-desp-cab"><b>Centro de avisos</b><span>{avisos.length ? `${urgentes} urgentes · ${revisar} a revisar` : ""}</span></div>
+          {avisos.length === 0 ? (
+            <div className="fz-desp-vacio">Todo al día — sin avisos pendientes.</div>
           ) : (
-            items.map((item, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => { item.accion(); setAbierta(false); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 14px", background: "none", border: "none", borderBottom: i < items.length - 1 ? `1px solid ${COLORS.line}` : "none", cursor: "pointer", fontSize: 12.5, color: COLORS.text }}
-              >
-                {item.texto}
-              </button>
-            ))
+            ["Taller", "Mi empresa", "Firztnet"].map((grupo) => {
+              const lista = avisos.filter((a) => a.grupo === grupo);
+              if (!lista.length) return null;
+              return (
+                <div key={grupo}>
+                  <div className="fz-desp-grupo">{grupo}</div>
+                  {lista.map((a, k) => {
+                    const Icono = a.icono;
+                    return (
+                      <button key={k} type="button" role="menuitem" className="fz-aviso" style={{ "--c": a.urgente ? COLORS.rust : a.color }} onClick={() => { a.accion(); setAbierta(false); }}>
+                        <span className="fz-aviso-ic"><Icono size={15} /></span>
+                        <span className="fz-aviso-tx">{a.limpio}{a.urgente && <em>Urgente</em>}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })
           )}
         </div>
       )}
@@ -3750,24 +3771,129 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
   );
 }
 
-// -------------------- Insignia de usuario (cabecera, global) --------------------
-function InsigniaUsuario({ onCerrarSesion }) {
-  const [nombre] = useState(() => nombreUsuarioDelToken());
+// Grupo, icono y color de cada tipo de aviso de la campana
+const ESTILO_AVISO = {
+  stock: { grupo: "Taller", icono: Package, color: "#F59E0B" },
+  rechazo: { grupo: "Taller", icono: XCircle, color: "#F87171" },
+  abandono: { grupo: "Taller", icono: Clock, color: "#F59E0B" },
+  garantia: { grupo: "Taller", icono: ShieldCheck, color: "#3B82F6" },
+  solicitud: { grupo: "Taller", icono: MessageSquare, color: "#3B82F6" },
+  cuota: { grupo: "Taller", icono: CalendarCheck, color: "#F59E0B" },
+  flota: { grupo: "Mi empresa", icono: Car, color: "#10B981" },
+  caido: { grupo: "Firztnet", icono: Server, color: "#F87171" },
+  ssl: { grupo: "Firztnet", icono: Lock, color: "#3B82F6" },
+  prueba: { grupo: "Firztnet", icono: Clock, color: "#F59E0B" },
+  riesgo: { grupo: "Firztnet", icono: TriangleAlert, color: "#F59E0B" },
+  cobro: { grupo: "Firztnet", icono: Banknote, color: "#F59E0B" },
+  copia: { grupo: "Firztnet", icono: RefreshCw, color: "#F87171" },
+  informe: { grupo: "Firztnet", icono: FileBarChart, color: "#3B82F6" },
+  ayuda: { grupo: "Firztnet", icono: LifeBuoy, color: "#8B5CF6" },
+  visitas: { grupo: "Firztnet", icono: Globe, color: "#10B981" },
+  otro: { grupo: "Taller", icono: Bell, color: "#94A3B8" },
+};
+// Lo que se cuenta como urgente: sistemas caídos, copias atrasadas, cobros y ayudas marcadas urgentes
+const AVISOS_URGENTES = ["caido", "copia", "cobro"];
+
+// -------------------- Semáforo de tus sistemas y webs (lee el vigilante de Central) --------------------
+function SemaforoSistemas({ onIrVista }) {
+  const [salud, setSalud] = useState(null); // null = cargando; false = sin datos
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    let vivo = true;
+    const cargar = () => apiGet("/central/salud").then((d) => { if (vivo) setSalud(d); }).catch(() => { if (vivo) setSalud(false); });
+    cargar();
+    const t = setInterval(cargar, 120000); // el vigilante comprueba cada 2 minutos
+    return () => { vivo = false; clearInterval(t); };
+  }, []);
+  useEffect(() => {
+    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, []);
+
+  const lista = ((salud && salud.sistemas) || []).filter((x) => x.activo);
+  const caidos = lista.filter((x) => x.estado === "caido");
+  const lentos = lista.filter((x) => x.estado === "lento");
+  const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "");
+  let color = "#94A3B8", texto = "Comprobando…", sub = "";
+  if (salud === false) { texto = "Sin datos"; sub = "no se pudo consultar"; }
+  else if (salud && !lista.length) { texto = "Sin vigilar"; sub = "añade sistemas"; }
+  else if (caidos.length) { color = COLORS.rust; texto = caidos.length === 1 ? `${caidos[0].nombre} caído` : `${caidos.length} caídos`; sub = caidos[0].caido_desde ? `desde las ${hora(caidos[0].caido_desde)}` : ""; }
+  else if (lentos.length) { color = "#F59E0B"; texto = "Revisar"; sub = `${lentos.length} ${lentos.length === 1 ? "lento" : "lentos"}`; }
+  else if (lista.length) { color = "#10B981"; texto = "Todo en marcha"; sub = `${lista.length} sistemas`; }
+  const ultima = lista.map((x) => x.ultima_comprobacion).filter(Boolean).sort().pop();
+  const minutos = ultima ? Math.max(0, Math.round((Date.now() - new Date(ultima).getTime()) / 60000)) : null;
+  const COLOR = { ok: "#10B981", lento: "#F59E0B", caido: COLORS.rust };
+  const TEXTO = { ok: "Funciona", lento: "Lento", caido: "Caído", desconocido: "Sin comprobar" };
+
   return (
-    <button
-      type="button"
-      onClick={onCerrarSesion}
-      title="Cerrar sesión"
-      style={{ display: "flex", alignItems: "center", gap: 7, background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 999, padding: "6px 12px 6px 6px", cursor: "pointer" }}
-    >
-      <div style={{ width: 24, height: 24, borderRadius: "50%", background: COLORS.sidebarBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Users size={12} color="#FFFFFF" />
-      </div>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.text, textTransform: "capitalize" }}>{nombre}</span>
-      <span style={{ fontSize: 11, color: COLORS.textDim, display: "flex", alignItems: "center", gap: 2 }}>
-        <LogOut size={11} /> Salir
-      </span>
-    </button>
+    <div ref={ref} style={{ position: "relative" }}>
+      <button type="button" className="fz-semaforo" style={{ "--sc": color }} onClick={() => setAbierto((v) => !v)} aria-expanded={abierto} title="Estado de tus sistemas y webs">
+        <i />
+        <span className="fz-semaforo-txt">{texto}</span>
+        {sub && <small>· {sub}</small>}
+      </button>
+      {abierto && (
+        <div className="fz-desp fz-desp-semaforo">
+          <div className="fz-desp-cab"><b>Tus sistemas y webs</b><span>{minutos === null ? "" : minutos === 0 ? "comprobado ahora" : `comprobado hace ${minutos} min`}</span></div>
+          {!lista.length && <div className="fz-desp-vacio">{salud === false ? "No se ha podido consultar el vigilante de Central." : "Todavía no hay sistemas vigilados."}</div>}
+          {lista.map((x) => (
+            <div key={x.id} className="fz-sis" style={{ "--sc": COLOR[x.estado] || "#94A3B8" }} title={x.url}>
+              <span className="fz-sis-p" />
+              <b>{x.nombre}</b>
+              {x.estado === "caido"
+                ? <em className="fz-sis-error">{x.error || "No responde"}</em>
+                : <span className="fz-sis-ms">{x.ms != null ? `${(x.ms / 1000).toFixed(2).replace(".", ",")} s` : "—"}</span>}
+              <em>{TEXTO[x.estado] || x.estado}</em>
+            </div>
+          ))}
+          <button type="button" className="fz-desp-pie" onClick={() => { onIrVista("estado-sistemas"); setAbierto(false); }}>Ver Estado de sistemas</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------- Insignia de usuario (cabecera, global) --------------------
+function InsigniaUsuario({ onCerrarSesion, onIrVista, tema, onTema }) {
+  const [nombre] = useState(() => nombreUsuarioDelToken());
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const fuera = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, []);
+  const inicial = (nombre || "?").charAt(0).toUpperCase();
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button type="button" className="fz-usuario" onClick={() => setAbierto((v) => !v)} aria-expanded={abierto} title="Tu cuenta">
+        <span className="fz-ava">{inicial}</span>
+        <span className="fz-usuario-txt"><b>{nombre}</b><small>Administrador</small></span>
+        <ChevronDown size={15} className="fz-usuario-chev" />
+      </button>
+      {abierto && (
+        <div className="fz-desp fz-desp-usuario" role="menu">
+          <div className="fz-u-cab"><span className="fz-ava fz-ava-g">{inicial}</span><div><b>{nombre}</b><small>Administrador · Sede principal</small></div></div>
+          <div className="fz-desp-sep" />
+          {onIrVista && <button type="button" role="menuitem" className="fz-op" onClick={() => { onIrVista("ajustes"); setAbierto(false); }}><Settings size={16} /> Ajustes y manual de uso</button>}
+          {onIrVista && <button type="button" role="menuitem" className="fz-op" onClick={() => { onIrVista("estado-sistemas"); setAbierto(false); }}><Activity size={16} /> Estado de sistemas</button>}
+          {onTema && (
+            <>
+              <div className="fz-desp-grupo">Tema de la pantalla</div>
+              <div className="fz-temas-mini">
+                {TEMAS_INICIO.map((t) => (
+                  <button key={t.key} type="button" title={`Tema ${t.nombre}`} aria-label={`Tema ${t.nombre}`} aria-pressed={tema === t.key} className={tema === t.key ? "on" : ""} style={{ background: t.muestra }} onClick={() => onTema(t.key)} />
+                ))}
+              </div>
+            </>
+          )}
+          <div className="fz-desp-sep" />
+          <button type="button" role="menuitem" className="fz-op fz-op-salir" onClick={onCerrarSesion}><LogOut size={16} /> Cerrar sesión</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -10785,6 +10911,81 @@ function FirztnetPanel({ onCerrarSesion }) {
         .fn-navitem-boton-mas {
           display: none;
         }
+        /* ---- Zona superior derecha: semáforo, lupa, avisos y usuario ---- */
+        .fz-semaforo, .fz-lupa, .fz-avisos, .fz-usuario { font-family: inherit; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); cursor: pointer; }
+        .fz-semaforo { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--sc) 35%, transparent); background: color-mix(in srgb, var(--sc) 13%, transparent); color: var(--sc); font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+        .fz-semaforo i { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); animation: fzLate 2s infinite; flex-shrink: 0; }
+        .fz-semaforo small { font-size: 11.5px; font-weight: 600; opacity: .8; }
+        @keyframes fzLate { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sc) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+        .fz-lupa { width: 42px; height: 42px; border-radius: 14px; border: 1px solid ${COLORS.line}; background: ${COLORS.surface}; color: ${COLORS.textDim}; display: grid; place-items: center; transition: transform .15s, color .15s; }
+        .fz-lupa:hover { color: ${COLORS.text}; transform: translateY(-1px); }
+        .fz-lupa.fz-on { color: ${COLORS.amber}; border-color: ${COLORS.amber}; }
+        .fz-avisos { display: flex; align-items: center; gap: 10px; height: 46px; padding: 5px 14px 5px 5px; border-radius: 999px; border: 1px solid ${COLORS.line}; background: ${COLORS.surface}; color: ${COLORS.text}; }
+        .fz-avisos-camp { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: ${COLORS.rust}22; color: ${COLORS.rust}; flex-shrink: 0; }
+        .fz-avisos:not(.fz-avisos-ok) .fz-avisos-camp svg { animation: fzCampana 3s ease-in-out infinite; transform-origin: 50% 0; }
+        .fz-avisos-ok .fz-avisos-camp { background: #10B98122; color: #10B981; }
+        @keyframes fzCampana { 0%, 88%, 100% { transform: rotate(0); } 90% { transform: rotate(14deg); } 93% { transform: rotate(-12deg); } 96% { transform: rotate(8deg); } }
+        .fz-avisos-txt { display: flex; flex-direction: column; text-align: left; line-height: 1.2; }
+        .fz-avisos-txt b { font-size: 13px; }
+        .fz-avisos-txt small { font-size: 11px; color: ${COLORS.textDim}; }
+        .fz-avisos-num { display: none; }
+        .fz-avisos-chips { display: flex; gap: 4px; }
+        .fz-avisos-chips i { font-style: normal; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c); white-space: nowrap; }
+        .fz-usuario { display: flex; align-items: center; gap: 10px; height: 46px; padding: 5px 12px 5px 5px; border-radius: 999px; border: 1px solid ${COLORS.line}; background: ${COLORS.surface}; color: ${COLORS.text}; }
+        .fz-usuario:hover, .fz-avisos:hover { border-color: ${COLORS.amber}88; }
+        .fz-usuario-txt { display: flex; flex-direction: column; text-align: left; line-height: 1.2; }
+        .fz-usuario-txt b { font-size: 13px; text-transform: capitalize; }
+        .fz-usuario-txt small { font-size: 11px; color: ${COLORS.textDim}; }
+        .fz-usuario-chev { color: ${COLORS.textDim}; }
+        .fz-ava { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #fff; background: linear-gradient(135deg, #3B82F6, #F59E0B); position: relative; flex-shrink: 0; }
+        .fz-ava::after { content: ""; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #10B981; border: 2px solid ${COLORS.surface}; }
+        .fz-ava-g { width: 42px; height: 42px; font-size: 16px; }
+        .fz-desp { position: absolute; top: calc(100% + 10px); right: 0; z-index: 80; background: ${COLORS.surface}; border: 1px solid ${COLORS.line}; border-radius: 16px; box-shadow: 0 24px 50px -18px rgba(0,0,0,.5); padding: 8px; animation: fzAparece .16s ease; color: ${COLORS.text}; }
+        @keyframes fzAparece { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+        .fz-desp-avisos { width: 400px; max-height: 70vh; overflow-y: auto; }
+        .fz-desp-semaforo { width: 360px; left: 0; right: auto; }
+        .fz-desp-usuario { width: 270px; }
+        .fz-desp-cab { display: flex; align-items: baseline; gap: 10px; padding: 8px 10px 10px; }
+        .fz-desp-cab b { font-size: 14px; }
+        .fz-desp-cab span { margin-left: auto; font-size: 11.5px; color: ${COLORS.textDim}; }
+        .fz-desp-grupo { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: ${COLORS.textDim}; padding: 10px 10px 4px; }
+        .fz-desp-vacio { padding: 18px 10px; text-align: center; font-size: 12.5px; color: ${COLORS.textDim}; }
+        .fz-desp-sep { height: 1px; background: ${COLORS.line}; margin: 6px 4px; }
+        .fz-desp-pie { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 0; border-top: 1px solid ${COLORS.line}; background: none; color: ${COLORS.amber}; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .fz-aviso { display: flex; align-items: flex-start; gap: 11px; width: 100%; padding: 9px 10px; border: 0; border-radius: 12px; background: none; text-align: left; font: inherit; color: ${COLORS.text}; cursor: pointer; }
+        .fz-aviso:hover { background: ${COLORS.amber}12; }
+        .fz-aviso-ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+        .fz-aviso-tx { font-size: 12.8px; font-weight: 600; line-height: 1.4; padding-top: 6px; }
+        .fz-aviso-tx em { font-style: normal; margin-left: 8px; font-size: 10.5px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: ${COLORS.rust}22; color: ${COLORS.rust}; }
+        .fz-sis { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 13px; }
+        .fz-sis:hover { background: ${COLORS.amber}10; }
+        .fz-sis-p { width: 9px; height: 9px; border-radius: 50%; background: var(--sc); flex-shrink: 0; }
+        .fz-sis b { flex: 1; font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fz-sis-ms { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: ${COLORS.textDim}; }
+        .fz-sis em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--sc); white-space: nowrap; }
+        .fz-sis em.fz-sis-error { font-weight: 600; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+        .fz-u-cab { display: flex; align-items: center; gap: 11px; padding: 8px 10px 10px; }
+        .fz-u-cab b { display: block; font-size: 14px; text-transform: capitalize; }
+        .fz-u-cab small { font-size: 11.5px; color: ${COLORS.textDim}; }
+        .fz-op { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: ${COLORS.text}; text-align: left; cursor: pointer; }
+        .fz-op:hover { background: ${COLORS.amber}12; }
+        .fz-op svg { color: ${COLORS.textDim}; }
+        .fz-op-salir, .fz-op-salir svg { color: ${COLORS.rust}; }
+        .fz-temas-mini { display: flex; gap: 8px; padding: 4px 10px 8px; }
+        .fz-temas-mini button { width: 30px; height: 30px; border-radius: 9px; border: 2px solid transparent; cursor: pointer; }
+        .fz-temas-mini button.on { border-color: ${COLORS.text}; }
+        /* Pantallas medianas (portátil pequeño, tele a 1024): se recogen los textos para que todo quepa */
+        @media (max-width: 1180px) {
+          .fz-avisos-chips, .fz-semaforo small { display: none; }
+        }
+        @media (max-width: 960px) {
+          .fz-usuario-txt, .fz-usuario-chev, .fz-avisos-txt, .fz-semaforo-txt { display: none; }
+          .fz-semaforo { width: 40px; padding: 0; justify-content: center; }
+          .fz-avisos { padding: 5px; }
+          .fz-avisos-num { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-right: 4px; border-radius: 999px; background: ${COLORS.rust}; color: #fff; font-size: 11px; font-weight: 800; }
+          .fz-usuario { padding: 5px; }
+          .fz-desp-avisos, .fz-desp-semaforo { position: fixed; top: 70px; left: 12px; right: 12px; width: auto; }
+        }
         /* ---- Menú «Estudio» (escritorio): cristal, buscador, secciones plegables, pantallas y avisos ---- */
         .fz-menu .fz-mi::before { display: none; }
         @media (min-width: 769px) {
@@ -11098,19 +11299,19 @@ function FirztnetPanel({ onCerrarSesion }) {
                 <span className="fn-marca-firzt">FIRZT</span><span className="fn-marca-net">NET</span>
               </button>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+            <div className="fz-cabecera-der" style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
+              <SemaforoSistemas onIrVista={setVista} />
               <button
                 type="button"
-                className="fn-boton-buscar"
+                className={`fn-boton-buscar fz-lupa${vista === "buscar" ? " fz-on" : ""}`}
                 onClick={() => { setVista("buscar"); setMenuAbierto(false); setMostrarMasMovil(false); }}
                 aria-label="Buscar órdenes"
                 title="Buscar órdenes"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", background: vista === "buscar" ? COLORS.menuActivoBg : COLORS.surface, border: `1px solid ${vista === "buscar" ? COLORS.amber : COLORS.line}`, borderRadius: 999, padding: "7px 12px", cursor: "pointer" }}
               >
-                <Search size={15} color={vista === "buscar" ? COLORS.amber : COLORS.textDim} />
+                <Search size={18} />
               </button>
               <CampanitaNotificaciones onIrVista={setVista} onAbrirTicket={(t) => setSelected(t)} />
-              <InsigniaUsuario onCerrarSesion={onCerrarSesion} />
+              <InsigniaUsuario onCerrarSesion={onCerrarSesion} onIrVista={setVista} tema={temaInicio} onTema={cambiarTemaInicio} />
             </div>
           </div>
           <div>
