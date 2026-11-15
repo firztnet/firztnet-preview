@@ -10820,7 +10820,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-mi-ico { width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 15%, transparent); color: var(--c); transition: transform .2s; }
           .fz-mi:hover .fz-mi-ico { transform: scale(1.06); }
           .fz-mi.fz-on { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 20%, transparent), transparent 85%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 28%, transparent); font-weight: 700; }
-          .fz-mi.fz-on::after { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); box-shadow: 0 0 14px var(--c); }
+          .fz-mi.fz-on::after { content: ""; position: absolute; left: -6px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); box-shadow: 0 0 14px var(--c); }
           .fz-mi.fz-on .fz-mi-ico { background: var(--c); color: #fff; }
           .fz-mi .fn-navitem-largo { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .fz-mi-aviso { flex-shrink: 0; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--av) 18%, transparent); color: var(--av); }
@@ -10830,7 +10830,10 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-mi-sub.fz-on { color: var(--c); background: color-mix(in srgb, var(--c) 11%, transparent); }
           .fz-menu-vacio { padding: 14px 8px; font-size: 12.5px; color: ${COLORS.textDim}; }
           .fz-menu-pie { margin-top: auto; padding: 10px; border-radius: 14px; background: ${COLORS.menuHoverBg}; border: 1px solid ${COLORS.menuBorde}; display: flex; align-items: center; gap: 10px; }
-          .fz-menu-nav { margin-bottom: 12px; }
+          /* El pie (usuario y cerrar sesión) siempre a la vista: lo que se desplaza es solo la lista de opciones */
+          .fn-sidebar.fz-menu { overflow: hidden !important; box-sizing: border-box; height: 100vh; height: 100dvh; min-height: 0 !important; }
+          .fz-menu .fz-menu-nav { flex: 1 1 auto !important; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -6px 10px; padding: 0 6px 4px; scrollbar-width: thin; scrollbar-color: ${COLORS.menuBorde} transparent; }
+          .fz-menu .fz-menu-pie { flex-shrink: 0; margin-top: 0; }
           .fz-menu-pie .fz-menu-salir { margin-left: auto; background: transparent; }
           .fz-menu-avatar { width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: grid; place-items: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, ${COLORS.amber}, #F59E0B); position: relative; }
           .fz-menu-avatar::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: ${COLORS.green}; border: 2px solid ${COLORS.menuBg}; }
@@ -10844,7 +10847,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-menu-iconos .fz-menu-sec-t { justify-content: center; padding: 12px 0 5px; pointer-events: none; }
           .fz-menu-iconos .fz-plegada .fz-mi { display: flex !important; }
           .fz-menu-iconos .fz-mi { justify-content: center; padding: 6px; }
-          .fz-menu-iconos .fz-mi.fz-on::after { left: -10px; }
+          .fz-menu-iconos .fz-mi.fz-on::after { left: -6px; }
           .fz-menu-iconos .fz-mi-aviso { position: absolute; top: 1px; right: 2px; padding: 0 5px; font-size: 9.5px; line-height: 15px; background: var(--av); color: #fff; }
           .fz-menu-iconos .fz-menu-pie { justify-content: center; padding: 8px; }
           .fn-shell.fz-con-iconos { padding-left: 78px; }
