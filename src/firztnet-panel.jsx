@@ -7442,6 +7442,13 @@ function PuntoVentaView() {
                             {e.datos?.bloqueado && " · ⛔ bloqueado (no puede vender)"}
                           </div>
                           {e.datos?.errores?.length > 0 && <div style={{ color: COLORS.rust, fontSize: 11.5, marginTop: 3 }}>Errores: {e.datos.errores.slice(-3).join(" · ")}</div>}
+                          {e.actualizacion && (
+                            <div style={{ fontSize: 11.5, marginTop: 3, fontWeight: 600, color: e.actualizacion.estado === "fallida" ? COLORS.rust : e.actualizacion.estado === "instalada" ? "#16A34A" : "#D97706" }}>
+                              {e.actualizacion.estado === "instalada" && `✓ Actualizado a la ${e.actualizacion.version} ${haceCuanto(e.actualizacion.fecha)}`}
+                              {e.actualizacion.estado === "descargada" && `⏳ Versión ${e.actualizacion.version} descargada: esperando a que la tienda pulse «Actualizar»`}
+                              {e.actualizacion.estado === "fallida" && `⚠️ La ${e.actualizacion.version} no arrancó y volvió a la anterior: ${e.actualizacion.detalle || ""}`}
+                            </div>
+                          )}
                         </div>
                         {e.activo && <button onClick={() => desactivar(e)} style={boton("transparent", COLORS.rust, "#FCA5A5")}>Desactivar</button>}
                       </div>
@@ -7464,6 +7471,126 @@ function PuntoVentaView() {
           );
         })}
       </div>
+      <ActualizacionesPos tiendas={tiendas || []} onCambio={cargar} />
+    </div>
+  );
+}
+
+// -------------------- Actualizaciones a distancia del punto de venta --------------------
+// Subes el .zip de compilar.ps1 con sus novedades; Central lo firma. Lo mandas a una tienda de prueba
+// o a todas; cada ordenador lo descarga solo y la tienda ve el aviso con las novedades.
+function ActualizacionesPos({ tiendas, onCambio }) {
+  const [datos, setDatos] = useState(null);
+  const [archivo, setArchivo] = useState(null);
+  const [version, setVersion] = useState("");
+  const [notas, setNotas] = useState("");
+  const [subiendo, setSubiendo] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const cargar = useCallback(() => apiGet("/central/pos/versiones").then(setDatos).catch(() => setDatos({ versiones: [] })), []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  function elegir(f) {
+    setArchivo(f || null);
+    const m = f && f.name.match(/(\d+\.\d+\.\d+)/);
+    if (m) setVersion(m[1]);
+  }
+  async function subir() {
+    if (!archivo) { setAviso("Elige el archivo .zip que hace compilar.ps1 (carpeta «salida»)."); return; }
+    setSubiendo(true); setAviso("");
+    try {
+      const fd = new FormData();
+      fd.append("paquete", archivo);
+      fd.append("version", version.trim());
+      fd.append("notas", notas);
+      const res = await fetch(`${API_BASE}/central/pos/versiones`, { method: "POST", headers: cabecerasAuth(), body: fd });
+      manejar401(res);
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(r.error || `Error ${res.status}`);
+      setAviso(`✓ Versión ${r.version} subida y firmada. Elige a quién se la mandas y pulsa «Publicar».`);
+      setArchivo(null); setVersion(""); setNotas("");
+      cargar();
+    } catch (e) { setAviso(e.message); } finally { setSubiendo(false); }
+  }
+  async function cambiar(v, cambios, texto) {
+    if (texto && !window.confirm(texto)) return;
+    try { await apiPatch(`/central/pos/versiones/${v.id}`, cambios); setAviso(""); cargar(); onCambio?.(); } catch (e) { setAviso(e.message); }
+  }
+  async function borrar(v) {
+    if (!window.confirm(`¿Borrar la versión ${v.version}? Las tiendas que aún no la tengan dejarán de recibirla.`)) return;
+    try { await apiDelete(`/central/pos/versiones/${v.id}`); cargar(); } catch (e) { setAviso(e.message); }
+  }
+
+  const caja = { background: COLORS.surface, border: `1px solid ${COLORS.line}`, borderRadius: 12, padding: 16, marginTop: 14 };
+  const entrada = { width: "100%", boxSizing: "border-box", fontSize: 13, padding: "9px 11px", borderRadius: 8, border: `1px solid ${COLORS.line}`, background: COLORS.surface, color: COLORS.text };
+  const boton = (fondo, color, borde) => ({ background: fondo, color, border: `1px solid ${borde || fondo}`, borderRadius: 8, padding: "7px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" });
+  const ESTADO = { borrador: ["Sin publicar", "#64748B"], publicada: ["Publicada", "#16A34A"], retirada: ["Retirada", "#DC2626"] };
+
+  return (
+    <div style={{ marginTop: 26 }}>
+      <h2 style={{ fontSize: 17, margin: "0 0 4px", color: COLORS.text }}>🚀 Actualizaciones</h2>
+      <div style={{ fontSize: 12.5, color: COLORS.textDim, marginBottom: 6 }}>
+        Sube el paquete de <b>compilar.ps1</b> con sus novedades. Central lo firma; cada ordenador lo descarga solo, comprueba la firma
+        y la tienda ve un aviso con las novedades para actualizar (si algo falla, vuelve sola a la versión anterior).
+      </div>
+      {datos && !datos.firma_lista && <div style={{ ...caja, color: COLORS.rust, fontSize: 12.5 }}>Falta la variable POS_CLAVE_PRIVADA en Railway: sin ella no se pueden firmar las actualizaciones.</div>}
+      <div style={caja}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10, color: COLORS.text }}>Subir una versión nueva</div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", gap: 10 }}>
+          <label style={{ fontSize: 12, color: COLORS.textDim }}>Paquete (.zip de la carpeta «salida»)
+            <input type="file" accept=".zip" onChange={(e) => elegir(e.target.files?.[0])} style={{ ...entrada, marginTop: 4 }} />
+          </label>
+          <label style={{ fontSize: 12, color: COLORS.textDim }}>Versión
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="2.1.0" style={{ ...entrada, marginTop: 4 }} />
+          </label>
+        </div>
+        <label style={{ display: "block", fontSize: 12, color: COLORS.textDim, marginTop: 10 }}>Novedades que verá la tienda (una por línea)
+          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={4} placeholder={"Tickets más rápidos al imprimir\nNuevo informe de ventas por mes\nCorrecciones y mejoras de seguridad"} style={{ ...entrada, marginTop: 4, resize: "vertical", fontFamily: "inherit" }} />
+        </label>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+          <button onClick={subir} disabled={subiendo} style={boton(COLORS.amber, "#FFFFFF")}>{subiendo ? "Subiendo y firmando…" : "Subir y firmar"}</button>
+          {aviso && <span style={{ fontSize: 12.5, color: aviso.startsWith("✓") ? "#16A34A" : COLORS.rust }}>{aviso}</span>}
+        </div>
+      </div>
+
+      {(datos?.versiones || []).map((v) => {
+        const [textoEstado, colorEstado] = ESTADO[v.estado] || ESTADO.borrador;
+        return (
+          <div key={v.id} style={caja}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <strong style={{ fontSize: 15, color: COLORS.text }}>Versión {v.version}</strong>
+              <span style={{ fontSize: 11.5, fontWeight: 700, padding: "2px 9px", borderRadius: 999, background: `${colorEstado}22`, color: colorEstado }}>{textoEstado}</span>
+              <span style={{ fontSize: 12, color: COLORS.textDim }}>{(v.tamano / 1048576).toFixed(1).replace(".", ",")} MB · subida {haceCuanto(v.subida)}</span>
+              {v.estado === "publicada" && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.text }}>
+                  · {v.equipos_al_dia} de {v.equipos_destino} ordenador(es) ya la tienen{v.fallidas ? ` · ⚠️ ${v.fallidas} fallida(s)` : ""}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.textDim, margin: "8px 0", whiteSpace: "pre-wrap" }}>{v.notas || "Sin novedades escritas (la tienda verá «Mejoras de funcionamiento y seguridad»)."}</div>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, color: COLORS.text }}>
+              <label><input type="radio" checked={v.destino === "prueba"} onChange={() => cambiar(v, { destino: "prueba" })} /> Solo tiendas de prueba:</label>
+              {v.destino === "prueba" && tiendas.map((t) => (
+                <label key={t.id} style={{ color: COLORS.textDim }}>
+                  <input type="checkbox" checked={v.tiendas.includes(t.id)} onChange={(e) => cambiar(v, { tiendas: e.target.checked ? [...v.tiendas, t.id] : v.tiendas.filter((x) => x !== t.id) })} /> {t.nombre}
+                </label>
+              ))}
+              <label><input type="radio" checked={v.destino === "todas"} onChange={() => cambiar(v, { destino: "todas" })} /> Todas las tiendas</label>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              {v.estado !== "publicada" && (
+                <button onClick={() => cambiar(v, { estado: "publicada" }, `¿Publicar la versión ${v.version} para ${v.destino === "todas" ? "TODAS las tiendas" : "las tiendas de prueba elegidas"}? Los ordenadores la descargarán en su próxima conexión (máximo 10 minutos) y la tienda verá el aviso.`)}
+                  style={boton("#16A34A", "#FFFFFF")}>Publicar</button>
+              )}
+              {v.estado === "publicada" && (
+                <button onClick={() => cambiar(v, { estado: "retirada" }, `¿Retirar la versión ${v.version}? Los ordenadores que aún no la hayan instalado dejarán de verla (los que ya la tienen se quedan con ella).`)}
+                  style={boton("transparent", COLORS.rust, "#FCA5A5")}>Retirar</button>
+              )}
+              <button onClick={() => borrar(v)} style={boton("transparent", COLORS.textDim, COLORS.line)}>Borrar</button>
+            </div>
+          </div>
+        );
+      })}
+      {datos && datos.versiones.length === 0 && <div style={{ ...caja, fontSize: 12.5, color: COLORS.textDim }}>Todavía no has subido ninguna versión.</div>}
     </div>
   );
 }
