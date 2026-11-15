@@ -10653,7 +10653,9 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
   // Menú «Estudio»: barra de iconos fija a la izquierda (útil en pantallas pequeñas o la tele), secciones plegadas y buscador
   const [menuIconos, setMenuIconos] = useState(() => { try { return localStorage.getItem("fz-menu-iconos") === "1"; } catch { return false; } });
+  const [opcionAbierta, setOpcionAbierta] = useState(null); // opción del menú con sus pantallas desplegadas
   const [seccionesPlegadas, setSeccionesPlegadas] = useState(() => { try { return JSON.parse(localStorage.getItem("fz-menu-plegadas") || "[]"); } catch { return []; } });
+  useEffect(() => { if (!menuAbierto) setOpcionAbierta(null); }, [menuAbierto]);
   const cambiarMenuIconos = (v) => { setMenuIconos(v); try { localStorage.setItem("fz-menu-iconos", v ? "1" : "0"); } catch { /* sin almacenamiento */ } };
   const plegarSeccion = (nombre) => setSeccionesPlegadas((prev) => {
     const nuevas = prev.includes(nombre) ? prev.filter((x) => x !== nombre) : [...prev, nombre];
@@ -11031,6 +11033,9 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-mi.fz-on .fz-mi-ico { background: var(--c); color: #fff; }
           .fz-mi .fn-navitem-largo { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           .fz-mi-aviso { flex-shrink: 0; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--av) 18%, transparent); color: var(--av); }
+          .fz-mi-chev { flex-shrink: 0; color: ${COLORS.textDim}; transform: rotate(-90deg); transition: transform .2s; }
+          .fz-mi-chev.fz-abierta { transform: none; }
+          .fz-menu-iconos .fz-mi-chev { display: none; }
           .fz-mi-subs { margin: 0 0 6px 24px; padding-left: 15px; border-left: 1px solid ${COLORS.menuBorde}; }
           .fz-mi-sub { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 8px; font: inherit; font-size: 12.8px; font-weight: 600; color: ${COLORS.textDim}; cursor: pointer; }
           .fz-mi-sub:hover { background: ${COLORS.menuHoverBg}; color: ${COLORS.menuTexto}; }
@@ -11059,7 +11064,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-shell.fz-con-iconos { padding-left: 78px; }
         }
         @media (max-width: 768px) {
-          .fz-menu-cab, .fz-mi-subs, .fz-menu-pie, .fz-menu-vacio, .fz-menu-sec-t { display: none !important; }
+          .fz-menu-cab, .fz-mi-subs, .fz-mi-chev, .fz-menu-pie, .fz-menu-vacio, .fz-menu-sec-t { display: none !important; }
           .fz-menu-nav, .fz-menu-sec, .fz-mi-ico { display: contents !important; }
           .fz-mi { display: flex; align-items: center; border-radius: 8px; cursor: pointer; color: ${COLORS.menuTexto}; font-weight: 500; }
           .fz-mi.fz-on { background: ${COLORS.menuActivoBg}; font-weight: 700; }
@@ -11214,22 +11219,33 @@ function FirztnetPanel({ onCerrarSesion }) {
                   {items.map((item) => {
                     const activo = grupoDeVista(vista)?.key === item.key;
                     const aviso = avisosMenu[item.key];
+                    const varias = item.pestanas.length > 1;
+                    const desplegada = opcionAbierta === item.key;
+                    // Con varias pantallas, la opción despliega su lista y esperas a elegir; con una sola, va directa.
+                    // En el móvil y en la barra de iconos no hay lista: se va a la primera pantalla.
+                    const pulsar = () => {
+                      const sinLista = !menuAbierto || window.matchMedia("(max-width: 768px)").matches;
+                      if (varias && !sinLista) { setOpcionAbierta(desplegada ? null : item.key); return; }
+                      setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false);
+                    };
                     return (
                       <React.Fragment key={item.key}>
                         <div
                           className={`fn-navitem fz-mi${activo ? " fn-navitem-active fz-on" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
-                          onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false); }}
+                          onClick={pulsar}
                           title={item.label}
                           role="button"
                           tabIndex={0}
-                          onKeyDown={(e) => { if (e.key === "Enter") { setVista(item.pestanas[0][0]); setMenuAbierto(false); } }}
+                          aria-expanded={varias ? desplegada : undefined}
+                          onKeyDown={(e) => { if (e.key === "Enter") pulsar(); }}
                         >
                           <span className="fz-mi-ico"><item.icon size={16} /></span>
                           <span className="fn-navitem-largo">{item.label}</span>
                           {item.corto && <span className="fn-navitem-corto">{item.corto}</span>}
                           {aviso && <span className="fn-navitem-num fz-mi-aviso" style={{ "--av": aviso.color }} title={aviso.titulo}>{aviso.texto}</span>}
+                          {varias && <ChevronDown size={14} className={`fz-mi-chev${desplegada ? " fz-abierta" : ""}`} />}
                         </div>
-                        {activo && item.pestanas.length > 1 && (
+                        {desplegada && varias && (
                           <div className="fz-mi-subs">
                             {item.pestanas.map(([k, nombre]) => (
                               <button key={k} type="button" className={`fz-mi-sub${vista === k ? " fz-on" : ""}`} onClick={() => { setVista(k); setMenuAbierto(false); }}>
