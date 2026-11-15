@@ -1118,10 +1118,13 @@ const tamDinero = (texto) => Math.min(24, Math.floor(125 / (String(texto).length
 // Mismo efecto que las tarjetas: al pasar el ratón el logo se levanta, crece con un rebote,
 // le sale un resplandor azul y un brillo lo cruza (recortado con la forma de las letras).
 // Al abrir el menú, además, el logo aparece enfocándose.
+// Logo del menú lateral en vector: más bajo que la imagen original (1202×392) y nítido a cualquier tamaño
+const LOGO_MENU_SVG = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 230"><rect x="9" y="9" width="982" height="212" rx="40" fill="none" stroke="#2563EB" stroke-width="18"/><text x="500" y="132" text-anchor="middle" textLength="848" lengthAdjust="spacingAndGlyphs" font-family="Verdana, 'DejaVu Sans', Arial, sans-serif" font-weight="800" font-size="126"><tspan fill="#2563EB">FIRZT</tspan><tspan fill="#F59E0B">NET</tspan></text><text x="500" y="196" text-anchor="middle" textLength="848" lengthAdjust="spacingAndGlyphs" font-family="Verdana, 'DejaVu Sans', Arial, sans-serif" font-size="54" fill="#64748B">SOLUCIONES INFORMÁTICAS</text></svg>`);
+
 function LogoAnimado() {
   const [encima, setEncima] = useState(false);
   const mascara = {
-    WebkitMaskImage: `url(${LOGO_DATA_URI})`, maskImage: `url(${LOGO_DATA_URI})`,
+    WebkitMaskImage: `url(${LOGO_MENU_SVG})`, maskImage: `url(${LOGO_MENU_SVG})`,
     WebkitMaskSize: "100% 100%", maskSize: "100% 100%",
     WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
   };
@@ -1143,7 +1146,7 @@ function LogoAnimado() {
             transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease",
           }}
         >
-          <img src={LOGO_DATA_URI} alt="Firztnet" style={{ width: "100%", height: "auto", display: "block" }} />
+          <img src={LOGO_MENU_SVG} alt="Firztnet" style={{ width: "100%", height: "auto", display: "block" }} />
           <div aria-hidden="true" className="fn-logo-destello" style={{ position: "absolute", inset: 0, pointerEvents: "none", ...mascara }} />
         </div>
       </div>
