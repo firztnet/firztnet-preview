@@ -10671,11 +10671,6 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [menuAbierto]);
 
   const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
-  // Avisos del menú: en vez del número de pestañas, lo que pide atención en cada opción
-  const avisosMenu = {};
-  if (metricasEficiencia.retrasadas > 0) avisosMenu.reparaciones = { texto: metricasEficiencia.retrasadas, color: COLORS.rust, titulo: `${metricasEficiencia.retrasadas} con retraso` };
-  if (resumenMant?.sinCobrar > 0) avisosMenu.mantenimientos = { texto: resumenMant.sinCobrar, color: "#F59E0B", titulo: `${resumenMant.sinCobrar} cuota(s) del mes sin cobrar` };
-  if (stockBajoTarjeta > 0) avisosMenu.inventario = { texto: stockBajoTarjeta, color: "#F59E0B", titulo: `${stockBajoTarjeta} pieza(s) con stock bajo` };
   const [temaInicio, setTemaInicio] = useState(temaGuardado);
   aplicarPaleta(temaInicio);
   useEffect(() => () => aplicarPaleta("dia"), []); // al salir (p. ej. cerrar sesión), vuelve el claro
@@ -11218,7 +11213,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                   </button>
                   {items.map((item) => {
                     const activo = grupoDeVista(vista)?.key === item.key;
-                    const aviso = avisosMenu[item.key];
                     const varias = item.pestanas.length > 1;
                     const desplegada = opcionAbierta === item.key;
                     // Con varias pantallas, la opción despliega su lista y esperas a elegir; con una sola, va directa.
@@ -11242,7 +11236,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                           <span className="fz-mi-ico"><item.icon size={16} /></span>
                           <span className="fn-navitem-largo">{item.label}</span>
                           {item.corto && <span className="fn-navitem-corto">{item.corto}</span>}
-                          {aviso && <span className="fn-navitem-num fz-mi-aviso" style={{ "--av": aviso.color }} title={aviso.titulo}>{aviso.texto}</span>}
                           {varias && <ChevronDown size={14} className={`fz-mi-chev${desplegada ? " fz-abierta" : ""}`} />}
                         </div>
                         {desplegada && varias && (
