@@ -3,7 +3,7 @@ import {
   Wrench, LayoutGrid, Users, FileBarChart, Ticket, Search,
   ChevronRight, CircleDot, TriangleAlert, ShieldCheck, Banknote,
   Printer, Plus, X, ArrowUpRight, ArrowDownRight, Loader2, Settings, LogOut, Camera, Trash2, Package, MessageSquare, CheckCircle2, XCircle, Flame, Eye, MapPin, Bell, RotateCcw, MoreHorizontal, Truck, ChevronDown, Target, TrendingUp, Clock, Menu, User, Lock, EyeOff, UserPlus,
-  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge, Store
+  PhoneOff, UserX, FileText, MoreVertical, Pencil, Paperclip, Calendar, Tag, Check, Layers, CalendarCheck, LifeBuoy, Activity, Server, Globe, RefreshCw, Pause, Play, Car, Gauge, Store, PanelLeftClose, PanelLeftOpen
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import InicioTaller, { FondoInicio, temaGuardado } from "./inicio-taller.jsx";
@@ -10344,6 +10344,8 @@ const MENU_GRUPOS = [
     pestanas: [["visitas-web", "Tus visitas"], ["informes-mensuales", "Informes mensuales"]] },
 ];
 const grupoDeVista = (v) => MENU_GRUPOS.find((g) => g.pestanas.some(([k]) => k === v));
+const SECCIONES_MENU = [...new Set(MENU_GRUPOS.map((g) => g.seccion))];
+const normalizarMenu = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 // Cada sección del menú con su color e icono, para que se distingan de las opciones
 const ESTILO_SECCION = {
@@ -10497,6 +10499,30 @@ function FirztnetPanel({ onCerrarSesion }) {
   const [hoverPreview, setHoverPreview] = useState(null); // reparación bajo el ratón, para "Próxima acción"
   const [mostrarMasMovil, setMostrarMasMovil] = useState(false); // hoja de "Más" secciones, solo en móvil
   const [menuAbierto, setMenuAbierto] = useState(false); // menú lateral plegable, solo en escritorio (oculto por defecto)
+  // Menú «Estudio»: barra de iconos fija a la izquierda (útil en pantallas pequeñas o la tele), secciones plegadas y buscador
+  const [menuIconos, setMenuIconos] = useState(() => { try { return localStorage.getItem("fz-menu-iconos") === "1"; } catch { return false; } });
+  const [seccionesPlegadas, setSeccionesPlegadas] = useState(() => { try { return JSON.parse(localStorage.getItem("fz-menu-plegadas") || "[]"); } catch { return []; } });
+  const [buscarMenu, setBuscarMenu] = useState("");
+  const buscarMenuRef = useRef(null);
+  const cambiarMenuIconos = (v) => { setMenuIconos(v); try { localStorage.setItem("fz-menu-iconos", v ? "1" : "0"); } catch { /* sin almacenamiento */ } };
+  const plegarSeccion = (nombre) => setSeccionesPlegadas((prev) => {
+    const nuevas = prev.includes(nombre) ? prev.filter((x) => x !== nombre) : [...prev, nombre];
+    try { localStorage.setItem("fz-menu-plegadas", JSON.stringify(nuevas)); } catch { /* sin almacenamiento */ }
+    return nuevas;
+  });
+  useEffect(() => {
+    // Ctrl+K (o Cmd+K): abre el menú con el buscador listo para escribir
+    const atajo = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setMenuAbierto(true);
+        setTimeout(() => buscarMenuRef.current?.focus(), 60);
+      }
+    };
+    window.addEventListener("keydown", atajo);
+    return () => window.removeEventListener("keydown", atajo);
+  }, []);
+  useEffect(() => { if (!menuAbierto) setBuscarMenu(""); }, [menuAbierto]);
 
   useEffect(() => {
     if (!menuAbierto) return;
@@ -10506,6 +10532,11 @@ function FirztnetPanel({ onCerrarSesion }) {
   }, [menuAbierto]);
 
   const [stockBajoTarjeta, setStockBajoTarjeta] = useState(null); // null = aún cargando
+  // Avisos del menú: en vez del número de pestañas, lo que pide atención en cada opción
+  const avisosMenu = {};
+  if (metricasEficiencia.retrasadas > 0) avisosMenu.reparaciones = { texto: metricasEficiencia.retrasadas, color: COLORS.rust, titulo: `${metricasEficiencia.retrasadas} con retraso` };
+  if (resumenMant?.sinCobrar > 0) avisosMenu.mantenimientos = { texto: resumenMant.sinCobrar, color: "#F59E0B", titulo: `${resumenMant.sinCobrar} cuota(s) del mes sin cobrar` };
+  if (stockBajoTarjeta > 0) avisosMenu.inventario = { texto: stockBajoTarjeta, color: "#F59E0B", titulo: `${stockBajoTarjeta} pieza(s) con stock bajo` };
   const [temaInicio, setTemaInicio] = useState(temaGuardado);
   aplicarPaleta(temaInicio);
   useEffect(() => () => aplicarPaleta("dia"), []); // al salir (p. ej. cerrar sesión), vuelve el claro
@@ -10746,26 +10777,83 @@ function FirztnetPanel({ onCerrarSesion }) {
           background-color: ${COLORS.amber}14 !important;
           box-shadow: inset 4px 0 0 0 ${COLORS.amber};
         }
-        .fn-navitem:hover {
+        .fn-navitem:not(.fz-mi):hover {
           background-color: ${COLORS.menuHoverBg} !important;
           padding-left: 14px !important;
           color: ${COLORS.menuTexto} !important;
         }
         .fn-navitem-active:hover { background-color: ${COLORS.menuActivoBg} !important; }
-        .fn-navitem:hover::before {
+        .fn-navitem:not(.fz-mi):hover::before {
           transform: scaleY(1);
         }
         .fn-navitem svg {
           transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .fn-navitem:hover svg {
+        .fn-navitem:not(.fz-mi):hover svg {
           transform: scale(1.18) rotate(-6deg);
         }
-        .fn-navitem-active::before {
+        .fn-navitem-active:not(.fz-mi)::before {
           transform: scaleY(1);
         }
         .fn-navitem-boton-mas {
           display: none;
+        }
+        /* ---- Menú «Estudio» (escritorio): cristal, buscador, secciones plegables, pantallas y avisos ---- */
+        .fz-menu .fz-mi::before { display: none; }
+        @media (min-width: 769px) {
+          .fz-menu .fz-menu-cab { display: flex; align-items: center; gap: 8px; padding: 2px 2px 14px; }
+          .fz-menu .fz-menu-logo { flex: 1; min-width: 0; border: 0; background: none; padding: 0; cursor: pointer; display: flex; justify-content: center; }
+          .fz-menu-plegar, .fz-menu-salir { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; border: 1px solid ${COLORS.menuBorde}; background: ${COLORS.menuHoverBg}; color: ${COLORS.textDim}; display: grid; place-items: center; cursor: pointer; transition: color .15s, background .15s; }
+          .fz-menu-plegar:hover, .fz-menu-salir:hover { color: ${COLORS.menuTexto}; background: ${COLORS.menuActivoBg}; }
+          .fz-menu-buscar { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; padding: 8px 11px; border-radius: 11px; background: ${COLORS.menuHoverBg}; border: 1px solid ${COLORS.menuBorde}; color: ${COLORS.textDim}; cursor: text; }
+          .fz-menu-buscar:focus-within { border-color: ${COLORS.amber}; box-shadow: 0 0 0 3px ${COLORS.amber}22; }
+          .fz-menu-buscar input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: ${COLORS.menuTexto}; font: inherit; font-size: 13px; }
+          .fz-menu-buscar input::placeholder { color: ${COLORS.textDim}; }
+          .fz-menu-buscar kbd { font-family: inherit; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; border: 1px solid ${COLORS.menuBorde}; color: ${COLORS.textDim}; white-space: nowrap; }
+          .fz-menu-sec-t { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; cursor: pointer; padding: 14px 8px 6px; color: var(--c); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+          .fz-menu-sec-t span { flex: 1; text-align: left; }
+          .fz-menu-chev { opacity: .7; transition: transform .2s; }
+          .fz-plegada .fz-menu-chev { transform: rotate(-90deg); }
+          .fz-plegada .fz-mi, .fz-plegada .fz-mi-subs { display: none !important; }
+          .fz-mi { display: flex; align-items: center; gap: 11px; padding: 7px 9px; margin-bottom: 2px; border-radius: 11px; cursor: pointer; color: ${COLORS.menuTexto}; font-size: 13.5px; font-weight: 600; position: relative; transition: background .15s; outline: none; overflow: visible !important; }
+          .fz-mi:hover, .fz-mi:focus-visible { background: ${COLORS.menuHoverBg}; }
+          .fz-mi-ico { width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 15%, transparent); color: var(--c); transition: transform .2s; }
+          .fz-mi:hover .fz-mi-ico { transform: scale(1.06); }
+          .fz-mi.fz-on { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 20%, transparent), transparent 85%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 28%, transparent); font-weight: 700; }
+          .fz-mi.fz-on::after { content: ""; position: absolute; left: -14px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); box-shadow: 0 0 14px var(--c); }
+          .fz-mi.fz-on .fz-mi-ico { background: var(--c); color: #fff; }
+          .fz-mi .fn-navitem-largo { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .fz-mi-aviso { flex-shrink: 0; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--av) 18%, transparent); color: var(--av); }
+          .fz-mi-subs { margin: 0 0 6px 24px; padding-left: 15px; border-left: 1px solid ${COLORS.menuBorde}; }
+          .fz-mi-sub { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 8px; font: inherit; font-size: 12.8px; font-weight: 600; color: ${COLORS.textDim}; cursor: pointer; }
+          .fz-mi-sub:hover { background: ${COLORS.menuHoverBg}; color: ${COLORS.menuTexto}; }
+          .fz-mi-sub.fz-on { color: var(--c); background: color-mix(in srgb, var(--c) 11%, transparent); }
+          .fz-menu-vacio { padding: 14px 8px; font-size: 12.5px; color: ${COLORS.textDim}; }
+          .fz-menu-pie { margin-top: auto; padding: 10px; border-radius: 14px; background: ${COLORS.menuHoverBg}; border: 1px solid ${COLORS.menuBorde}; display: flex; align-items: center; gap: 10px; }
+          .fz-menu-nav { margin-bottom: 12px; }
+          .fz-menu-pie .fz-menu-salir { margin-left: auto; background: transparent; }
+          .fz-menu-avatar { width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; display: grid; place-items: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, ${COLORS.amber}, #F59E0B); position: relative; }
+          .fz-menu-avatar::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: ${COLORS.green}; border: 2px solid ${COLORS.menuBg}; }
+          /* Barra de iconos fija (se activa desde el menú y se recuerda en este equipo) */
+          .fn-sidebar.fz-menu-iconos { transform: none !important; visibility: visible !important; width: 78px !important; box-sizing: border-box; padding: 14px 10px !important; box-shadow: none; scrollbar-width: none; }
+          .fz-menu-iconos .fz-menu-logo, .fz-menu-iconos .fz-menu-buscar input, .fz-menu-iconos .fz-menu-buscar kbd,
+          .fz-menu-iconos .fz-menu-sec-t span, .fz-menu-iconos .fz-menu-chev, .fz-menu-iconos .fn-navitem-largo,
+          .fz-menu-iconos .fz-mi-subs, .fz-menu-iconos .fz-menu-pie > div, .fz-menu-iconos .fz-menu-salir, .fz-menu-iconos .fz-menu-vacio { display: none !important; }
+          .fz-menu-iconos .fz-menu-cab { justify-content: center; }
+          .fz-menu-iconos .fz-menu-buscar { justify-content: center; padding: 9px; cursor: pointer; }
+          .fz-menu-iconos .fz-menu-sec-t { justify-content: center; padding: 12px 0 5px; pointer-events: none; }
+          .fz-menu-iconos .fz-plegada .fz-mi { display: flex !important; }
+          .fz-menu-iconos .fz-mi { justify-content: center; padding: 6px; }
+          .fz-menu-iconos .fz-mi.fz-on::after { left: -10px; }
+          .fz-menu-iconos .fz-mi-aviso { position: absolute; top: 1px; right: 2px; padding: 0 5px; font-size: 9.5px; line-height: 15px; background: var(--av); color: #fff; }
+          .fz-menu-iconos .fz-menu-pie { justify-content: center; padding: 8px; }
+          .fn-shell.fz-con-iconos { padding-left: 78px; }
+        }
+        @media (max-width: 768px) {
+          .fz-menu-cab, .fz-menu-buscar, .fz-mi-subs, .fz-menu-pie, .fz-menu-vacio, .fz-menu-sec-t { display: none !important; }
+          .fz-menu-nav, .fz-menu-sec, .fz-mi-ico { display: contents !important; }
+          .fz-mi { display: flex; align-items: center; border-radius: 8px; cursor: pointer; color: ${COLORS.menuTexto}; font-weight: 500; }
+          .fz-mi.fz-on { background: ${COLORS.menuActivoBg}; font-weight: 700; }
         }
         /* Columna derecha: si no hay ningún aviso dentro, desaparece y el contenido usa todo el ancho */
         .fn-side-panel:empty { display: none !important; }
@@ -10878,33 +10966,98 @@ function FirztnetPanel({ onCerrarSesion }) {
         }
       `}</style>
 
-      <div className="fn-shell" key={temaInicio} style={{ display: "flex" }}>
+      <div className={`fn-shell${menuIconos ? " fz-con-iconos" : ""}`} key={temaInicio} style={{ display: "flex" }}>
         {menuAbierto && (
           <div className="fn-menu-overlay" onClick={() => setMenuAbierto(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 59 }} />
         )}
-        <aside className={`fn-sidebar${menuAbierto ? " fn-sidebar-abierto" : ""}`} style={{ width: 275, background: COLORS.menuBg, borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "22px 18px", flexShrink: 0, display: "flex", flexDirection: "column" }}>
-          <div className="fn-logo" style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
-            <LogoAnimado key={menuAbierto ? "abierto" : "cerrado"} />
+        <aside
+          className={`fn-sidebar fz-menu${menuAbierto ? " fn-sidebar-abierto" : ""}${menuIconos && !menuAbierto ? " fz-menu-iconos" : ""}`}
+          style={{ width: 288, background: `linear-gradient(180deg, ${COLORS.menuBg}F7, ${COLORS.menuBg}EB)`, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRight: `1px solid ${COLORS.menuBorde}`, minHeight: "100vh", padding: "16px 14px 14px", flexShrink: 0, display: "flex", flexDirection: "column" }}
+        >
+          <div className="fn-logo fz-menu-cab">
+            <button type="button" className="fz-menu-logo" onClick={() => { setVista("reparaciones"); setMenuAbierto(false); }} title="Ir a la pantalla principal">
+              <LogoAnimado key={menuAbierto ? "abierto" : "cerrado"} />
+            </button>
+            <button
+              type="button"
+              className="fz-menu-plegar"
+              onClick={() => { if (menuAbierto) { cambiarMenuIconos(!menuIconos); setMenuAbierto(false); } else setMenuAbierto(true); }}
+              title={menuAbierto ? (menuIconos ? "Quitar la barra de iconos fija" : "Dejar fija una barra de iconos a la izquierda") : "Abrir el menú completo"}
+              aria-label={menuAbierto ? "Cambiar a barra de iconos" : "Abrir el menú completo"}
+            >
+              {menuAbierto ? (menuIconos ? <X size={16} /> : <PanelLeftClose size={16} />) : <PanelLeftOpen size={16} />}
+            </button>
           </div>
-          {MENU_GRUPOS.map((item, i) => {
-            const activo = grupoDeVista(vista)?.key === item.key;
-            const nuevaSeccion = i === 0 || MENU_GRUPOS[i - 1].seccion !== item.seccion;
-            return (
-              <React.Fragment key={item.key}>
-                {nuevaSeccion && <TituloSeccionMenu className="fn-seccion-menu" seccion={item.seccion} primera={i === 0} />}
-                <div
-                  className={`fn-navitem${activo ? " fn-navitem-active" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
-                  onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 8, marginBottom: 4, cursor: "pointer", background: activo ? COLORS.menuActivoBg : "transparent", color: COLORS.menuTexto, fontSize: 14, fontWeight: activo ? 700 : 500 }}
-                >
-                  <item.icon size={16} />
-                  <span className="fn-navitem-largo">{item.label}</span>
-                  {item.corto && <span className="fn-navitem-corto">{item.corto}</span>}
-                  {item.pestanas.length > 1 && <span className="fn-navitem-num" style={{ marginLeft: "auto", fontSize: 11, color: COLORS.textDim, background: COLORS.menuHoverBg, borderRadius: 999, padding: "1px 7px" }}>{item.pestanas.length}</span>}
+
+          <label className="fz-menu-buscar" title="Buscar una pantalla (Ctrl+K)" onClick={() => { if (menuIconos && !menuAbierto) { setMenuAbierto(true); setTimeout(() => buscarMenuRef.current?.focus(), 60); } }}>
+            <Search size={15} />
+            <input
+              ref={buscarMenuRef}
+              value={buscarMenu}
+              onChange={(e) => setBuscarMenu(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                const t = normalizarMenu(buscarMenu);
+                const primera = MENU_GRUPOS.flatMap((g) => g.pestanas.map(([k, nombre]) => ({ k, texto: `${g.label} ${nombre}` }))).find((x) => normalizarMenu(x.texto).includes(t));
+                if (primera) { setVista(primera.k); setMenuAbierto(false); }
+              }}
+              placeholder="Buscar pantalla…"
+              aria-label="Buscar una pantalla del menú"
+            />
+            <kbd>Ctrl K</kbd>
+          </label>
+
+          <nav className="fz-menu-nav">
+            {SECCIONES_MENU.map((seccion) => {
+              const termino = normalizarMenu(buscarMenu);
+              const items = MENU_GRUPOS.filter((g) => g.seccion === seccion && (!termino || normalizarMenu(`${g.label} ${g.pestanas.map(([, n]) => n).join(" ")}`).includes(termino)));
+              if (!items.length) return null;
+              const { color, icono: IconoSeccion } = ESTILO_SECCION[seccion];
+              const plegada = !termino && seccionesPlegadas.includes(seccion);
+              return (
+                <div key={seccion} className={`fz-menu-sec${plegada ? " fz-plegada" : ""}`} style={{ "--c": color }}>
+                  <button type="button" className="fn-seccion-menu fz-menu-sec-t" onClick={() => plegarSeccion(seccion)} aria-expanded={!plegada} title={plegada ? `Mostrar ${seccion}` : `Plegar ${seccion}`}>
+                    <IconoSeccion size={13} strokeWidth={2.4} />
+                    <span>{seccion}</span>
+                    <ChevronDown size={14} className="fz-menu-chev" />
+                  </button>
+                  {items.map((item) => {
+                    const activo = grupoDeVista(vista)?.key === item.key;
+                    const aviso = avisosMenu[item.key];
+                    return (
+                      <React.Fragment key={item.key}>
+                        <div
+                          className={`fn-navitem fz-mi${activo ? " fn-navitem-active fz-on" : ""}${item.movil === "mas" ? " fn-navitem-en-mas" : ""}`}
+                          onClick={() => { setVista(item.pestanas[0][0]); setMostrarMasMovil(false); setMenuAbierto(false); }}
+                          title={item.label}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter") { setVista(item.pestanas[0][0]); setMenuAbierto(false); } }}
+                        >
+                          <span className="fz-mi-ico"><item.icon size={16} /></span>
+                          <span className="fn-navitem-largo">{item.label}</span>
+                          {item.corto && <span className="fn-navitem-corto">{item.corto}</span>}
+                          {aviso && <span className="fn-navitem-num fz-mi-aviso" style={{ "--av": aviso.color }} title={aviso.titulo}>{aviso.texto}</span>}
+                        </div>
+                        {activo && item.pestanas.length > 1 && (
+                          <div className="fz-mi-subs">
+                            {item.pestanas.map(([k, nombre]) => (
+                              <button key={k} type="button" className={`fz-mi-sub${vista === k ? " fz-on" : ""}`} onClick={() => { setVista(k); setMenuAbierto(false); }}>
+                                {nombre}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
-              </React.Fragment>
-            );
-          })}
+              );
+            })}
+            {buscarMenu && !MENU_GRUPOS.some((g) => normalizarMenu(`${g.label} ${g.pestanas.map(([, n]) => n).join(" ")}`).includes(normalizarMenu(buscarMenu))) && (
+              <div className="fz-menu-vacio">No hay ninguna pantalla con «{buscarMenu}»</div>
+            )}
+          </nav>
           <div
             onClick={() => setMostrarMasMovil((v) => !v)}
             className={`fn-navitem fn-navitem-boton-mas${mostrarMasMovil ? " fn-navitem-active" : ""}`}
@@ -10914,12 +11067,17 @@ function FirztnetPanel({ onCerrarSesion }) {
             Más
           </div>
 
-          <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, background: COLORS.menuHoverBg, border: `1px solid ${COLORS.menuActivoBg}` }}>
-            <div className="fn-punto-activo" style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.green, flexShrink: 0 }} />
+          <div className="fz-menu-pie">
+            <span className="fz-menu-avatar">{(nombreUsuarioDelToken() || "?").charAt(0).toUpperCase()}</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.menuTexto, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreUsuarioDelToken()} activo</div>
-              <div style={{ fontSize: 11, color: COLORS.textDim }}>Sede Principal</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.menuTexto, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreUsuarioDelToken()}</div>
+              <div style={{ fontSize: 11, color: COLORS.textDim }}>Activo · Sede principal</div>
             </div>
+            {onCerrarSesion && (
+              <button type="button" className="fz-menu-salir" onClick={onCerrarSesion} title="Cerrar sesión" aria-label="Cerrar sesión">
+                <LogOut size={15} />
+              </button>
+            )}
           </div>
         </aside>
 
