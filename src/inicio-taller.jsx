@@ -91,11 +91,6 @@ export default function InicioTaller({
             <button type="button" className="fz-btn pri" onClick={onNueva}><Plus size={16} /> Nueva reparación</button>
             <button type="button" className="fz-btn" onClick={onBuscar}><Search size={15} /> Buscar</button>
             {selectorTrabajo}
-            <div className="fz-temas" role="group" aria-label="Tema de la pantalla">
-              {TEMAS_INICIO.map((t) => (
-                <button key={t.key} type="button" className={tema === t.key ? "on" : ""} style={{ background: t.muestra }} title={`Tema ${t.nombre}`} aria-label={`Tema ${t.nombre}`} aria-pressed={tema === t.key} onClick={() => onTema(t.key)} />
-              ))}
-            </div>
           </div>
         </div>
         <section className="fz-bloque fz-etapas-arriba fz-vidrio fz-entra" style={{ animationDelay: ".06s" }}>

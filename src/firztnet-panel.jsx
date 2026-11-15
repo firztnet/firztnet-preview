@@ -3646,6 +3646,12 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
         texto: `🔴 ${x.nombre} NO RESPONDE desde ${new Date(x.caido_desde).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })} · ${x.error || ""}`,
         accion: () => onIrVista("estado-sistemas"),
       }));
+      // Alarma de silencio: sistemas que llevan rato sin enviar datos a Central
+      (salud?.silencios || []).forEach((x) => nuevos.push({
+        tipo: "silencio",
+        texto: `🔕 ${x.nombre} lleva ${x.minutos >= 120 ? `${Math.round(x.minutos / 60)} h` : `${x.minutos} min`} sin enviar datos a Central`,
+        accion: () => onIrVista("estado-sistemas"),
+      }));
       (salud?.sistemas || []).filter((x) => x.activo && x.ssl_dias !== null && x.ssl_dias <= 14).forEach((x) => nuevos.push({
         tipo: "ssl", texto: `🔒 El candado HTTPS de ${x.nombre} caduca en ${x.ssl_dias} día(s)`, accion: () => onIrVista("estado-sistemas"),
       }));
@@ -3688,7 +3694,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
       (avisosFlota || []).forEach((a) => nuevos.push({ tipo: "flota", texto: `${a.texto} — ${a.matricula}`, accion: () => onIrVista("flota") }));
       const textoVisitas = textoNovedades(novedadesWeb);
       if (textoVisitas) nuevos.push({ tipo: "visitas", texto: textoVisitas, accion: () => onIrVista("visitas-web") });
-      const prioridad = { caido: 6, ayuda: 5, copia: 4, cobro: 3, riesgo: 3, prueba: 2, ssl: 1 };
+      const prioridad = { caido: 6, silencio: 6, ayuda: 5, copia: 4, cobro: 3, riesgo: 3, prueba: 2, ssl: 1 };
       nuevos.sort((a, b) => (prioridad[b.tipo] || 0) - (prioridad[a.tipo] || 0));
       setItems(nuevos);
     } catch (e) {
@@ -3719,7 +3725,7 @@ function CampanitaNotificaciones({ onIrVista, onAbrirTicket }) {
   const avisos = items.map((it) => {
     const estilo = ESTILO_AVISO[it.tipo] || ESTILO_AVISO.otro;
     const urgente = AVISOS_URGENTES.includes(it.tipo) || it.texto.startsWith("🚨");
-    return { ...it, ...estilo, urgente, limpio: it.texto.replace(/^(🚨 URGENTE · |🔴|🔒|⏳|⌛|💶|⚠️|💾|📈|🛟)\s*/u, "") };
+    return { ...it, ...estilo, urgente, limpio: it.texto.replace(/^(🚨 URGENTE · |🔴|🔕|🔒|⏳|⌛|💶|⚠️|💾|📈|🛟)\s*/u, "") };
   });
   const urgentes = avisos.filter((a) => a.urgente).length;
   const revisar = avisos.length - urgentes;
@@ -3781,6 +3787,7 @@ const ESTILO_AVISO = {
   cuota: { grupo: "Taller", icono: CalendarCheck, color: "#F59E0B" },
   flota: { grupo: "Mi empresa", icono: Car, color: "#10B981" },
   caido: { grupo: "Firztnet", icono: Server, color: "#F87171" },
+  silencio: { grupo: "Firztnet", icono: Activity, color: "#F87171" },
   ssl: { grupo: "Firztnet", icono: Lock, color: "#3B82F6" },
   prueba: { grupo: "Firztnet", icono: Clock, color: "#F59E0B" },
   riesgo: { grupo: "Firztnet", icono: TriangleAlert, color: "#F59E0B" },
@@ -3792,7 +3799,7 @@ const ESTILO_AVISO = {
   otro: { grupo: "Taller", icono: Bell, color: "#94A3B8" },
 };
 // Lo que se cuenta como urgente: sistemas caídos, copias atrasadas, cobros y ayudas marcadas urgentes
-const AVISOS_URGENTES = ["caido", "copia", "cobro"];
+const AVISOS_URGENTES = ["caido", "silencio", "copia", "cobro"];
 
 // -------------------- Semáforo de tus sistemas y webs (lee el vigilante de Central) --------------------
 function SemaforoSistemas({ onIrVista }) {
@@ -3815,12 +3822,16 @@ function SemaforoSistemas({ onIrVista }) {
   const lista = ((salud && salud.sistemas) || []).filter((x) => x.activo);
   const caidos = lista.filter((x) => x.estado === "caido");
   const lentos = lista.filter((x) => x.estado === "lento");
+  const callados = (salud && salud.silencios) || [];
   const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "");
   let color = "#94A3B8", texto = "Comprobando…", sub = "";
   if (salud === false) { texto = "Sin datos"; sub = "no se pudo consultar"; }
   else if (salud && !lista.length) { texto = "Sin vigilar"; sub = "añade sistemas"; }
   else if (caidos.length) { color = COLORS.rust; texto = caidos.length === 1 ? `${caidos[0].nombre} caído` : `${caidos.length} caídos`; sub = caidos[0].caido_desde ? `desde las ${hora(caidos[0].caido_desde)}` : ""; }
-  else if (lentos.length) { color = "#F59E0B"; texto = "Revisar"; sub = `${lentos.length} ${lentos.length === 1 ? "lento" : "lentos"}`; }
+  else if (lentos.length || callados.length) {
+    color = "#F59E0B"; texto = "Revisar";
+    sub = [lentos.length && `${lentos.length} ${lentos.length === 1 ? "lento" : "lentos"}`, callados.length && `${callados.length} sin enviar datos`].filter(Boolean).join(" · ");
+  }
   else if (lista.length) { color = "#10B981"; texto = "Todo en marcha"; sub = `${lista.length} sistemas`; }
   const ultima = lista.map((x) => x.ultima_comprobacion).filter(Boolean).sort().pop();
   const minutos = ultima ? Math.max(0, Math.round((Date.now() - new Date(ultima).getTime()) / 60000)) : null;
@@ -3848,6 +3859,18 @@ function SemaforoSistemas({ onIrVista }) {
               <em>{TEXTO[x.estado] || x.estado}</em>
             </div>
           ))}
+          {callados.length > 0 && (
+            <>
+              <div className="fz-desp-grupo">Sin enviar datos a Central</div>
+              {callados.map((x) => (
+                <div key={x.sistema} className="fz-sis" style={{ "--sc": "#F59E0B" }}>
+                  <span className="fz-sis-p" />
+                  <b>{x.nombre}</b>
+                  <em>{x.minutos >= 120 ? `${Math.round(x.minutos / 60)} h` : `${x.minutos} min`} callado</em>
+                </div>
+              ))}
+            </>
+          )}
           <button type="button" className="fz-desp-pie" onClick={() => { onIrVista("estado-sistemas"); setAbierto(false); }}>Ver Estado de sistemas</button>
         </div>
       )}
@@ -10462,7 +10485,8 @@ const MENU_GRUPOS = [
     pestanas: [["plantillas", "Mensajes"], ["conocimiento", "Base de conocimiento"]] },
   { seccion: "Mi empresa", key: "caja", icon: Banknote, label: "Caja", movil: "principal", pestanas: [["caja", "Caja"]] },
   { seccion: "Mi empresa", key: "flota", icon: Car, label: "Flota", movil: "mas", pestanas: [["flota", "Flota"]] },
-  { seccion: "Mi empresa", key: "ajustes", icon: Settings, label: "Ajustes", movil: "mas", pestanas: [["ajustes", "Ajustes"]] },
+  // Ajustes no sale en el menú: se abre desde el menú del usuario (arriba a la derecha), junto a los temas
+  { seccion: "Mi empresa", key: "ajustes", icon: Settings, label: "Ajustes", movil: "mas", oculto: true, pestanas: [["ajustes", "Ajustes"]] },
   { seccion: "Firztnet", key: "negocio", icon: TrendingUp, label: "Negocio", movil: "mas",
     pestanas: [["cuadro", "Cuadro de mando"], ["cobros", "Cobros"], ["ventas", "Ventas"]] },
   { seccion: "Firztnet", key: "clientes-sistemas", icon: Layers, label: "Clientes de sistemas", movil: "mas",
@@ -11176,7 +11200,7 @@ function FirztnetPanel({ onCerrarSesion }) {
 
           <nav className="fz-menu-nav">
             {SECCIONES_MENU.map((seccion) => {
-              const items = MENU_GRUPOS.filter((g) => g.seccion === seccion);
+              const items = MENU_GRUPOS.filter((g) => g.seccion === seccion && !g.oculto);
               if (!items.length) return null;
               const { color, icono: IconoSeccion } = ESTILO_SECCION[seccion];
               const plegada = seccionesPlegadas.includes(seccion);
@@ -11248,7 +11272,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           <div className="fn-hoja-mas" onClick={() => setMostrarMasMovil(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 55 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: COLORS.menuBg, borderRadius: "16px 16px 0 0", padding: "16px 16px 90px 16px", maxHeight: "70vh", overflowY: "auto" }}>
               <div style={{ width: 36, height: 4, background: COLORS.menuBorde, borderRadius: 999, margin: "0 auto 16px" }} />
-              {MENU_GRUPOS.filter((g) => g.movil === "mas").map((item, i, lista) => {
+              {MENU_GRUPOS.filter((g) => g.movil === "mas" && !g.oculto).map((item, i, lista) => {
                 const activo = grupoDeVista(vista)?.key === item.key;
                 const nuevaSeccion = i === 0 || lista[i - 1].seccion !== item.seccion;
                 return (
