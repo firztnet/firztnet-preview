@@ -1129,7 +1129,7 @@ function LogoAnimado() {
     <div
       onMouseEnter={() => setEncima(true)}
       onMouseLeave={() => setEncima(false)}
-      style={{ width: "50%", maxWidth: 120, margin: "0 auto", padding: "6px 0" }}
+      style={{ width: "100%", maxWidth: 210, margin: "0 auto", padding: "6px 0" }}
     >
       <div className="fn-logo-entrada">
         <div
@@ -10345,7 +10345,6 @@ const MENU_GRUPOS = [
 ];
 const grupoDeVista = (v) => MENU_GRUPOS.find((g) => g.pestanas.some(([k]) => k === v));
 const SECCIONES_MENU = [...new Set(MENU_GRUPOS.map((g) => g.seccion))];
-const normalizarMenu = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 // Cada sección del menú con su color e icono, para que se distingan de las opciones
 const ESTILO_SECCION = {
@@ -10502,27 +10501,12 @@ function FirztnetPanel({ onCerrarSesion }) {
   // Menú «Estudio»: barra de iconos fija a la izquierda (útil en pantallas pequeñas o la tele), secciones plegadas y buscador
   const [menuIconos, setMenuIconos] = useState(() => { try { return localStorage.getItem("fz-menu-iconos") === "1"; } catch { return false; } });
   const [seccionesPlegadas, setSeccionesPlegadas] = useState(() => { try { return JSON.parse(localStorage.getItem("fz-menu-plegadas") || "[]"); } catch { return []; } });
-  const [buscarMenu, setBuscarMenu] = useState("");
-  const buscarMenuRef = useRef(null);
   const cambiarMenuIconos = (v) => { setMenuIconos(v); try { localStorage.setItem("fz-menu-iconos", v ? "1" : "0"); } catch { /* sin almacenamiento */ } };
   const plegarSeccion = (nombre) => setSeccionesPlegadas((prev) => {
     const nuevas = prev.includes(nombre) ? prev.filter((x) => x !== nombre) : [...prev, nombre];
     try { localStorage.setItem("fz-menu-plegadas", JSON.stringify(nuevas)); } catch { /* sin almacenamiento */ }
     return nuevas;
   });
-  useEffect(() => {
-    // Ctrl+K (o Cmd+K): abre el menú con el buscador listo para escribir
-    const atajo = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setMenuAbierto(true);
-        setTimeout(() => buscarMenuRef.current?.focus(), 60);
-      }
-    };
-    window.addEventListener("keydown", atajo);
-    return () => window.removeEventListener("keydown", atajo);
-  }, []);
-  useEffect(() => { if (!menuAbierto) setBuscarMenu(""); }, [menuAbierto]);
 
   useEffect(() => {
     if (!menuAbierto) return;
@@ -10805,11 +10789,6 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-menu .fz-menu-logo { flex: 1; min-width: 0; border: 0; background: none; padding: 0; cursor: pointer; display: flex; justify-content: center; }
           .fz-menu-plegar, .fz-menu-salir { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; border: 1px solid ${COLORS.menuBorde}; background: ${COLORS.menuHoverBg}; color: ${COLORS.textDim}; display: grid; place-items: center; cursor: pointer; transition: color .15s, background .15s; }
           .fz-menu-plegar:hover, .fz-menu-salir:hover { color: ${COLORS.menuTexto}; background: ${COLORS.menuActivoBg}; }
-          .fz-menu-buscar { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; padding: 8px 11px; border-radius: 11px; background: ${COLORS.menuHoverBg}; border: 1px solid ${COLORS.menuBorde}; color: ${COLORS.textDim}; cursor: text; }
-          .fz-menu-buscar:focus-within { border-color: ${COLORS.amber}; box-shadow: 0 0 0 3px ${COLORS.amber}22; }
-          .fz-menu-buscar input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: ${COLORS.menuTexto}; font: inherit; font-size: 13px; }
-          .fz-menu-buscar input::placeholder { color: ${COLORS.textDim}; }
-          .fz-menu-buscar kbd { font-family: inherit; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; border: 1px solid ${COLORS.menuBorde}; color: ${COLORS.textDim}; white-space: nowrap; }
           .fz-menu-sec-t { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; cursor: pointer; padding: 14px 8px 6px; color: var(--c); font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
           .fz-menu-sec-t span { flex: 1; text-align: left; }
           .fz-menu-chev { opacity: .7; transition: transform .2s; }
@@ -10839,11 +10818,10 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fz-menu-avatar::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: ${COLORS.green}; border: 2px solid ${COLORS.menuBg}; }
           /* Barra de iconos fija (se activa desde el menú y se recuerda en este equipo) */
           .fn-sidebar.fz-menu-iconos { transform: none !important; visibility: visible !important; width: 78px !important; box-sizing: border-box; padding: 14px 10px !important; box-shadow: none; scrollbar-width: none; }
-          .fz-menu-iconos .fz-menu-logo, .fz-menu-iconos .fz-menu-buscar input, .fz-menu-iconos .fz-menu-buscar kbd,
+          .fz-menu-iconos .fz-menu-logo,
           .fz-menu-iconos .fz-menu-sec-t span, .fz-menu-iconos .fz-menu-chev, .fz-menu-iconos .fn-navitem-largo,
           .fz-menu-iconos .fz-mi-subs, .fz-menu-iconos .fz-menu-pie > div, .fz-menu-iconos .fz-menu-salir, .fz-menu-iconos .fz-menu-vacio { display: none !important; }
           .fz-menu-iconos .fz-menu-cab { justify-content: center; }
-          .fz-menu-iconos .fz-menu-buscar { justify-content: center; padding: 9px; cursor: pointer; }
           .fz-menu-iconos .fz-menu-sec-t { justify-content: center; padding: 12px 0 5px; pointer-events: none; }
           .fz-menu-iconos .fz-plegada .fz-mi { display: flex !important; }
           .fz-menu-iconos .fz-mi { justify-content: center; padding: 6px; }
@@ -10853,7 +10831,7 @@ function FirztnetPanel({ onCerrarSesion }) {
           .fn-shell.fz-con-iconos { padding-left: 78px; }
         }
         @media (max-width: 768px) {
-          .fz-menu-cab, .fz-menu-buscar, .fz-mi-subs, .fz-menu-pie, .fz-menu-vacio, .fz-menu-sec-t { display: none !important; }
+          .fz-menu-cab, .fz-mi-subs, .fz-menu-pie, .fz-menu-vacio, .fz-menu-sec-t { display: none !important; }
           .fz-menu-nav, .fz-menu-sec, .fz-mi-ico { display: contents !important; }
           .fz-mi { display: flex; align-items: center; border-radius: 8px; cursor: pointer; color: ${COLORS.menuTexto}; font-weight: 500; }
           .fz-mi.fz-on { background: ${COLORS.menuActivoBg}; font-weight: 700; }
@@ -10992,31 +10970,12 @@ function FirztnetPanel({ onCerrarSesion }) {
             </button>
           </div>
 
-          <label className="fz-menu-buscar" title="Buscar una pantalla (Ctrl+K)" onClick={() => { if (menuIconos && !menuAbierto) { setMenuAbierto(true); setTimeout(() => buscarMenuRef.current?.focus(), 60); } }}>
-            <Search size={15} />
-            <input
-              ref={buscarMenuRef}
-              value={buscarMenu}
-              onChange={(e) => setBuscarMenu(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                const t = normalizarMenu(buscarMenu);
-                const primera = MENU_GRUPOS.flatMap((g) => g.pestanas.map(([k, nombre]) => ({ k, texto: `${g.label} ${nombre}` }))).find((x) => normalizarMenu(x.texto).includes(t));
-                if (primera) { setVista(primera.k); setMenuAbierto(false); }
-              }}
-              placeholder="Buscar pantalla…"
-              aria-label="Buscar una pantalla del menú"
-            />
-            <kbd>Ctrl K</kbd>
-          </label>
-
           <nav className="fz-menu-nav">
             {SECCIONES_MENU.map((seccion) => {
-              const termino = normalizarMenu(buscarMenu);
-              const items = MENU_GRUPOS.filter((g) => g.seccion === seccion && (!termino || normalizarMenu(`${g.label} ${g.pestanas.map(([, n]) => n).join(" ")}`).includes(termino)));
+              const items = MENU_GRUPOS.filter((g) => g.seccion === seccion);
               if (!items.length) return null;
               const { color, icono: IconoSeccion } = ESTILO_SECCION[seccion];
-              const plegada = !termino && seccionesPlegadas.includes(seccion);
+              const plegada = seccionesPlegadas.includes(seccion);
               return (
                 <div key={seccion} className={`fz-menu-sec${plegada ? " fz-plegada" : ""}`} style={{ "--c": color }}>
                   <button type="button" className="fn-seccion-menu fz-menu-sec-t" onClick={() => plegarSeccion(seccion)} aria-expanded={!plegada} title={plegada ? `Mostrar ${seccion}` : `Plegar ${seccion}`}>
@@ -11057,9 +11016,6 @@ function FirztnetPanel({ onCerrarSesion }) {
                 </div>
               );
             })}
-            {buscarMenu && !MENU_GRUPOS.some((g) => normalizarMenu(`${g.label} ${g.pestanas.map(([, n]) => n).join(" ")}`).includes(normalizarMenu(buscarMenu))) && (
-              <div className="fz-menu-vacio">No hay ninguna pantalla con «{buscarMenu}»</div>
-            )}
           </nav>
           <div
             onClick={() => setMostrarMasMovil((v) => !v)}
