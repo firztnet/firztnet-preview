@@ -30,6 +30,18 @@ const iniciales = (nombre) => (nombre || "?").split(/\s+/).filter(Boolean).slice
 const equipoDe = (r) => [r.equipo, r.marca, r.modelo].filter(Boolean).join(" ") || "Equipo";
 const diasDesde = (fecha) => (fecha ? Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000)) : null);
 
+// Reloj con segundos: se actualiza él solo cada segundo, sin redibujar el resto de la pantalla
+function RelojVivo() {
+  const [ahora, setAhora] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setAhora(new Date()), 1000); return () => clearInterval(t); }, []);
+  return (
+    <div className="fz-reloj">
+      <b className="fz-num">{ahora.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</b>
+      <span>{ahora.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</span>
+    </div>
+  );
+}
+
 export default function InicioTaller({
   nombre, tema, onTema, reparaciones, etapas, vistaTrabajo, selectorTrabajo,
   reporteMensual, reporteDiario, tendencia, retrasadasLista, tiempoMedioDias, numClientes, resumenMant, stockBajo,
@@ -82,8 +94,7 @@ export default function InicioTaller({
     <div className="fz-inicio">
       <section className="fz-hero">
         <div className="fz-saludo fz-vidrio fz-entra">
-          <div className="fz-reloj"><b className="fz-num">{ahora.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</b>
-            <span>{ahora.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</span></div>
+          <RelojVivo />
           <small>{vistaTrabajo === "domicilio" ? "Trabajos in situ" : "Taller físico"} · Firztnet</small>
           <h1>{saludo}{nombreBonito ? <>, <em>{nombreBonito}</em></> : ""}</h1>
           <p>{frase}</p>
