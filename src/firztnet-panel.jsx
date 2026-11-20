@@ -7259,6 +7259,7 @@ function PuntoVentaView() {
   const [aviso, setAviso] = useState("");
   const [codigo, setCodigo] = useState(null);
   const [licencia, setLicencia] = useState(null);
+  const [rescate, setRescate] = useState(null);
 
   const cargar = useCallback(async () => {
     try { setTiendas(await apiGet("/central/pos/tiendas")); } catch (e) { setTiendas([]); }
@@ -7319,6 +7320,13 @@ function PuntoVentaView() {
     if (!id) return;
     try { const r = await apiPost(`/central/pos/tiendas/${t.id}/licencia-manual`, { machine_id: id }); setLicencia({ nombre: t.nombre, texto: r.licencia }); } catch (e) { setAviso(e.message); }
   }
+  async function codigoRescate(t, e) {
+    const usuario = window.prompt(`Contraseña olvidada en «${e.nombre}» (${t.nombre}).
+Escribe el usuario del punto de venta (normalmente «admin»):`, "admin");
+    if (!usuario) return;
+    try { const r = await apiPost(`/central/pos/equipos/${e.id}/rescate`, { usuario }); setRescate({ ...r, tienda: t.nombre }); setCodigo(null); setLicencia(null); }
+    catch (err) { setAviso(err.message); }
+  }
   async function desactivar(e) {
     if (!window.confirm(`¿Desactivar el ordenador «${e.nombre}»? Dejará de informar y tendrá que activarse con un código nuevo.`)) return;
     try { await apiPost(`/central/pos/equipos/${e.id}/desactivar`, {}); await cargar(); } catch (err) { setAviso(err.message); }
@@ -7370,6 +7378,18 @@ function PuntoVentaView() {
           <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
             <button onClick={() => { navigator.clipboard?.writeText(codigo.codigo); setAviso("✓ Código copiado"); }} style={boton(COLORS.amber, "#FFFFFF")}>Copiar</button>
             <button onClick={() => setCodigo(null)} style={boton("transparent", COLORS.text, COLORS.line)}>Ya lo tengo</button>
+          </div>
+        </div>
+      )}
+      {rescate && (
+        <div style={{ ...caja, borderColor: COLORS.amber, textAlign: "center" }}>
+          <div style={{ fontSize: 13, color: COLORS.textDim }}>Código para restablecer la contraseña de <strong>{rescate.usuario}</strong> en <strong>{rescate.equipo}</strong> ({rescate.tienda})</div>
+          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: 4, fontFamily: "monospace", margin: "8px 0", color: COLORS.text }}>{rescate.codigo}</div>
+          <div style={{ fontSize: 12, color: COLORS.textDim, marginBottom: 8 }}>Díctaselo por teléfono. Vale unos {rescate.minutos} minutos y una sola vez. En la tienda: pantalla de entrada → «¿Has olvidado la contraseña?» → usuario, código y contraseña nueva. Funciona aunque no tenga internet.</div>
+          {rescate.aviso && <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.rust, marginBottom: 8 }}>⚠️ {rescate.aviso}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => { navigator.clipboard?.writeText(rescate.codigo); setAviso("✓ Código copiado"); }} style={boton(COLORS.amber, "#FFFFFF")}>Copiar</button>
+            <button onClick={() => setRescate(null)} style={boton("transparent", COLORS.text, COLORS.line)}>Cerrar</button>
           </div>
         </div>
       )}
@@ -7450,6 +7470,7 @@ function PuntoVentaView() {
                             </div>
                           )}
                         </div>
+                        {e.activo && <button onClick={() => codigoRescate(t, e)} style={boton("transparent", COLORS.text, COLORS.line)}>Contraseña olvidada</button>}
                         {e.activo && <button onClick={() => desactivar(e)} style={boton("transparent", COLORS.rust, "#FCA5A5")}>Desactivar</button>}
                       </div>
                       {e.copias?.length > 0 && (
