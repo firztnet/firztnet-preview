@@ -7588,6 +7588,23 @@ function ActualizacionesPos({ tiendas, onCambio }) {
               )}
             </div>
             <div style={{ fontSize: 12.5, color: COLORS.textDim, margin: "8px 0", whiteSpace: "pre-wrap" }}>{v.notas || "Sin novedades escritas (la tienda verá «Mejoras de funcionamiento y seguridad»)."}</div>
+            {v.estado === "publicada" && (v.ordenadores || []).length > 0 && (
+              <div style={{ border: `1px solid ${COLORS.line}`, borderRadius: 10, margin: "4px 0 10px", overflow: "hidden" }}>
+                {[...v.ordenadores].sort((a, b) => (a.estado === "al_dia") - (b.estado === "al_dia")).map((o) => {
+                  const color = { al_dia: COLORS.green, fallida: COLORS.rust, sin_noticias: COLORS.rust, manual: COLORS.amber, aceptar: COLORS.amber }[o.estado] || COLORS.textDim;
+                  const icono = { al_dia: "✓", fallida: "✕", sin_noticias: "⚠", manual: "⚠", aceptar: "⏳", descargando: "⬇", pendiente: "…" }[o.estado] || "…";
+                  return (
+                    <div key={o.id} style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "8px 12px", borderTop: `1px solid ${COLORS.line}`, fontSize: 12.5, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 800, color, width: 16 }}>{icono}</span>
+                      <strong style={{ color: COLORS.text, minWidth: 180 }}>{o.tienda} · {o.equipo}</strong>
+                      <span style={{ color: COLORS.textDim, minWidth: 90 }}>tiene la {o.version || "?"}</span>
+                      <span style={{ color, fontWeight: o.estado === "al_dia" ? 600 : 700, flex: 1 }}>{o.texto}</span>
+                      <span style={{ color: COLORS.textDim, fontSize: 11.5 }}>{o.ultimo_parte ? `conectado ${haceCuanto(o.ultimo_parte)}` : "nunca conectado"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: 12.5, color: COLORS.text }}>
               <label><input type="radio" checked={v.destino === "prueba"} onChange={() => cambiar(v, { destino: "prueba" })} /> Solo tiendas de prueba:</label>
               {v.destino === "prueba" && tiendas.map((t) => (
