@@ -6610,6 +6610,16 @@ function FichaCliente({ id, onCerrar }) {
           {f.renueva && <div>Renovación: <strong>{fechaCorta(f.renueva)}</strong></div>}
           <div>Negocios: <strong>{(f.negocios || []).map((n) => n.nombre).join(", ") || "—"}</strong></div>
         </div>
+        {f.uso?.empresa && (
+          <div style={{ fontSize: 12.5, color: COLORS.text, lineHeight: 1.7, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${COLORS.line}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textDim, textTransform: "uppercase" }}>Su empresa (para tu factura)</div>
+            <div>Razón social: <strong>{f.uso.empresa.razon_social || "—"}</strong></div>
+            <div>NIF: {f.uso.nif_pendiente || !f.uso.empresa.nif
+              ? <strong style={{ color: COLORS.statusAmber }}>⚠ Pendiente (aún no lo ha puesto en su panel)</strong>
+              : <strong>{f.uso.empresa.nif}</strong>}</div>
+            {f.uso.empresa.direccion && <div>Dirección fiscal: <strong>{f.uso.empresa.direccion}</strong></div>}
+          </div>
+        )}
       </div>
       <div style={caja}>
         <div style={titulo}>Uso este mes</div>
